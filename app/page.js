@@ -23,7 +23,12 @@ export default function Page() {
     setLefty(v => { const n = !v; try { localStorage.setItem('snake-lefty', n ? '1' : '0'); } catch (e) {} return n; });
   }
   // Kalau ternyata perangkat sentuh tapi mode-nya multiplayer, balik ke Classic.
-  useEffect(() => { if (isTouch && mode === 'multiplayer') setMode('classic'); }, [isTouch, mode]);
+  useEffect(() => { if (isTouch && (mode === 'multiplayer' || mode === 'mayhemduo')) setMode('classic'); }, [isTouch, mode]);
+  const [speed, setSpeed] = useState('normal');
+  const [taSecs, setTaSecs] = useState(90);
+  useEffect(() => { try { const s = localStorage.getItem('snake-speed'); if (s) setSpeed(s); const t = parseInt(localStorage.getItem('snake-ta') || '90'); if (t) setTaSecs(t); } catch (e) {} }, []);
+  useEffect(() => { gameRef.current && gameRef.current.setSpeedPref(speed); try { localStorage.setItem('snake-speed', speed); } catch (e) {} }, [speed]);
+  useEffect(() => { gameRef.current && gameRef.current.setTaDuration(taSecs); try { localStorage.setItem('snake-ta', String(taSecs)); } catch (e) {} }, [taSecs]);
   const [helpOpen, setHelpOpen] = useState(false);
   const [hud, setHud] = useState({
     score: 0, best: 0, modeLabel: 'Snake · Classic', effects: [], mpHud: null, timerText: null,
@@ -52,7 +57,7 @@ export default function Page() {
   }
 
   function handleDpad(x, y) {
-    if (mode === 'multiplayer') {
+    if (mode === 'multiplayer' || mode === 'mayhemduo') {
       if (!hud.running) gameRef.current && gameRef.current.start();
       else gameRef.current && gameRef.current.setDirMP(0, x, y);
     } else {
@@ -80,7 +85,7 @@ export default function Page() {
         onHelp={() => setHelpOpen(true)}
       />
 
-      <div id="wrap" className="game-w relative border-[7px] rounded-md shadow-2xl" style={{ borderColor: '#4a752c' }}>
+      <div id="wrap" className="game-w relative border-[7px] rounded-md shadow-2xl" style={{ borderColor: mode === 'classicnight' ? '#2b4763' : '#4a752c' }}>
         <GameCanvas ref={gameRef} mode={mode} onUpdate={onUpdate} />
         <Overlay
           visible={overlay.visible}
@@ -91,6 +96,10 @@ export default function Page() {
           btnText={overlay.btnText}
           mode={mode}
           onModeChange={handleModeChange}
+          speed={speed}
+          onSpeedChange={setSpeed}
+          taSecs={taSecs}
+          onTaChange={setTaSecs}
           onPlay={handlePlay}
         />
       </div>

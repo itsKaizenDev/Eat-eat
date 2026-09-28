@@ -13,12 +13,19 @@ const GROUPS = [
 const SUBS = {
   classic: [
     { mode: 'classic', label: 'Classic' },
+    { mode: 'classicnight', label: 'Malam' },
     { mode: 'portal', label: 'Portal' },
     { mode: 'timeattack', label: 'Time' },
   ],
   mayhem: [
     { mode: 'mayhem', label: 'Mayhem' },
     { mode: 'mayhemplus', label: 'Mayhem+' },
+    { mode: 'mayhemhard', label: 'Hard' },
+    { mode: 'impossible', label: 'Impossible' },
+  ],
+  mp: [
+    { mode: 'multiplayer', label: '2P Lokal' },
+    { mode: 'mayhemduo', label: 'Mayhem Duo' },
   ],
 };
 
@@ -51,7 +58,14 @@ const CONFETTI_BG = [
 const CONFETTI_SIZE = '64px 84px, 78px 96px, 90px 70px, 70px 110px';
 const CONFETTI_POS = '6px 10px, 34px 46px, 54px 8px, 20px 70px';
 
-export default function Overlay({ visible, phase, mood, title, sub, btnText, mode, onModeChange, onPlay }) {
+const SPEEDS = [{ k: 'santai', l: 'Santai' }, { k: 'normal', l: 'Normal' }, { k: 'ngebut', l: 'Ngebut' }, { k: 'konstan', l: 'Konstan' }];
+function Chip({ on, onClick, children }) {
+  return (
+    <button onClick={onClick} className={`px-3 py-1 rounded-full text-[11px] font-semibold border transition-colors ${on ? 'bg-[#5f9c22] border-[#8fd13f] text-white' : 'bg-[#1c1c1c] border-[#3a3a3a] text-[#c9d6bd] hover:bg-[#262626]'}`}>{children}</button>
+  );
+}
+
+export default function Overlay({ visible, phase, mood, title, sub, btnText, mode, onModeChange, onPlay, speed, onSpeedChange, taSecs, onTaChange }) {
   const [group, setGroup] = useState('classic');
   const isTouch = useIsTouch();
   const groups = isTouch ? GROUPS.filter(g => g.key !== 'mp') : GROUPS; // 2P Lokal disembunyikan di HP
@@ -73,7 +87,6 @@ export default function Overlay({ visible, phase, mood, title, sub, btnText, mod
 
   function selectGroup(g) {
     setGroup(g.key);
-    if (g.key === 'mp') { onModeChange('multiplayer'); return; }
     onModeChange(SUBS[g.key][0].mode);
   }
 
@@ -125,8 +138,8 @@ export default function Overlay({ visible, phase, mood, title, sub, btnText, mod
               );
             })}
           </div>
-          {group !== 'mp' && (
-            <div className="relative grid grid-cols-3 gap-2 justify-center mb-4 sm:mb-5 w-full max-w-[300px]">
+          {(
+            <div className="relative grid gap-2 justify-center mb-3 w-full max-w-[320px]" style={{ gridTemplateColumns: `repeat(${SUBS[group].length}, minmax(0, 1fr))` }}>
               {SUBS[group].map(s => {
                 const Icon = ICONS[s.mode];
                 return (
@@ -142,6 +155,17 @@ export default function Overlay({ visible, phase, mood, title, sub, btnText, mod
               })}
             </div>
           )}
+          {mode === 'impossible'
+            ? <p className="relative text-[11px] text-[#e8a09a] mb-2">Kecepatan dikunci: Ngebut</p>
+            : <div className="relative flex flex-wrap gap-1.5 justify-center mb-2">
+                {SPEEDS.map(s => <Chip key={s.k} on={speed === s.k} onClick={() => onSpeedChange(s.k)}>{s.l}</Chip>)}
+              </div>}
+          {mode === 'timeattack' && (
+            <div className="relative flex flex-wrap gap-1.5 justify-center mb-2">
+              {[30, 60, 90, 120].map(t => <Chip key={t} on={taSecs === t} onClick={() => onTaChange(t)}>{t}s</Chip>)}
+            </div>
+          )}
+          <div className="mb-3" />
         </>
       )}
 

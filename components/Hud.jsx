@@ -79,7 +79,7 @@ export default function Hud({ mode, modeLabel, timerText, effects, score, best, 
   }
   return (
     <>
-      {mode === 'multiplayer' && mpHud && (
+      {(mode === 'multiplayer' || mode === 'mayhemduo') && mpHud && (
         <div className="game-w flex justify-between items-center text-[12px] font-semibold mb-1.5 px-1">
           <span className="flex items-center gap-1.5" style={{ color: '#8fd13f' }}>{mpHud.p1Label} <Hearts count={mpHud.p1Lives} /></span>
           <span className="flex items-center gap-1.5" style={{ color: '#5fc2ea' }}>{mpHud.p2Label} <Hearts count={mpHud.p2Lives} /></span>
@@ -102,7 +102,7 @@ export default function Hud({ mode, modeLabel, timerText, effects, score, best, 
           <button onClick={onHelp} aria-label="Bantuan" className="w-7 h-7 rounded-full bg-[#232323] text-white flex items-center justify-center">
             <HelpIcon size={15} />
           </button>
-          {mode !== 'multiplayer' && (
+          {mode !== 'multiplayer' && mode !== 'mayhemduo' && (
             <div className="flex items-center gap-1.5 font-bold">
               <ICONS.trophy size={15} className="text-[#f5b942]" />
               <span>{score}</span>

@@ -23,6 +23,8 @@ const GameCanvas = forwardRef(function GameCanvas({ mode, onUpdate }, ref) {
     start: () => engineRef.current && engineRef.current.start(),
     setDir: (x, y) => engineRef.current && engineRef.current.setDir(x, y),
     setDirMP: (which, x, y) => engineRef.current && engineRef.current.setDirMP(which, x, y),
+    setSpeedPref: (v) => engineRef.current && engineRef.current.setSpeedPref(v),
+    setTaDuration: (s) => engineRef.current && engineRef.current.setTaDuration(s),
     isRunning: () => !!(engineRef.current && engineRef.current.isRunning()),
   }));
 
@@ -32,7 +34,7 @@ const GameCanvas = forwardRef(function GameCanvas({ mode, onUpdate }, ref) {
       if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k)) e.preventDefault();
       const engine = engineRef.current;
       if (!engine) return;
-      if (modeRef.current === 'multiplayer') {
+      if ((modeRef.current === 'multiplayer' || modeRef.current === 'mayhemduo')) {
         if (!engine.isRunning()) {
           if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd'].includes(k)) engine.start();
           return;

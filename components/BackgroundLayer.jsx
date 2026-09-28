@@ -4,6 +4,10 @@ import gsap from 'gsap';
 
 const BG = {
   classic: '/assets/game/bg-classic.png',
+  classicnight: '/assets/game/bg-classic.png',
+  mayhemhard: '/assets/game/bg-mayhemplus.png',
+  impossible: '/assets/game/bg-mayhemplus.png',
+  mayhemduo: '/assets/game/bg-mayhemplus.png',
   portal: '/assets/game/bg-portal.png',
   timeattack: '/assets/game/bg-timeattack.png',
   mayhem: '/assets/game/bg-mayhem.png',
@@ -45,7 +49,7 @@ export default function BackgroundLayer({ mode }) {
           style={{ backgroundImage: `url(${l.src})` }}
         />
       ))}
-      <div className="absolute inset-0 bg-black/45" />
+      <div className={`absolute inset-0 transition-colors duration-700 ${mode === 'classicnight' ? 'bg-[#050b14]/85' : 'bg-black/45'}`} />
     </div>
   );
 }
