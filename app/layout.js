@@ -23,7 +23,7 @@ export default function RootLayout({ children }) {
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </head>
-      <body className="flex flex-col items-center p-4 text-[#e8f0e0] font-sans">
+      <body className="flex flex-col items-center text-[#e8f0e0] font-sans">
         {children}
       </body>
     </html>

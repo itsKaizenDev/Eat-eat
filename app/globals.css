@@ -2,36 +2,74 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ---------- Responsif ----------
+   --gw = lebar area game (HUD + kanvas). Dibatasi lebar layar DAN tinggi layar,
+   supaya di HP (portrait/landscape), tablet, sampai desktop semuanya muat tanpa scroll.
+   --dp = ukuran tombol panah. */
+:root {
+  --dp: clamp(54px, 15vw, 66px);
+  --gw: min(100vw - 16px, 640px, max(260px, calc((100dvh - 270px) * 1.13)));
+}
+
 html, body {
-  height: 100%;
+  min-height: 100%;
   margin: 0;
   background: #1e1e1e;
   font-family: 'Fredoka', ui-rounded, system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
 }
+
+body {
+  min-height: 100dvh;
+  padding:
+    max(8px, env(safe-area-inset-top))
+    max(8px, env(safe-area-inset-right))
+    max(8px, env(safe-area-inset-bottom))
+    max(8px, env(safe-area-inset-left));
+}
+
+.game-w { width: var(--gw); }
 
 canvas {
   display: block;
   width: 100%;
   height: auto;
   border-radius: 2px;
+  touch-action: none; /* swipe di kanvas tidak ikut scroll halaman */
 }
 
-.mode-btn.active {
-  border-color: #5f9c22 !important;
-  background: #2f4a12;
-}
-
+.mode-btn.active,
 .mode-group.active {
   border-color: #5f9c22 !important;
   background: #2f4a12;
 }
 
-#dpad {
-  display: grid;
+#dpad { display: grid; }
+
+/* Desktop (mouse): tombol panah disembunyikan, tinggi yang dipesan lebih kecil */
+@media (hover: hover) and (pointer: fine) {
+  #dpad { display: none !important; }
+  :root { --gw: min(100vw - 16px, 640px, max(260px, calc((100dvh - 130px) * 1.13))); }
 }
 
-@media (hover: hover) and (pointer: fine) {
-  #dpad {
-    display: none !important;
+/* HP landscape (layar pendek): D-pad melayang di pojok kanan bawah, game diperkecil */
+@media (orientation: landscape) and (max-height: 520px) and (hover: none) {
+  :root {
+    --dp: clamp(48px, 13vh, 58px);
+    --gw: min(100vw - 16px, 640px, max(220px, calc((100dvh - 110px) * 1.13)));
   }
+  #dpad {
+    position: fixed;
+    right: max(14px, env(safe-area-inset-right));
+    bottom: max(14px, env(safe-area-inset-bottom));
+    margin-top: 0 !important;
+    opacity: .92;
+    z-index: 20;
+  }
+}
+
+/* Layar sangat sempit (HP kecil) */
+@media (max-width: 360px) {
+  :root { --dp: 52px; }
 }

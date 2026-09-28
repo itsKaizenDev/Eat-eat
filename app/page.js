@@ -60,7 +60,7 @@ export default function Page() {
       />
       <HelpModal open={helpOpen} mode={mode} onClose={() => setHelpOpen(false)} />
 
-      <div id="wrap" className="relative border-[7px] rounded-md shadow-2xl max-w-[640px] w-full" style={{ borderColor: '#4a752c' }}>
+      <div id="wrap" className="game-w relative border-[7px] rounded-md shadow-2xl" style={{ borderColor: '#4a752c' }}>
         <GameCanvas ref={gameRef} mode={mode} onUpdate={onUpdate} />
         <Overlay
           visible={overlay.visible}
@@ -76,7 +76,7 @@ export default function Page() {
       </div>
 
       <DPad mode={mode} onMove={handleDpad} />
-      <div className="text-xs text-[#8a988a] mt-2.5">Panah / WASD gerak • Esc jeda • Terbaik: <b>{hud.best}</b></div>
+      <div className="text-[11px] sm:text-xs text-[#8a988a] mt-2.5 text-center">Panah / WASD gerak • Esc jeda • Terbaik: <b>{hud.best}</b></div>
     </>
   );
 }

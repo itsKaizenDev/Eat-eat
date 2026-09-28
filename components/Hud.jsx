@@ -35,15 +35,15 @@ export default function Hud({ mode, modeLabel, timerText, effects, score, mpHud,
   return (
     <>
       {mode === 'multiplayer' && mpHud && (
-        <div className="w-full max-w-[640px] flex justify-between items-center text-[12px] font-semibold mb-1.5 px-1">
+        <div className="game-w flex justify-between items-center text-[12px] font-semibold mb-1.5 px-1">
           <span className="flex items-center gap-1.5" style={{ color: '#8fd13f' }}>{mpHud.p1Label} <Hearts count={mpHud.p1Lives} /></span>
           <span className="flex items-center gap-1.5" style={{ color: '#5fc2ea' }}>{mpHud.p2Label} <Hearts count={mpHud.p2Lives} /></span>
         </div>
       )}
-      <div className="w-full max-w-[640px] bg-white text-[#202124] rounded-lg flex items-center justify-between px-4 py-2.5 mb-2.5 shadow-lg">
-        <div className="flex items-center gap-2.5 flex-wrap">
+      <div className="game-w bg-white text-[#202124] rounded-lg flex items-center justify-between gap-2 px-3 sm:px-4 py-2 sm:py-2.5 mb-2 sm:mb-2.5 shadow-lg">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 flex-wrap min-w-0">
           <ICONS.gamepad size={18} className="text-[#5f6368]" />
-          <b className="text-[17px] tracking-wide">{modeLabel}</b>
+          <b className="text-[15px] sm:text-[17px] tracking-wide">{modeLabel}</b>
           {mode === 'timeattack' && timerText && (
             <span className="flex items-center gap-1 text-[13px] font-bold text-[#c9432f]">
               <TimerIcon size={14} />{timerText}

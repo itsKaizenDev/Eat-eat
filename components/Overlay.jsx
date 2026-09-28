@@ -29,6 +29,27 @@ const MASCOTS = {
   dizzy: '/assets/game/mascot-dizzy.png',
 };
 
+// Tint overlay per mood, biar layar "Menang" kerasa beda sama "Game Over"/"Waktu
+// Habis" — bukan cuma teks & mascot yang beda, warna suasananya juga ikut ganti.
+const MOOD_BG = {
+  idle:  'radial-gradient(circle at 50% 30%, rgba(45,65,20,.92), rgba(10,16,6,.94))',
+  win:   'radial-gradient(circle at 50% 30%, rgba(120,92,10,.90), rgba(48,30,4,.95))',
+  sick:  'radial-gradient(circle at 50% 30%, rgba(80,28,96,.90), rgba(22,8,28,.95))',
+  shock: 'radial-gradient(circle at 50% 30%, rgba(110,26,22,.90), rgba(28,6,6,.95))',
+  dizzy: 'radial-gradient(circle at 50% 30%, rgba(34,42,92,.90), rgba(10,10,26,.95))',
+};
+
+// Confetti kecil buat layar menang doang — titik-titik warna-warni yang
+// disusun pakai beberapa radial-gradient, tanpa perlu file gambar baru.
+const CONFETTI_BG = [
+  'radial-gradient(circle, #ffd23f 3px, transparent 4px)',
+  'radial-gradient(circle, #ff6a5c 3px, transparent 4px)',
+  'radial-gradient(circle, #5fc2ea 3px, transparent 4px)',
+  'radial-gradient(circle, #8fd13f 3px, transparent 4px)',
+].join(',');
+const CONFETTI_SIZE = '64px 84px, 78px 96px, 90px 70px, 70px 110px';
+const CONFETTI_POS = '6px 10px, 34px 46px, 54px 8px, 20px 70px';
+
 export default function Overlay({ visible, phase, mood, title, sub, btnText, mode, onModeChange, onPlay }) {
   const [group, setGroup] = useState('classic');
   const showPicker = phase !== 'pause';
@@ -58,31 +79,39 @@ export default function Overlay({ visible, phase, mood, title, sub, btnText, mod
   return (
     <div
       ref={rootRef}
-      className="absolute inset-0 flex flex-col items-center justify-center text-center p-5 rounded"
-      style={{ background: 'radial-gradient(circle at 50% 30%,rgba(45,65,20,.92),rgba(10,16,6,.94))' }}
+      className="absolute inset-0 flex flex-col text-center p-3 sm:p-5 rounded overflow-y-auto"
+      style={{ background: MOOD_BG[mood] || MOOD_BG.idle }}
     >
+      {mood === 'win' && (
+        <div
+          aria-hidden
+          className="absolute inset-0 pointer-events-none rounded opacity-60"
+          style={{ backgroundImage: CONFETTI_BG, backgroundSize: CONFETTI_SIZE, backgroundPosition: CONFETTI_POS }}
+        />
+      )}
+      <div className="relative m-auto flex flex-col items-center w-full">
       <img
         ref={mascotRef}
         src={MASCOTS[mood] || MASCOTS.idle}
         alt=""
         width={92}
         height={98}
-        className="mb-1 select-none"
+        className="relative mb-1 select-none w-[clamp(44px,min(18vw,13vh),104px)] h-auto"
         draggable={false}
       />
-      <h2 className="text-3xl mb-1 font-bold tracking-wide" style={{ textShadow: '0 2px 8px rgba(0,0,0,.5)' }}>{title}</h2>
-      <p className="text-sm text-[#d8e6c8] mb-4">{sub}</p>
+      <h2 className="relative text-[clamp(1.4rem,6vw,1.9rem)] mb-1 font-bold tracking-wide" style={{ textShadow: '0 2px 8px rgba(0,0,0,.5)' }}>{title}</h2>
+      <p className="relative text-[clamp(.75rem,3.2vw,.875rem)] text-[#d8e6c8] mb-3 sm:mb-4">{sub}</p>
 
       {showPicker && (
         <>
-          <div className="flex gap-2 justify-center mb-3">
+          <div className="relative flex gap-2 justify-center mb-3">
             {GROUPS.map(g => {
               const Icon = ICONS[g.icon];
               return (
                 <button
                   key={g.key}
                   onClick={() => selectGroup(g)}
-                  className={`mode-group flex flex-col items-center gap-1 w-20 py-2.5 rounded-xl border-2 border-transparent bg-[#232323] shadow-md transition-colors hover:bg-[#2c2c2c] ${group === g.key ? 'active' : ''}`}
+                  className={`mode-group flex flex-col items-center gap-1 w-[clamp(64px,22vw,80px)] py-2 rounded-xl border-2 border-transparent bg-[#232323] shadow-md transition-colors hover:bg-[#2c2c2c] ${group === g.key ? 'active' : ''}`}
                 >
                   <Icon size={22} strokeWidth={2.2} />
                   <span className="text-[10px] font-semibold">{g.label}</span>
@@ -91,7 +120,7 @@ export default function Overlay({ visible, phase, mood, title, sub, btnText, mod
             })}
           </div>
           {group !== 'mp' && (
-            <div className="grid grid-cols-3 gap-2 justify-center mb-5 max-w-[300px]">
+            <div className="relative grid grid-cols-3 gap-2 justify-center mb-4 sm:mb-5 w-full max-w-[300px]">
               {SUBS[group].map(s => {
                 const Icon = ICONS[s.mode];
                 return (
@@ -112,11 +141,12 @@ export default function Overlay({ visible, phase, mood, title, sub, btnText, mod
 
       <button
         onClick={onPlay}
-        className="bg-[#5f9c22] text-white px-10 py-3 rounded-full font-bold tracking-wide shadow-lg"
+        className="relative bg-[#5f9c22] text-white px-10 py-3 rounded-full font-bold tracking-wide shadow-lg"
         style={{ boxShadow: '0 4px 14px rgba(95,156,34,.5)' }}
       >
         {btnText}
       </button>
+      </div>
     </div>
   );
 }
