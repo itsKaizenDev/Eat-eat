@@ -1,5 +1,6 @@
 'use client';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useIsTouch } from '@/hooks/useIsTouch';
 import GameCanvas from '@/components/GameCanvas';
 import Hud from '@/components/Hud';
 import Overlay from '@/components/Overlay';
@@ -10,6 +11,9 @@ import BackgroundLayer from '@/components/BackgroundLayer';
 export default function Page() {
   const gameRef = useRef(null);
   const [mode, setMode] = useState('classic');
+  const isTouch = useIsTouch();
+  // Kalau ternyata perangkat sentuh tapi mode-nya multiplayer, balik ke Classic.
+  useEffect(() => { if (isTouch && mode === 'multiplayer') setMode('classic'); }, [isTouch, mode]);
   const [helpOpen, setHelpOpen] = useState(false);
   const [hud, setHud] = useState({
     score: 0, best: 0, modeLabel: 'Snake · Classic', effects: [], mpHud: null, timerText: null,

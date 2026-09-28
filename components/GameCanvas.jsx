@@ -58,20 +58,36 @@ const GameCanvas = forwardRef(function GameCanvas({ mode, onUpdate }, ref) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
+  // Swipe di mana saja di layar (bukan cuma di kanvas): geser jari > 24px = belok.
+  // Origin di-reset tiap kali belok, jadi satu gesekan panjang bisa belok berkali-kali.
   useEffect(() => {
-    const canvas = canvasRef.current;
-    let tx = 0, ty = 0;
-    function onTouchStart(e) { const t0 = e.touches[0]; tx = t0.clientX; ty = t0.clientY; }
-    function onTouchEnd(e) {
-      const t0 = e.changedTouches[0]; const dx = t0.clientX - tx, dy = t0.clientY - ty;
+    const TH = 24;
+    let sx = 0, sy = 0, tracking = false;
+    const ignore = (el) => el && el.closest && el.closest('.no-swipe, button, a, input');
+    function onStart(e) {
+      if (ignore(e.target) || e.touches.length !== 1) { tracking = false; return; }
+      sx = e.touches[0].clientX; sy = e.touches[0].clientY; tracking = true;
+    }
+    function onMove(e) {
+      if (!tracking) return;
+      if (e.cancelable) e.preventDefault(); // cegah halaman ikut scroll / pull-to-refresh
+      const t = e.touches[0];
+      const dx = t.clientX - sx, dy = t.clientY - sy;
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < TH) return;
       const engine = engineRef.current; if (!engine) return;
       if (Math.abs(dx) > Math.abs(dy)) engine.setDir(dx > 0 ? 1 : -1, 0); else engine.setDir(0, dy > 0 ? 1 : -1);
+      sx = t.clientX; sy = t.clientY;
     }
-    canvas.addEventListener('touchstart', onTouchStart, { passive: true });
-    canvas.addEventListener('touchend', onTouchEnd, { passive: true });
+    function onEnd() { tracking = false; }
+    window.addEventListener('touchstart', onStart, { passive: true });
+    window.addEventListener('touchmove', onMove, { passive: false });
+    window.addEventListener('touchend', onEnd, { passive: true });
+    window.addEventListener('touchcancel', onEnd, { passive: true });
     return () => {
-      canvas.removeEventListener('touchstart', onTouchStart);
-      canvas.removeEventListener('touchend', onTouchEnd);
+      window.removeEventListener('touchstart', onStart);
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('touchend', onEnd);
+      window.removeEventListener('touchcancel', onEnd);
     };
   }, []);
 

@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import { ICONS } from '@/lib/icons';
+import { useIsTouch } from '@/hooks/useIsTouch';
 
 const GROUPS = [
   { key: 'classic', icon: 'classic', label: 'Classic' },
@@ -52,6 +53,8 @@ const CONFETTI_POS = '6px 10px, 34px 46px, 54px 8px, 20px 70px';
 
 export default function Overlay({ visible, phase, mood, title, sub, btnText, mode, onModeChange, onPlay }) {
   const [group, setGroup] = useState('classic');
+  const isTouch = useIsTouch();
+  const groups = isTouch ? GROUPS.filter(g => g.key !== 'mp') : GROUPS; // 2P Lokal disembunyikan di HP
   const showPicker = phase !== 'pause';
   const rootRef = useRef(null);
   const mascotRef = useRef(null);
@@ -79,7 +82,7 @@ export default function Overlay({ visible, phase, mood, title, sub, btnText, mod
   return (
     <div
       ref={rootRef}
-      className="absolute inset-0 flex flex-col text-center p-3 sm:p-5 rounded overflow-y-auto"
+      className="overlay-root no-swipe absolute inset-0 flex flex-col text-center p-3 sm:p-5 rounded overflow-y-auto"
       style={{ background: MOOD_BG[mood] || MOOD_BG.idle }}
     >
       {mood === 'win' && (
@@ -96,16 +99,16 @@ export default function Overlay({ visible, phase, mood, title, sub, btnText, mod
         alt=""
         width={92}
         height={98}
-        className="relative mb-1 select-none w-[clamp(44px,min(18vw,13vh),104px)] h-auto"
+        className="relative mb-1 select-none w-[clamp(56px,min(26vw,14vh),116px)] h-auto"
         draggable={false}
       />
-      <h2 className="relative text-[clamp(1.4rem,6vw,1.9rem)] mb-1 font-bold tracking-wide" style={{ textShadow: '0 2px 8px rgba(0,0,0,.5)' }}>{title}</h2>
+      <h2 className="relative text-[clamp(1.5rem,7vw,2rem)] mb-1 font-bold tracking-wide" style={{ textShadow: '0 2px 8px rgba(0,0,0,.5)' }}>{title}</h2>
       <p className="relative text-[clamp(.75rem,3.2vw,.875rem)] text-[#d8e6c8] mb-3 sm:mb-4">{sub}</p>
 
       {showPicker && (
         <>
           <div className="relative flex gap-2 justify-center mb-3">
-            {GROUPS.map(g => {
+            {groups.map(g => {
               const Icon = ICONS[g.icon];
               return (
                 <button
@@ -141,7 +144,7 @@ export default function Overlay({ visible, phase, mood, title, sub, btnText, mod
 
       <button
         onClick={onPlay}
-        className="relative bg-[#5f9c22] text-white px-10 py-3 rounded-full font-bold tracking-wide shadow-lg"
+        className="relative bg-[#5f9c22] text-white px-12 py-3.5 text-lg rounded-full active:scale-95 transition-transform font-bold tracking-wide shadow-lg"
         style={{ boxShadow: '0 4px 14px rgba(95,156,34,.5)' }}
       >
         {btnText}

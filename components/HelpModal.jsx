@@ -16,7 +16,7 @@ export default function HelpModal({ open, mode, onClose }) {
   const rules = MODE_RULES[mode] || MODE_RULES.classic;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-5" style={{ background: 'rgba(0,0,0,.6)' }}>
+    <div className="no-swipe fixed inset-0 z-50 flex items-center justify-center p-5" style={{ background: 'rgba(0,0,0,.6)' }}>
       <div ref={cardRef} className="bg-[#232323] rounded-xl p-5 max-w-[360px] w-full max-h-[90dvh] overflow-y-auto text-sm leading-relaxed">
         <h3 className="text-base font-bold mb-2.5">Cara Main</h3>
         <div className="space-y-1.5 mb-3 text-[#c9d6bd]">

@@ -73,3 +73,24 @@ canvas {
 @media (max-width: 360px) {
   :root { --dp: 52px; }
 }
+
+/* HP / layar sentuh: menu (mulai, game over, jeda) jadi layar penuh supaya
+   semua tombol muat tanpa perlu scroll. Di desktop tetap di dalam kanvas. */
+@media (hover: none) and (pointer: coarse), (max-width: 480px) {
+  .overlay-root {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 40;
+    border-radius: 0 !important;
+    padding-top: max(16px, env(safe-area-inset-top));
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+  }
+}
+
+/* Saat main di layar sentuh, gesekan jari tidak boleh menggeser/zoom halaman */
+@media (hover: none) and (pointer: coarse) {
+  html, body { touch-action: none; }
+  .overlay-root { touch-action: pan-y; }
+}
