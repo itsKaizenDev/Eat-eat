@@ -29,9 +29,54 @@ function Hearts({ count }) {
   );
 }
 
-export default function Hud({ mode, modeLabel, timerText, effects, score, mpHud, onHelp }) {
+export default function Hud({ mode, modeLabel, timerText, effects, score, best, mpHud, onHelp, side, lefty, onSwap }) {
   const HelpIcon = ICONS.help;
   const TimerIcon = ICONS.timeattack;
+
+  // Mode landscape di HP: HUD jadi kartu vertikal di panel samping kanvas.
+  if (side) {
+    const showTimer = mode === 'timeattack' && timerText;
+    return (
+      <div className="side-hud bg-white text-[#202124] rounded-xl shadow-lg p-3 flex flex-col gap-2 min-w-0">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <ICONS.gamepad size={18} className="text-[#5f6368] shrink-0" />
+            <b className="text-[15px] tracking-wide truncate">{modeLabel}</b>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              onClick={onSwap}
+              aria-label={lefty ? 'Mode kidal aktif, tap untuk balik ke kanan' : 'Pindahkan tombol ke kiri (mode kidal)'}
+              aria-pressed={!!lefty}
+              className={`w-9 h-9 rounded-full flex items-center justify-center active:scale-95 transition-transform ${lefty ? 'bg-[#5f9c22] text-white' : 'bg-[#e8eaed] text-[#3c4043]'}`}
+            >
+              <ICONS.swap size={17} />
+            </button>
+            <button onClick={onHelp} aria-label="Bantuan" className="w-9 h-9 rounded-full bg-[#232323] text-white flex items-center justify-center active:scale-95 transition-transform">
+              <HelpIcon size={17} />
+            </button>
+          </div>
+        </div>
+        <div className="flex items-end justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <ICONS.trophy size={24} className="text-[#f5b942]" />
+            <span className="text-4xl font-bold leading-none">{score}</span>
+          </div>
+          <div className="text-xs text-[#5f6368] pb-0.5">Terbaik <b className="text-[#202124] text-sm">{best}</b></div>
+        </div>
+        {(showTimer || effects.length > 0) && (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {showTimer && (
+              <span className="flex items-center gap-1 text-[13px] font-bold text-[#c9432f]">
+                <TimerIcon size={14} />{timerText}
+              </span>
+            )}
+            {effects.map((e, i) => <EffectBadge key={e.type + i} effect={e} />)}
+          </div>
+        )}
+      </div>
+    );
+  }
   return (
     <>
       {mode === 'multiplayer' && mpHud && (

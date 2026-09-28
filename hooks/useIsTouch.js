@@ -1,18 +1,7 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useMediaQuery } from './useMediaQuery';
 
-// True kalau perangkat utamanya layar sentuh (HP / tablet tanpa mouse).
-// Dipakai buat menyembunyikan mode 2P Lokal, karena 2 pemain butuh 2 keyboard
-// (Panah + WASD) dan nggak enak dimainkan di satu layar sentuh.
-// Awalnya false supaya hasil render server & klien sama (nggak hydration mismatch).
+// True kalau input utamanya layar sentuh (HP / tablet tanpa mouse).
 export function useIsTouch() {
-  const [isTouch, setIsTouch] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia('(hover: none) and (pointer: coarse)');
-    const update = () => setIsTouch(mq.matches);
-    update();
-    mq.addEventListener('change', update);
-    return () => mq.removeEventListener('change', update);
-  }, []);
-  return isTouch;
+  return useMediaQuery('(hover: none) and (pointer: coarse)');
 }

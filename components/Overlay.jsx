@@ -92,19 +92,22 @@ export default function Overlay({ visible, phase, mood, title, sub, btnText, mod
           style={{ backgroundImage: CONFETTI_BG, backgroundSize: CONFETTI_SIZE, backgroundPosition: CONFETTI_POS }}
         />
       )}
-      <div className="relative m-auto flex flex-col items-center w-full">
+      <div className="overlay-inner relative m-auto flex flex-col items-center w-full">
+      <div className="ov-head flex flex-col items-center">
       <img
         ref={mascotRef}
         src={MASCOTS[mood] || MASCOTS.idle}
         alt=""
         width={92}
         height={98}
-        className="relative mb-1 select-none w-[clamp(56px,min(26vw,14vh),116px)] h-auto"
+        className="ov-mascot relative mb-1 select-none w-[clamp(56px,min(26vw,14vh),116px)] h-auto"
         draggable={false}
       />
       <h2 className="relative text-[clamp(1.5rem,7vw,2rem)] mb-1 font-bold tracking-wide" style={{ textShadow: '0 2px 8px rgba(0,0,0,.5)' }}>{title}</h2>
       <p className="relative text-[clamp(.75rem,3.2vw,.875rem)] text-[#d8e6c8] mb-3 sm:mb-4">{sub}</p>
+      </div>
 
+      <div className="ov-body flex flex-col items-center w-full">
       {showPicker && (
         <>
           <div className="relative flex gap-2 justify-center mb-3">
@@ -149,6 +152,7 @@ export default function Overlay({ visible, phase, mood, title, sub, btnText, mod
       >
         {btnText}
       </button>
+      </div>
       </div>
     </div>
   );

@@ -53,22 +53,6 @@ canvas {
   :root { --gw: min(100vw - 16px, 640px, max(260px, calc((100dvh - 130px) * 1.13))); }
 }
 
-/* HP landscape (layar pendek): D-pad melayang di pojok kanan bawah, game diperkecil */
-@media (orientation: landscape) and (max-height: 520px) and (hover: none) {
-  :root {
-    --dp: clamp(48px, 13vh, 58px);
-    --gw: min(100vw - 16px, 640px, max(220px, calc((100dvh - 110px) * 1.13)));
-  }
-  #dpad {
-    position: fixed;
-    right: max(14px, env(safe-area-inset-right));
-    bottom: max(14px, env(safe-area-inset-bottom));
-    margin-top: 0 !important;
-    opacity: .92;
-    z-index: 20;
-  }
-}
-
 /* Layar sangat sempit (HP kecil) */
 @media (max-width: 360px) {
   :root { --dp: 52px; }
@@ -94,3 +78,49 @@ canvas {
   html, body { touch-action: none; }
   .overlay-root { touch-action: pan-y; }
 }
+
+/* ---------- Layout ---------- */
+.stage {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* HP landscape: 2 kolom -> [ kanvas game ] [ info + tombol panah ] */
+.stage-side {
+  --gh: calc(100dvh - max(8px, env(safe-area-inset-top)) - max(8px, env(safe-area-inset-bottom)));
+  --gw: min(62vw, calc((var(--gh) - 14px) * 1.1333 + 14px));
+  --dp: clamp(52px, 19vh, 84px);
+  display: grid;
+  grid-template-columns: var(--gw) minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  grid-template-areas: "game hud" "game pad";
+  column-gap: 14px;
+  row-gap: 10px;
+  height: var(--gh);
+  max-width: 1100px;
+  align-items: start;
+}
+.stage-lefty {
+  grid-template-columns: minmax(0, 1fr) var(--gw);
+  grid-template-areas: "hud game" "pad game";
+}
+.stage-side #wrap { grid-area: game; align-self: center; }
+.stage-side .side-hud { grid-area: hud; width: 100%; }
+.stage-side #dpad { grid-area: pad; align-self: end; justify-self: center; margin-top: 0; }
+
+/* Menu di layar pendek (HP landscape): 2 kolom -> [ mascot + judul ] [ pilih mode + tombol ] */
+@media (orientation: landscape) and (max-height: 560px) {
+  .overlay-inner { flex-direction: row !important; align-items: center; justify-content: center; gap: 28px; }
+  .overlay-inner > .ov-head,
+  .overlay-inner > .ov-body { flex: 1 1 0; min-width: 0; }
+  .ov-mascot { width: clamp(72px, 26vh, 120px) !important; }
+}
+
+/* Animasi ikon "putar HP" */
+@keyframes rotate-phone {
+  0%, 20% { transform: rotate(0deg); }
+  60%, 100% { transform: rotate(-90deg); }
+}
+.rotate-phone { animation: rotate-phone 2s ease-in-out infinite; }

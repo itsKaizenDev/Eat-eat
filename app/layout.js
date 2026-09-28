@@ -7,12 +7,14 @@ import './globals.css';
 export const metadata = {
   title: 'Snake',
   description: 'Snake - Classic, Portal, Time Attack, Mayhem, Mayhem+, 2P Lokal',
+  icons: { icon: '/icon-192.png', apple: '/icon-192.png' },
 };
 
 export const viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
+  themeColor: '#4a752c',
 };
 
 export default function RootLayout({ children }) {

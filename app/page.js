@@ -1,6 +1,8 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useIsTouch } from '@/hooks/useIsTouch';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
+import RotatePrompt from '@/components/RotatePrompt';
 import GameCanvas from '@/components/GameCanvas';
 import Hud from '@/components/Hud';
 import Overlay from '@/components/Overlay';
@@ -12,6 +14,14 @@ export default function Page() {
   const gameRef = useRef(null);
   const [mode, setMode] = useState('classic');
   const isTouch = useIsTouch();
+  const isLandscape = useMediaQuery('(orientation: landscape)');
+  const side = isTouch && isLandscape;               // HP landscape: 2 kolom (game | info + tombol)
+  const askRotate = isTouch && !isLandscape; // portrait di HP = wajib diputar, tanpa pilihan lain
+  const [lefty, setLefty] = useState(false);  // mode kidal: panel & tombol pindah ke kiri
+  useEffect(() => { try { setLefty(localStorage.getItem('snake-lefty') === '1'); } catch (e) {} }, []);
+  function toggleLefty() {
+    setLefty(v => { const n = !v; try { localStorage.setItem('snake-lefty', n ? '1' : '0'); } catch (e) {} return n; });
+  }
   // Kalau ternyata perangkat sentuh tapi mode-nya multiplayer, balik ke Classic.
   useEffect(() => { if (isTouch && mode === 'multiplayer') setMode('classic'); }, [isTouch, mode]);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -53,7 +63,14 @@ export default function Page() {
   return (
     <>
       <BackgroundLayer mode={mode} />
+      {askRotate && <RotatePrompt />}
+      <HelpModal open={helpOpen} mode={mode} onClose={() => setHelpOpen(false)} />
+      <main className={`stage ${side ? 'stage-side' : ''} ${side && lefty ? 'stage-lefty' : ''}`}>
       <Hud
+        side={side}
+        lefty={lefty}
+        onSwap={toggleLefty}
+        best={hud.best}
         mode={mode}
         modeLabel={hud.modeLabel}
         timerText={hud.timerText}
@@ -62,7 +79,6 @@ export default function Page() {
         mpHud={hud.mpHud}
         onHelp={() => setHelpOpen(true)}
       />
-      <HelpModal open={helpOpen} mode={mode} onClose={() => setHelpOpen(false)} />
 
       <div id="wrap" className="game-w relative border-[7px] rounded-md shadow-2xl" style={{ borderColor: '#4a752c' }}>
         <GameCanvas ref={gameRef} mode={mode} onUpdate={onUpdate} />
@@ -80,7 +96,8 @@ export default function Page() {
       </div>
 
       <DPad mode={mode} onMove={handleDpad} />
-      <div className="text-[11px] sm:text-xs text-[#8a988a] mt-2.5 text-center">Panah / WASD gerak • Esc jeda • Terbaik: <b>{hud.best}</b></div>
+      {!side && <div className="text-[11px] sm:text-xs text-[#8a988a] mt-2.5 text-center">Panah / WASD gerak • Esc jeda • Terbaik: <b>{hud.best}</b></div>}
+      </main>
     </>
   );
 }
