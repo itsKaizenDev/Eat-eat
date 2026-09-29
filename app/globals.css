@@ -1,0 +1,127 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---------- Responsif ----------
+   --gw = lebar area game (HUD + kanvas). Dibatasi lebar layar DAN tinggi layar,
+   supaya di HP (portrait/landscape), tablet, sampai desktop semuanya muat tanpa scroll.
+   --dpad = diameter pad arah bulat. */
+:root {
+  --dpad: clamp(150px, 44vw, 190px);
+  --gw: min(100vw - 16px, 640px, max(260px, calc((100dvh - 270px) * 1.13)));
+}
+
+html, body {
+  min-height: 100%;
+  margin: 0;
+  background: #1e1e1e;
+  font-family: 'Fredoka', ui-rounded, system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+body {
+  min-height: 100dvh;
+  padding:
+    max(8px, env(safe-area-inset-top))
+    max(8px, env(safe-area-inset-right))
+    max(8px, env(safe-area-inset-bottom))
+    max(8px, env(safe-area-inset-left));
+}
+
+.game-w { width: var(--gw); }
+
+canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 2px;
+  touch-action: none; /* swipe di kanvas tidak ikut scroll halaman */
+}
+
+.mode-btn.active,
+.mode-group.active {
+  border-color: #5f9c22 !important;
+  background: #2f4a12;
+}
+
+#dpad { touch-action: none; }
+
+/* Desktop (mouse): tombol panah disembunyikan, tinggi yang dipesan lebih kecil */
+@media (hover: hover) and (pointer: fine) {
+  #dpad { display: none !important; }
+  html, body { touch-action: auto; }
+  :root { --gw: min(100vw - 16px, 640px, max(260px, calc((100dvh - 130px) * 1.13))); }
+}
+
+/* Layar sangat sempit (HP kecil) */
+@media (max-width: 360px) {
+  :root { --dpad: 136px; }
+}
+
+/* HP / layar sentuh: menu (mulai, game over, jeda) jadi layar penuh supaya
+   semua tombol muat tanpa perlu scroll. Di desktop tetap di dalam kanvas. */
+@media (hover: none) and (pointer: coarse), (max-width: 480px) {
+  .overlay-root {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 40;
+    border-radius: 0 !important;
+    padding-top: max(16px, env(safe-area-inset-top));
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+  }
+}
+
+/* Saat main di layar sentuh, gesekan jari tidak boleh menggeser/zoom halaman */
+@media (hover: none) and (pointer: coarse) {
+  html, body { touch-action: none; }
+  .overlay-root { touch-action: pan-y; }
+}
+
+/* ---------- Layout ---------- */
+.stage {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* HP landscape: 2 kolom -> [ kanvas game ] [ info + tombol panah ] */
+.stage-side {
+  --gh: calc(100dvh - max(8px, env(safe-area-inset-top)) - max(8px, env(safe-area-inset-bottom)));
+  --gw: min(62vw, calc((var(--gh) - 14px) * 1.1333 + 14px));
+  --dpad: clamp(120px, 44vh, 210px);
+  display: grid;
+  grid-template-columns: var(--gw) minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  grid-template-areas: "game hud" "game pad";
+  column-gap: 14px;
+  row-gap: 10px;
+  height: var(--gh);
+  max-width: 1100px;
+  align-items: start;
+}
+.stage-lefty {
+  grid-template-columns: minmax(0, 1fr) var(--gw);
+  grid-template-areas: "hud game" "pad game";
+}
+.stage-side #wrap { grid-area: game; align-self: center; }
+.stage-side .side-hud { grid-area: hud; width: 100%; }
+.stage-side #dpad { grid-area: pad; align-self: end; justify-self: center; margin-top: 0; }
+
+/* Menu di layar pendek (HP landscape): 2 kolom -> [ mascot + judul ] [ pilih mode + tombol ] */
+@media (orientation: landscape) and (max-height: 560px) {
+  .overlay-inner { flex-direction: row !important; align-items: center; justify-content: center; gap: 28px; }
+  .overlay-inner > .ov-head,
+  .overlay-inner > .ov-body { flex: 1 1 0; min-width: 0; }
+  .ov-mascot { width: clamp(72px, 26vh, 120px) !important; }
+}
+
+/* Animasi ikon "putar HP" */
+@keyframes rotate-phone {
+  0%, 20% { transform: rotate(0deg); }
+  60%, 100% { transform: rotate(-90deg); }
+}
+.rotate-phone { animation: rotate-phone 2s ease-in-out infinite; }

@@ -1,0 +1,24 @@
+# Snake (Next.js)
+
+Port dari game Snake single-file HTML lama ke Next.js (App Router), dipecah jadi komponen/hook/lib terpisah.
+
+## Cara jalanin
+
+```bash
+npm install
+npm run dev
+```
+
+Buka http://localhost:3000
+
+## Struktur
+- `lib/gameEngine.js` — mesin game (state, tick, collision, gambar canvas) — port 1:1 dari logic lama.
+- `lib/constants.js` — konstanta (ukuran papan, daftar efek, teks bantuan per mode).
+- `hooks/useSounds.js` — pemutar sound + fix prioritas: begitu snake mati, sound "eits" langsung dipotong biar nggak numpuk sama sound mati ("bruh").
+- `components/GameCanvas.jsx` — canvas + kontrol keyboard/swipe.
+- `components/Hud.jsx`, `Overlay.jsx`, `HelpModal.jsx`, `DPad.jsx` — UI.
+- `public/sounds/` — file suara: `chomp.mp3`, `eits.mp3`, `death.mp3` (roblox/"bruh"), `poison-death.mp3` (movie_1.mp3), `move.wav` (di-extract dari base64 file HTML lama, karena file aslinya udah nggak ada).
+
+## Catatan
+- Sound gerak (`move.wav`) itu hasil extract dari file HTML lama (base64), bukan dari file asli temenmu — kalau ada file aslinya, tinggal timpa `public/sounds/move.wav`.
+- Volume `eits` & `move` sengaja diturunin (~25% dari default) sesuai request sebelumnya.
