@@ -40,7 +40,7 @@ const MASCOTS = {
 // Tint overlay per mood, biar layar "Menang" kerasa beda sama "Game Over"/"Waktu
 // Habis" — bukan cuma teks & mascot yang beda, warna suasananya juga ikut ganti.
 const MOOD_BG = {
-  idle:  'radial-gradient(circle at 50% 30%, rgba(45,65,20,.92), rgba(10,16,6,.94))',
+  idle:  'linear-gradient(180deg, rgba(8,14,4,.62) 0%, rgba(8,14,4,.30) 32%, rgba(8,14,4,.34) 68%, rgba(8,14,4,.84) 100%)',
   win:   'radial-gradient(circle at 50% 30%, rgba(120,92,10,.90), rgba(48,30,4,.95))',
   sick:  'radial-gradient(circle at 50% 30%, rgba(80,28,96,.90), rgba(22,8,28,.95))',
   shock: 'radial-gradient(circle at 50% 30%, rgba(110,26,22,.90), rgba(28,6,6,.95))',

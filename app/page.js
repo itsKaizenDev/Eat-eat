@@ -9,8 +9,10 @@ import Overlay from '@/components/Overlay';
 import HelpModal from '@/components/HelpModal';
 import DPad from '@/components/DPad';
 import BackgroundLayer from '@/components/BackgroundLayer';
+import LoadingScreen from '@/components/LoadingScreen';
 
 export default function Page() {
+  const [loading, setLoading] = useState(true);
   const gameRef = useRef(null);
   const [mode, setMode] = useState('classic');
   const isTouch = useIsTouch();
@@ -67,6 +69,7 @@ export default function Page() {
 
   return (
     <>
+      {loading && <LoadingScreen onDone={() => setLoading(false)} />}
       <BackgroundLayer mode={mode} />
       {askRotate && <RotatePrompt />}
       <HelpModal open={helpOpen} mode={mode} onClose={() => setHelpOpen(false)} />
@@ -104,7 +107,7 @@ export default function Page() {
         />
       </div>
 
-      <DPad mode={mode} onMove={handleDpad} />
+      <DPad onMove={handleDpad} />
       {!side && <div className="text-[11px] sm:text-xs text-[#8a988a] mt-2.5 text-center">Panah / WASD gerak • Esc jeda • Terbaik: <b>{hud.best}</b></div>}
       </main>
     </>

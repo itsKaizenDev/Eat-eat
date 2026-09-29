@@ -1,16 +1,93 @@
 'use client';
+import { useRef, useCallback } from 'react';
 import { ICONS } from '@/lib/icons';
 
-// Ukuran tombol pakai CSS var --dp (diatur di globals.css, responsif per layar).
-export default function DPad({ mode, onMove }) {
-  const btn = "w-[var(--dp)] h-[var(--dp)] rounded-xl bg-[#2b2b2b] border border-[#3d3d3d] flex items-center justify-center text-white shadow-md active:bg-[#3a3a3a] active:scale-95 transition-transform touch-manipulation select-none";
-  const press = (x, y) => (e) => { e.preventDefault(); onMove(x, y); };
+// Satu permukaan bulat: arah ditentukan dari sudut jempol ke titik tengah,
+// bukan dari tombol terpisah. Zona tengah = mati (nggak ganti arah), knob
+// ikut jempol kayak analog, balik ke tengah pas dilepas.
+const DEAD = 0.32; // proporsi radius yang jadi zona mati
+
+export default function DPad({ onMove }) {
+  const padRef = useRef(null);
+  const knobRef = useRef(null);
+  const st = useRef({ pid: null, dir: null });
+
+  const placeKnob = (dx, dy) => {
+    if (knobRef.current) knobRef.current.style.transform = `translate(${dx}px, ${dy}px)`;
+  };
+
+  const resolve = useCallback((clientX, clientY) => {
+    const el = padRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const dx = clientX - (r.left + r.width / 2);
+    const dy = clientY - (r.top + r.height / 2);
+    const dist = Math.hypot(dx, dy);
+    const max = r.width / 2;
+    const clamped = Math.min(dist, max * 0.6);
+    const ang = Math.atan2(dy, dx);
+    placeKnob(Math.cos(ang) * clamped, Math.sin(ang) * clamped);
+
+    if (dist < max * DEAD) { st.current.dir = null; return; }
+
+    let dir;
+    if (ang > -Math.PI / 4 && ang <= Math.PI / 4) dir = 'r';
+    else if (ang > Math.PI / 4 && ang <= (3 * Math.PI) / 4) dir = 'd';
+    else if (ang > (3 * Math.PI) / 4 || ang <= -(3 * Math.PI) / 4) dir = 'l';
+    else dir = 'u';
+
+    if (dir !== st.current.dir) {
+      st.current.dir = dir;
+      if (dir === 'u') onMove(0, -1);
+      else if (dir === 'd') onMove(0, 1);
+      else if (dir === 'l') onMove(-1, 0);
+      else onMove(1, 0);
+    }
+  }, [onMove]);
+
+  const onDown = (e) => {
+    e.preventDefault();
+    st.current.pid = e.pointerId;
+    padRef.current && padRef.current.setPointerCapture(e.pointerId);
+    if (knobRef.current) knobRef.current.style.transition = 'none';
+    resolve(e.clientX, e.clientY);
+  };
+  const onMovePtr = (e) => {
+    if (e.pointerId !== st.current.pid) return;
+    e.preventDefault();
+    resolve(e.clientX, e.clientY);
+  };
+  const onUp = (e) => {
+    if (e.pointerId !== st.current.pid) return;
+    st.current.pid = null;
+    st.current.dir = null;
+    if (knobRef.current) {
+      knobRef.current.style.transition = 'transform 150ms ease';
+      placeKnob(0, 0);
+    }
+  };
+
+  const arrow = "absolute text-[#8a988a]";
   return (
-    <div id="dpad" className="grid grid-cols-3 grid-rows-2 gap-2 mt-3.5" style={{ width: 'calc(var(--dp) * 3 + 1rem)' }}>
-      <button aria-label="Atas" className={`col-start-2 row-start-1 ${btn}`} onPointerDown={press(0, -1)}><ICONS.up size={28} strokeWidth={2.6} /></button>
-      <button aria-label="Kiri" className={`col-start-1 row-start-2 ${btn}`} onPointerDown={press(-1, 0)}><ICONS.left size={28} strokeWidth={2.6} /></button>
-      <button aria-label="Bawah" className={`col-start-2 row-start-2 ${btn}`} onPointerDown={press(0, 1)}><ICONS.down size={28} strokeWidth={2.6} /></button>
-      <button aria-label="Kanan" className={`col-start-3 row-start-2 ${btn}`} onPointerDown={press(1, 0)}><ICONS.right size={28} strokeWidth={2.6} /></button>
+    <div
+      id="dpad"
+      ref={padRef}
+      className="no-swipe relative rounded-full bg-[#232323] border border-[#3a3a3a] shadow-md touch-none select-none mx-auto mt-3.5"
+      style={{ width: 'var(--dpad)', height: 'var(--dpad)' }}
+      onPointerDown={onDown}
+      onPointerMove={onMovePtr}
+      onPointerUp={onUp}
+      onPointerCancel={onUp}
+    >
+      <ICONS.up className={arrow} style={{ top: '9%', left: '50%', transform: 'translateX(-50%)' }} size={24} strokeWidth={2.6} />
+      <ICONS.down className={arrow} style={{ bottom: '9%', left: '50%', transform: 'translateX(-50%)' }} size={24} strokeWidth={2.6} />
+      <ICONS.left className={arrow} style={{ left: '9%', top: '50%', transform: 'translateY(-50%)' }} size={24} strokeWidth={2.6} />
+      <ICONS.right className={arrow} style={{ right: '9%', top: '50%', transform: 'translateY(-50%)' }} size={24} strokeWidth={2.6} />
+      <div
+        ref={knobRef}
+        className="absolute rounded-full bg-[#3f3f3f] border border-[#5a5a5a] shadow-inner pointer-events-none"
+        style={{ width: '36%', height: '36%', top: '32%', left: '32%' }}
+      />
     </div>
   );
 }

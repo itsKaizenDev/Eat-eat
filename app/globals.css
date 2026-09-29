@@ -5,9 +5,9 @@
 /* ---------- Responsif ----------
    --gw = lebar area game (HUD + kanvas). Dibatasi lebar layar DAN tinggi layar,
    supaya di HP (portrait/landscape), tablet, sampai desktop semuanya muat tanpa scroll.
-   --dp = ukuran tombol panah. */
+   --dpad = diameter pad arah bulat. */
 :root {
-  --dp: clamp(54px, 15vw, 66px);
+  --dpad: clamp(150px, 44vw, 190px);
   --gw: min(100vw - 16px, 640px, max(260px, calc((100dvh - 270px) * 1.13)));
 }
 
@@ -45,17 +45,18 @@ canvas {
   background: #2f4a12;
 }
 
-#dpad { display: grid; }
+#dpad { touch-action: none; }
 
 /* Desktop (mouse): tombol panah disembunyikan, tinggi yang dipesan lebih kecil */
 @media (hover: hover) and (pointer: fine) {
   #dpad { display: none !important; }
+  html, body { touch-action: auto; }
   :root { --gw: min(100vw - 16px, 640px, max(260px, calc((100dvh - 130px) * 1.13))); }
 }
 
 /* Layar sangat sempit (HP kecil) */
 @media (max-width: 360px) {
-  :root { --dp: 52px; }
+  :root { --dpad: 136px; }
 }
 
 /* HP / layar sentuh: menu (mulai, game over, jeda) jadi layar penuh supaya
@@ -91,7 +92,7 @@ canvas {
 .stage-side {
   --gh: calc(100dvh - max(8px, env(safe-area-inset-top)) - max(8px, env(safe-area-inset-bottom)));
   --gw: min(62vw, calc((var(--gh) - 14px) * 1.1333 + 14px));
-  --dp: clamp(52px, 19vh, 84px);
+  --dpad: clamp(120px, 44vh, 210px);
   display: grid;
   grid-template-columns: var(--gw) minmax(0, 1fr);
   grid-template-rows: auto 1fr;
