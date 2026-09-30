@@ -70,7 +70,6 @@ export default function Page() {
   return (
     <>
       {loading && <LoadingScreen onDone={() => setLoading(false)} />}
-      <BackgroundLayer mode={mode} />
       {askRotate && <RotatePrompt />}
       <HelpModal open={helpOpen} mode={mode} onClose={() => setHelpOpen(false)} />
       <main className={`stage ${side ? 'stage-side' : ''} ${side && lefty ? 'stage-lefty' : ''}`}>
@@ -88,8 +87,9 @@ export default function Page() {
         onHelp={() => setHelpOpen(true)}
       />
 
-      <div id="wrap" className="game-w relative border-[7px] rounded-md shadow-2xl" style={{ borderColor: mode === 'classicnight' ? '#2b4763' : '#4a752c' }}>
+      <div id="wrap" className="game-w relative overflow-hidden border-[7px] rounded-md shadow-2xl" style={{ borderColor: mode === 'classicnight' ? '#2b4763' : '#4a752c' }}>
         <GameCanvas ref={gameRef} mode={mode} onUpdate={onUpdate} />
+        {overlay.visible && <BackgroundLayer mode={mode} />}
         <Overlay
           visible={overlay.visible}
           phase={overlay.phase}

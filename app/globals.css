@@ -41,8 +41,29 @@ canvas {
 
 .mode-btn.active,
 .mode-group.active {
-  border-color: #5f9c22 !important;
-  background: #2f4a12;
+  border-color: var(--accent, #5f9c22) !important;
+  background: rgba(20, 20, 20, .92);
+  animation: accent-pulse 1.8s ease-in-out infinite;
+}
+@keyframes accent-pulse {
+  0%, 100% { box-shadow: 0 0 6px 0 var(--accent, #5f9c22); }
+  50%      { box-shadow: 0 0 16px 2px var(--accent, #5f9c22); }
+}
+
+/* ---------- Scene menu (BackgroundLayer) ---------- */
+.kb { animation: kb-drift 18s ease-in-out infinite alternate; will-change: transform; }
+@keyframes kb-drift {
+  from { transform: scale(1.07) translate3d(0, 0, 0); }
+  to   { transform: scale(1.13) translate3d(-1.4%, -1%, 0); }
+}
+.sweep { opacity: 0; animation: sweep 9s ease-in-out infinite; }
+@keyframes sweep {
+  0%, 60% { transform: translateX(-110%) skewX(-18deg); opacity: 0; }
+  68%     { opacity: 1; }
+  100%    { transform: translateX(200%) skewX(-18deg); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .kb, .sweep, .mode-btn.active, .mode-group.active { animation: none !important; }
 }
 
 #dpad { touch-action: none; }
@@ -62,6 +83,11 @@ canvas {
 /* HP / layar sentuh: menu (mulai, game over, jeda) jadi layar penuh supaya
    semua tombol muat tanpa perlu scroll. Di desktop tetap di dalam kanvas. */
 @media (hover: none) and (pointer: coarse), (max-width: 480px) {
+  .bg-scene {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 39;
+  }
   .overlay-root {
     position: fixed !important;
     inset: 0 !important;
