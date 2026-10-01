@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
-import { BG, ORDER, ACCENT, POS, FX } from '@/lib/sceneTheme';
+import { BG, ORDER, ACCENT, POS, FX, isCoarse } from '@/lib/sceneTheme';
 
 // Scene menu ala layar pilih karakter game fighting:
 //  - ganti mode  -> "slash wipe" diagonal + flash + speed lines + zoom punch + shake kecil
@@ -14,7 +14,7 @@ const reduced = () => typeof window !== 'undefined' && window.matchMedia('(prefe
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = (arr) => arr[(Math.random() * arr.length) | 0];
 const TAU = Math.PI * 2;
-const SLANT = 18; // kemiringan garis slash, % lebar
+const SLANT = 0.18; // kemiringan garis slash (fraksi lebar layar)
 
 /* ---------- partikel ---------- */
 function spawn(cfg, W, H, initial) {
@@ -101,6 +101,7 @@ export default function BackgroundLayer({ mode }) {
   const tlRef = useRef(null);
   const fxRef = useRef(FX[mode] || FX.classic);
   const reinitRef = useRef(() => {});
+  const pauseFx = useRef(false);
 
   /* --- mode berubah: tambah layer baru di atas layer terakhir (maks 2 layer di DOM) --- */
   useEffect(() => {
@@ -115,7 +116,7 @@ export default function BackgroundLayer({ mode }) {
     reinitRef.current();
   }, [mode]);
 
-  /* --- transisi: slash wipe + zoom punch + flash + speed lines + shake --- */
+  /* --- transisi: slash wipe (murni transform, ringan di HP) + zoom punch + flash --- */
   useIsoLayoutEffect(() => {
     if (layers.length < 2) return;
     const top = layers[layers.length - 1];
@@ -123,13 +124,18 @@ export default function BackgroundLayer({ mode }) {
     const el = layerEls.current[top.key];
     const punch = punchEls.current[top.key];
     const elUnder = layerEls.current[under.key];
-    if (!el || !rootRef.current) return;
+    const punchUnder = punchEls.current[under.key];
+    if (!el || !punch || !rootRef.current) return;
 
     if (tlRef.current) tlRef.current.kill();
-    if (elUnder) gsap.set(elUnder, { clearProps: 'all' }); // layer lama dipastikan penuh (kalau transisi sebelumnya kepotong)
+    // layer lama dipastikan penuh (kalau transisi sebelumnya kepotong)
+    if (elUnder) gsap.set(elUnder, { clearProps: 'transform,opacity' });
+    if (punchUnder) gsap.set(punchUnder, { clearProps: 'transform,opacity' });
 
+    pauseFx.current = true;
     const finish = () => {
-      el.style.clipPath = '';
+      gsap.set([el, punch], { clearProps: 'transform,opacity' });
+      pauseFx.current = false;
       setLayers(prev => (prev[prev.length - 1].key === top.key ? [prev[prev.length - 1]] : prev));
     };
 
@@ -138,34 +144,36 @@ export default function BackgroundLayer({ mode }) {
       return;
     }
 
+    const light = isCoarse(); // HP: tanpa speed lines & shake
     const dir = top.dir;
-    const r = rootRef.current.getBoundingClientRect();
-    const angle = (Math.atan(((SLANT / 100) * r.width) / Math.max(1, r.height)) * 180) / Math.PI;
-    const slash = slashRef.current;
-    const apply = (p) => {
-      const edge = 100 + SLANT / 2 - p * (100 + SLANT);
-      const xt = edge + SLANT / 2;
-      const xb = edge - SLANT / 2;
-      const pts = dir === 1
-        ? [[xt, 0], [220, 0], [220, 100], [xb, 100]]
-        : [[100 - xt, 0], [-120, 0], [-120, 100], [100 - xb, 100]];
-      el.style.clipPath = 'polygon(' + pts.map(([x, y]) => x + '% ' + y + '%').join(',') + ')';
-      slash.style.left = (dir === 1 ? edge : 100 - edge) + '%';
-      slash.style.opacity = String(Math.sin(Math.PI * p));
-    };
-    slash.style.transform = 'skewX(' + (dir === 1 ? -angle : angle) + 'deg)';
+    const R = rootRef.current.getBoundingClientRect();
+    const angle = (Math.atan((SLANT * R.width) / Math.max(1, R.height)) * 180) / Math.PI;
+    const start = dir * R.width * 1.3;
+    const D = 0.5;
+    const E = 'power3.inOut';
 
-    const o = { p: 0 };
-    apply(0);
+    // Layer baru = jajaran genjang (skew) yang meluncur masuk; isinya di-counter supaya gambar tetap diam.
+    gsap.set(el, { x: start, skewX: -dir * angle });
+    gsap.set(punch, { x: -start, skewX: dir * angle, scale: 1.18 });
+    // Garis slash mengikuti tepi depan layer baru.
+    const e1 = dir === 1 ? -0.12 * R.width : 1.12 * R.width;
+    gsap.set(slashRef.current, { x: e1 + start, skewX: -dir * angle, opacity: 0 });
+
     const tl = gsap.timeline({ onComplete: finish });
-    tl.to(o, { p: 1, duration: 0.5, ease: 'power3.inOut', onUpdate: () => apply(o.p) }, 0)
-      .fromTo(punch, { scale: 1.18 }, { scale: 1, duration: 0.75, ease: 'power3.out' }, 0)
-      .to(elUnder, { xPercent: -10 * dir, scale: 1.08, duration: 0.6, ease: 'power2.in' }, 0)
-      .fromTo(flashRef.current, { opacity: 0 }, { opacity: 0.8, duration: 0.09, ease: 'power1.out' }, 0.14)
-      .to(flashRef.current, { opacity: 0, duration: 0.3, ease: 'power2.out' }, 0.23)
-      .fromTo(linesRef.current, { opacity: 0, scale: 1.5, rotate: -4 * dir }, { opacity: 0.6, scale: 1.05, rotate: 0, duration: 0.16, ease: 'power2.out' }, 0.12)
-      .to(linesRef.current, { opacity: 0, duration: 0.4, ease: 'power1.in' }, 0.3)
-      .to(shakeRef.current, { keyframes: [{ x: -4, y: 2 }, { x: 4, y: -2 }, { x: -3, y: 1 }, { x: 2, y: -1 }, { x: 0, y: 0 }], duration: 0.24, ease: 'none' }, 0.42);
+    tl.to(el, { x: 0, skewX: 0, duration: D, ease: E }, 0)
+      .to(punch, { x: 0, skewX: 0, duration: D, ease: E }, 0)
+      .to(punch, { scale: 1, duration: 0.75, ease: 'power3.out' }, 0)
+      .to(slashRef.current, { x: e1, duration: D, ease: E }, 0)
+      .to(slashRef.current, { opacity: 1, duration: 0.08 }, 0.04)
+      .to(slashRef.current, { opacity: 0, duration: 0.18 }, 0.32);
+    if (elUnder) tl.to(elUnder, { xPercent: -10 * dir, scale: 1.08, duration: 0.6, ease: 'power2.in' }, 0);
+    tl.fromTo(flashRef.current, { opacity: 0 }, { opacity: light ? 0.35 : 0.6, duration: 0.09, ease: 'power1.out' }, 0.14)
+      .to(flashRef.current, { opacity: 0, duration: 0.3, ease: 'power2.out' }, 0.23);
+    if (!light) {
+      tl.fromTo(linesRef.current, { opacity: 0, scale: 1.5, rotate: -4 * dir }, { opacity: 0.6, scale: 1.05, rotate: 0, duration: 0.16, ease: 'power2.out' }, 0.12)
+        .to(linesRef.current, { opacity: 0, duration: 0.4, ease: 'power1.in' }, 0.3)
+        .to(shakeRef.current, { keyframes: [{ x: -4, y: 2 }, { x: 4, y: -2 }, { x: -3, y: 1 }, { x: 2, y: -1 }, { x: 0, y: 0 }], duration: 0.24, ease: 'none' }, 0.42);
+    }
     tlRef.current = tl;
   }, [layers]);
 
@@ -202,22 +210,23 @@ export default function BackgroundLayer({ mode }) {
 
   /* --- partikel ambient --- */
   useEffect(() => {
-    if (reduced()) return;
-    const cv = canvasRef.current;
     const root = rootRef.current;
+    let liteFlag = false;
+    try { liteFlag = sessionStorage.getItem('snake-lite') === '1' || /[?&]lite\b/.test(window.location.search); } catch (e) {}
+    if (reduced() || liteFlag) { root.classList.add('lite'); return; }
+    const cv = canvasRef.current;
     const ctx = cv.getContext('2d');
+    let frames = 0, acc = 0;
     let W = 0, H = 0, raf = 0, last = performance.now(), t = 0, parts = [];
     const init = () => {
       const cfg = fxRef.current;
-      parts = Array.from({ length: cfg.n }, () => spawn(cfg, W, H, true));
+      parts = Array.from({ length: Math.ceil(cfg.n * (isCoarse() ? 0.3 : 0.55)) }, () => spawn(cfg, W, H, true));
     };
     reinitRef.current = init;
     const size = () => {
       const rc = root.getBoundingClientRect();
       W = rc.width; H = rc.height;
-      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
-      cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      cv.width = Math.round(W); cv.height = Math.round(H); // dpr 1 sengaja: partikel kecil, nggak perlu tajam
       init();
     };
     size();
@@ -225,10 +234,23 @@ export default function BackgroundLayer({ mode }) {
     ro.observe(root);
     const loop = (now) => {
       const dt = Math.min(0.05, (now - last) / 1000);
-      last = now; t += dt;
+      last = now;
+      if (pauseFx.current) { ctx.clearRect(0, 0, W, H); raf = requestAnimationFrame(loop); return; } // jeda selama transisi
+      t += dt;
+      // Penjaga performa: kalau rata-rata frame lambat (<~35fps) setelah pemanasan, matikan efek ambient.
+      frames++;
+      if (frames > 30) acc += (now - (loop.prev || now));
+      loop.prev = now;
+      if (frames === 90) {
+        if (acc / 59 > 28) {
+          root.classList.add('lite');
+          try { sessionStorage.setItem('snake-lite', '1'); } catch (e) {}
+          ctx.clearRect(0, 0, W, H);
+          return;
+        }
+      }
       const cfg = fxRef.current;
       ctx.clearRect(0, 0, W, H);
-      ctx.globalCompositeOperation = 'lighter';
       for (const p of parts) {
         const a = tick(p, cfg, W, H, dt, t);
         if (a <= 0.02) continue;
@@ -239,9 +261,7 @@ export default function BackgroundLayer({ mode }) {
           ctx.fillRect(p.x - 0.5, p.y - p.r * 2.2, 1, p.r * 4.4);
         }
         ctx.globalAlpha = a;
-        ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, TAU); ctx.fill();
-        ctx.globalAlpha = a * 0.25;
-        ctx.beginPath(); ctx.arc(p.x, p.y, p.r * 3.2, 0, TAU); ctx.fill();
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r * 1.3, 0, TAU); ctx.fill();
       }
       ctx.globalAlpha = 1;
       raf = requestAnimationFrame(loop);
@@ -261,11 +281,11 @@ export default function BackgroundLayer({ mode }) {
         <div ref={zoomRef} className="absolute inset-0">
           <div ref={parRef} className="absolute inset-0">
             {layers.map(l => (
-              <div key={l.key} ref={(n) => { layerEls.current[l.key] = n; }} className="absolute inset-0">
-                <div ref={(n) => { punchEls.current[l.key] = n; }} className="absolute inset-0">
+              <div key={l.key} ref={(n) => { layerEls.current[l.key] = n; }} className="absolute top-0 bottom-0 overflow-hidden" style={{ left: '-12%', right: '-12%' }}>
+                <div ref={(n) => { punchEls.current[l.key] = n; }} className="absolute top-0 bottom-0" style={{ left: '9.677%', width: '80.645%' }}>
                   <div
-                    className="kb absolute inset-0 bg-cover"
-                    style={{ backgroundImage: `url(${l.src})`, backgroundPosition: POS[l.mode] || '50% 70%' }}
+                    className={`kb absolute inset-0 bg-cover bgimg-${l.mode}`}
+                    style={{ backgroundPosition: POS[l.mode] || '50% 70%' }}
                   />
                 </div>
               </div>
@@ -275,9 +295,7 @@ export default function BackgroundLayer({ mode }) {
       </div>
 
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
-      <div className="sweep absolute inset-y-0 left-0 w-3/5 pointer-events-none" style={{ background: 'linear-gradient(100deg, transparent 20%, rgba(255,255,255,.16) 50%, transparent 80%)', mixBlendMode: 'screen' }} />
-      <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(0,0,0,.35) 100%)' }} />
-      <div className="absolute inset-0 pointer-events-none bg-black/10" />
+      <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse at 50% 45%, rgba(0,0,0,.08) 55%, rgba(0,0,0,.38) 100%)' }} />
 
       <div
         ref={linesRef}
@@ -286,15 +304,14 @@ export default function BackgroundLayer({ mode }) {
           background: 'repeating-conic-gradient(from 3deg at 50% 50%, var(--acc) 0deg 1deg, transparent 1deg 7deg)',
           WebkitMaskImage: 'radial-gradient(circle at 50% 50%, transparent 30%, #000 78%)',
           maskImage: 'radial-gradient(circle at 50% 50%, transparent 30%, #000 78%)',
-          mixBlendMode: 'screen',
         }}
       />
       <div
         ref={slashRef}
-        className="absolute top-[-5%] h-[110%] w-[5px] pointer-events-none opacity-0"
-        style={{ marginLeft: '-2px', background: 'linear-gradient(180deg, transparent, #fff 15%, #fff 85%, transparent)', boxShadow: '0 0 14px 3px var(--acc), 0 0 40px 8px var(--acc)' }}
+        className="absolute top-[-5%] left-0 h-[110%] w-[5px] pointer-events-none opacity-0"
+        style={{ background: 'linear-gradient(180deg, transparent, #fff 15%, #fff 85%, transparent)', boxShadow: '0 0 14px 3px var(--acc), 0 0 40px 8px var(--acc)' }}
       />
-      <div ref={flashRef} className="absolute inset-0 pointer-events-none opacity-0" style={{ background: 'radial-gradient(circle at 50% 50%, #fff 30%, var(--acc) 100%)', mixBlendMode: 'screen' }} />
+      <div ref={flashRef} className="absolute inset-0 pointer-events-none opacity-0" style={{ background: 'var(--acc)' }} />
     </div>
   );
 }

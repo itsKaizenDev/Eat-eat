@@ -1,13 +1,12 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
-import { BG } from '@/lib/sceneTheme';
+import { bgFiles } from '@/lib/sceneTheme';
 
 // Semua background & mascot di-preload di sini duluan, biar pas menu muncul
 // gambarnya udah siap semua (nggak ada kedip/pop-in pas geser mode pertama
 // kali, dan nggak ada layar putih kosong sekilas di HP koneksi lambat).
-const ASSETS = [
-  ...Object.values(BG),
+const MASCOT_FILES = [
   '/assets/game/mascot-idle.png', '/assets/game/mascot-win.png', '/assets/game/mascot-sick.png',
   '/assets/game/mascot-shock.png', '/assets/game/mascot-dizzy.png',
 ];
@@ -45,6 +44,7 @@ export default function LoadingScreen({ onDone }) {
   useEffect(() => {
     let cancelled = false;
     let loaded = 0;
+    const ASSETS = [...bgFiles(), ...MASCOT_FILES];
     const total = ASSETS.length;
     const bump = () => { loaded++; if (!cancelled) setPct(Math.round((loaded / total) * 100)); };
     const start = performance.now();

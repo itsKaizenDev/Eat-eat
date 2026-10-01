@@ -32,6 +32,7 @@ export default function Page() {
   useEffect(() => { gameRef.current && gameRef.current.setSpeedPref(speed); try { localStorage.setItem('snake-speed', speed); } catch (e) {} }, [speed]);
   useEffect(() => { gameRef.current && gameRef.current.setTaDuration(taSecs); try { localStorage.setItem('snake-ta', String(taSecs)); } catch (e) {} }, [taSecs]);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [sideEl, setSideEl] = useState(null); // kolom samping (HP landscape): tempat kontrol menu
   const [hud, setHud] = useState({
     score: 0, best: 0, modeLabel: 'Snake · Classic', effects: [], mpHud: null, timerText: null,
     running: false, paused: false,
@@ -72,7 +73,7 @@ export default function Page() {
       {loading && <LoadingScreen onDone={() => setLoading(false)} />}
       {askRotate && <RotatePrompt />}
       <HelpModal open={helpOpen} mode={mode} onClose={() => setHelpOpen(false)} />
-      <main className={`stage ${side ? 'stage-side' : ''} ${side && lefty ? 'stage-lefty' : ''}`}>
+      <main className={`stage ${side ? 'stage-side' : ''} ${side && lefty ? 'stage-lefty' : ''} ${side && overlay.visible ? 'menu-open' : ''}`}>
       <Hud
         side={side}
         lefty={lefty}
@@ -91,6 +92,8 @@ export default function Page() {
         <GameCanvas ref={gameRef} mode={mode} onUpdate={onUpdate} />
         {overlay.visible && <BackgroundLayer mode={mode} />}
         <Overlay
+          side={side}
+          host={side ? sideEl : null}
           visible={overlay.visible}
           phase={overlay.phase}
           mood={overlay.mood}
@@ -107,6 +110,7 @@ export default function Page() {
         />
       </div>
 
+      {side && <div ref={setSideEl} className="side-menu" />}
       <DPad onMove={handleDpad} />
       {!side && <div className="text-[11px] sm:text-xs text-[#8a988a] mt-2.5 text-center">Panah / WASD gerak • Esc jeda • Terbaik: <b>{hud.best}</b></div>}
       </main>
