@@ -1,14 +1,30 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 // Muncul di HP saat posisi portrait: minta pemain memutar ke landscape.
 // Di Android (Chrome) ada tombol layar penuh + kunci landscape. iOS Safari nggak
 // mengizinkan kunci orientasi dari web, jadi cuma bisa minta pemain memutar sendiri.
-export default function RotatePrompt() {
+export default function RotatePrompt({ onMenu }) {
+  const rootRef = useRef(null);
   const [canLock, setCanLock] = useState(false);
   useEffect(() => {
     setCanLock(!!(document.documentElement.requestFullscreen && window.screen.orientation && window.screen.orientation.lock));
   }, []);
+
+  useEffect(() => {
+    const prev = document.activeElement;
+    rootRef.current?.querySelector('button')?.focus();
+    return () => { if (prev && document.contains(prev)) prev.focus(); };
+  }, []);
+
+  function onKeyDown(e) {
+    if (e.key === 'Escape') { e.preventDefault(); onMenu(); }
+    if (e.key !== 'Tab') return;
+    const buttons = [...rootRef.current.querySelectorAll('button')];
+    const index = buttons.indexOf(document.activeElement);
+    e.preventDefault();
+    buttons[(index + (e.shiftKey ? -1 : 1) + buttons.length) % buttons.length]?.focus();
+  }
 
   async function lockLandscape() {
     try { await document.documentElement.requestFullscreen(); } catch (e) { /* diabaikan */ }
@@ -17,8 +33,7 @@ export default function RotatePrompt() {
 
   return (
     <div
-      className="no-swipe fixed inset-0 z-[60] flex flex-col items-center justify-center gap-3 p-6 text-center"
-      style={{ background: 'radial-gradient(circle at 50% 30%, rgba(45,65,20,.98), rgba(10,16,6,.99))' }}
+      ref={rootRef} onKeyDown={onKeyDown} role="dialog" aria-modal="true" aria-label="Putar layar" className="rotate-dialog no-swipe fixed inset-0 z-[60] flex flex-col items-center justify-center gap-3 p-6 text-center"
     >
       <div className="rotate-phone" aria-hidden>
         <svg width="84" height="84" viewBox="0 0 64 64" fill="none" stroke="#d8e6c8" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
@@ -36,6 +51,7 @@ export default function RotatePrompt() {
           Layar penuh &amp; kunci landscape
         </button>
       )}
+      <button onClick={onMenu} className="secondary-button">Kembali ke menu</button>
       <p className="text-[11px] text-[#8a988a] max-w-[260px]">Kalau HP nggak mau berputar, matikan dulu &ldquo;Kunci rotasi layar&rdquo; di pengaturan / panel notifikasi.</p>
     </div>
   );

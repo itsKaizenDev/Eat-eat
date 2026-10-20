@@ -1,0 +1,2162 @@
+diff --git a/ADVENTURE_REVISION.md b/ADVENTURE_REVISION.md
+new file mode 100644
+index 0000000..c9c2720
+--- /dev/null
++++ b/ADVENTURE_REVISION.md
+@@ -0,0 +1,228 @@
++# Eat-eat — Revisi Petualangan & Boss
++
++Basis kerja: hasil **Boss Batch 1**, dilanjutkan dengan tujuh revisi UI/gameplay dan revisi mekanisme boss terbaru. Ini implementasi yang sudah terpasang di source, bukan prompt untuk dikerjakan lagi.
++
++## Perubahan utama
++
++| Permintaan | Hasil |
++|---|---|
++| Bantuan dua grid | Aturan memakai dua kolom di desktop dan HP; kontrol terpisah di atas, kontras teks diperbaiki. Dialog membuka bagian atas, bukan otomatis melompat ke tombol bawah. |
++| Panel gelap banner | Delapan banner baru memiliki alpha transparan. Latar kotak di belakang banner ini dihapus; judul diberi outline. |
++| Ekspresi karakter | Malam: waspada; Portal: kaget; Time Attack: terburu-buru; Jejak Kunci: licik; Kurir: bersemangat; Ekspedisi/Boss: menantang; Rebut Arena: bersaing. |
++| Ekspedisi + boss | Satu perjalanan: lima rute pengumpulan dan upgrade, dilanjutkan sembilan gelombang antek, lalu boss tiga fase di gelombang kebun ke-10. Tombol boss terpisah disembunyikan. |
++| Jejak Kunci | Penjaga menjadi kumbang, mata mengikuti arah pandang, posisi diinterpolasi. Arah yang terhalang diputar ke lorong terbuka; pencarian jalur tidak boleh masuk tujuan yang terblokir. |
++| Kurir Apel | Semua paket dengan tujuan yang sama diserahkan dalam satu kunjungan. Paket tujuan lain tetap dibawa; bonus cepat dan kedaluwarsa tetap dinilai per paket. |
++| Apel dan bom | Jumlah makanan Ekspedisi dinaikkan dari 3 menjadi 5. Bom memakai daftar dan jumlah terpisah; tidak memakan slot apel. Arena kebun dalam Ekspedisi juga memakai 5 apel energi. |
++| Animasi Petualangan | Gerak kontinu ular memakai interpolasi linear agar tidak melambat di setiap petak. Penjaga meluncur dan menggerakkan kaki. Musuh kebun berdenyut ringan; orb bergoyang. Jeda membekukan jam visual pada mode kontinu. |
++
++## Alur Ekspedisi gabungan
++
++1. Mulai dari rute 1. Setiap rute menunggu input arah pertama.
++2. Capai target **28 / 40 / 52 / 64 / 76** poin.
++3. Setelah setiap rute, termasuk rute kelima, simulasi berhenti dan pemain mengambil satu upgrade dari pilihan yang sah. Klik ganda tidak mengambil dua upgrade.
++4. Setelah upgrade kelima, masuk kebun dengan bekal yang terkumpul. Awal kebun juga menunggu input arah pertama.
++5. Gelombang kebun 1–3: satu antek per gelombang; 4–6: dua; 7–9: tiga. Antek datang bergiliran, total 18.
++6. Gelombang kebun 10: salah satu dari tiga varian boss acak. Pola serangan mengikuti varian dan fase.
++7. Menang hanya setelah fase 3 boss habis. Kalah di kebun mengakhiri seluruh perjalanan; retry kembali ke rute 1.
++
++Ronde pengumpulan dan gelombang kebun merupakan dua bagian dalam satu run, **bukan** lima ronde yang masing-masing memunculkan boss.
++
++### Bekal dari upgrade
++
++| Upgrade | Efek saat masuk kebun |
++|---|---|
++| Tubuh ringkas | Panjang awal mengikuti upgrade, minimal 3 segmen. |
++| Langkah berani | Pengali interval gerak ikut dibawa. |
++| Kulit tebal | Tambahan 2 hati per tingkat. |
++| Racikan penawar | Tambahan 1 hati per tingkat. |
++| Bekal manis | Tambahan 2 energi awal per tingkat. |
++| Napas panjang | Durasi kebal setelah terkena serangan dikali 1,4 per tingkat. |
++
++Efek apel sementara dibuang saat masuk kebun. Skor rute tetap dibawa. Setiap antek memberi 5 poin, kerusakan HP boss memberi 10 poin per HP; mengikis shield tidak menghasilkan poin tambahan.
++
++## Mekanisme boss terbaru
++
++### HP dan pergantian fase
++
++| Fase | HP fase | Celah per jendela | Damage serangan boss |
++|---|---:|---:|---:|
++| 1 | 3 | 1 | 1 hati |
++| 2 | 5 | 2 | 1 hati |
++| 3 | 10 | 3 | 2 hati |
++
++Total HP sepanjang pertarungan adalah **18**. HP fase aktif harus habis sebelum transisi ke fase berikutnya. Damage berlebih tidak melompati fase. HP fase berikutnya diisi sesuai tabel. Setelah fase 3 habis, hasil menang diproses satu kali.
++
++Serangan semakin cepat tiap fase; batas waktu peringatan yang mempertimbangkan jarak tempuh tetap dipertahankan. Saat titik lemah terbuka, bahaya serangan dihentikan. Setiap titik lemah hanya bisa dipukul sekali per jendela. Biaya energi: 1 untuk antek, 3 untuk boss.
++
++### Shield fase 3
++
++Tafsir yang digunakan untuk kalimat “maksimal 3 kali”: **tiga penambahan per serangan boss yang selesai**.
++
++- Satu serangan selesai pada waktu `T`.
++- Shield bertambah **10** pada `T + 5 detik`, `T + 10 detik`, dan `T + 15 detik`.
++- Serangan berikutnya membuat rangkaian tiga penambahan baru. Rangkaian bisa bertumpuk secara waktu.
++- Total shield saat ini dibatasi **100**. Kelebihan di atas batas tidak ditabung.
++- Shield tidak mulai sebelum fase 3 dan tidak bertambah saat pause/menu upgrade.
++- HUD menampilkan jumlah shield dan waktu menuju penambahan berikutnya.
++- Kematian/menang/retry membersihkan jadwal shield yang tersisa.
++
++Ini bukan “tiga kali sepanjang seluruh pertarungan”. Bila yang dimaksud adalah tiga kali total, aturan jadwal perlu diubah; implementasi sekarang mengikuti tafsir per serangan di atas.
++
++### Orb heal dan damage
++
++Saat fase 3 dimulai dan setiap serangan fase 3 selesai, muncul hadiah **heal +1 hati** dan **satu tingkat orb damage ×2** di petak aman yang tersedia.
++
++- Hati bisa ditumpuk melebihi jumlah awal, ditampilkan sebagai `♥ × jumlah`.
++- Orb damage bersifat permanen sampai run berakhir; mengambil lagi menambah tingkat pengali.
++- Orb tidak menambah panjang tubuh maupun energi.
++- Heal merah berbentuk hati; orb damage jingga bertuliskan ×2; apel energi berwarna kuning. Bentuk berbeda agar mudah dibedakan.
++- Maksimal tiga objek heal dan tiga objek damage di arena. Hadiah berikutnya digabung nilainya, bukan dibuang. Jika tidak ada petak kosong, hadiah ditunda.
++- Hadiah tidak menimpa tubuh, apel, boss, titik lemah, atau pickup lain ketika diletakkan.
++
++Hadiah heal dari antek dan transisi fase sebelumnya tetap ada.
++
++### Rumus damage pemain
++
++Tafsir “×2 per 5 shield” yang dipakai adalah **penggandaan bertingkat**, bukan penambahan dua poin.
++
++```text
++baseDamage = 1
++orbStacks = jumlah tingkat orb damage yang sudah diambil
++shieldStacks = floor(shieldBossSaatPukulan / 5), jika orbStacks > 0
++shieldStacks = 0, jika belum punya orb
++
++damage = baseDamage × 2^(orbStacks + shieldStacks)
++shieldTerkikis = min(shieldBoss, damage)
++kerusakanHP = min(HPFaseAktif, damage - shieldTerkikis)
++```
++
++Damage dihitung dari shield **sebelum pukulan tersebut**. Shield menyerap lebih dahulu; sisanya mengenai HP. Pengali dari shield menyesuaikan jumlah shield terkini pada pukulan berikutnya. Stack orb tidak dikonsumsi.
++
++| Stack orb | Shield sebelum pukulan | Damage | Shield tersisa | Damage ke HP |
++|---:|---:|---:|---:|---:|
++| 0 | 10 | 1 | 9 | 0 |
++| 1 | 0 | 2 | 0 | 2 |
++| 1 | 5 | 4 | 1 | 0 |
++| 1 | 10 | 8 | 2 | 0 |
++| 2 | 10 | 16 | 0 | 6 |
++| 1 | 100 | 2.097.152 | 0 | Seluruh HP fase yang tersisa |
++
++**Konsekuensi balancing:** rumus eksponensial ini memang dapat menghasilkan one-hit pada shield tinggi. Angka tidak diam-diam dibuat linear. Perhitungan dijaga tetap numerik aman, dan kerusakan HP tidak boleh membuat HP negatif. Parameter berada di `lib/boss/sim.js`; titik utama untuk tuning: `baseDamage`, `shieldPerDouble`, `shieldGain`, `shieldEveryMs`, `shieldPulses`, dan `shieldMax`.
++
++## Penjaga dan kampanye Jejak Kunci
++
++Penjaga yang arah depannya terhalang sekarang memilih lorong terbuka terpanjang dalam jarak pandang, dengan urutan tie-break tetap. Perilaku tetap deterministik untuk undo dan solver. Penjaga tetap bergerak berdasarkan langkah pemain, bukan mengejar dengan timer real-time.
++
++Perubahan ini membuat sebagian layout lama tidak lagi cocok. Kampanye dibuat ulang dari seed yang sama, lalu divalidasi solver. Layout/data yang berubah: **38, 41, 46, 47, 48, 49**. Seluruh 50 level tetap dapat diselesaikan; par disesuaikan dengan solusi hasil validasi.
++
++Progres buka-kunci lama tetap dipertahankan. Level dengan penjaga memakai penanda revisi 2. Rekor lama tetap tersimpan dan ditandai **Versi lama** di menu; percobaan pertama pada revisi baru mencatat rekor baru tanpa dibandingkan dengan angka dari aturan/peta lama.
++
++## Aset dan UI
++
++Delapan scene × dua ukuran = **16 WebP** baru, masing-masing di bawah 300 KB:
++
++- `bg-classicnight`, `bg-portal`, `bg-timeattack`
++- `bg-puzzle`, `bg-delivery`, `bg-roguelite`, `bg-boss`, `bg-territory`
++
++Versi desktop berlebar 1672 px, versi `-m` berlebar 960 px; alpha dipertahankan. Komposisi menyediakan ruang kiri untuk judul dan menjaga karakter di kanan. Prompt lengkap ada di `docs/ASSETS_ADVENTURE.md`.
++
++Objek gameplay memakai Canvas native agar tetap ringan dan tajam: wajah ular bersama, kumbang penjaga, dinding kebun membulat, palet sage/krim, orb dan indikator shield. Animasi tidak mengubah koordinat collision.
++
++## Kompatibilitas dan ruang lingkup
++
++- `lib/gameEngine.js` tidak berubah.
++- Pemilihan mode Arkade tetap grup → sub-mode. Label Time Attack ditulis lengkap.
++- Key `snake-speed`, `snake-ta`, `snake-lefty`, `snake_best` tetap.
++- Rekor Ekspedisi gabungan memakai entri konfigurasi v2, boss memakai v3; entri lama tetap tersimpan di key `snake-records-v1`.
++- Boss standalone tetap memiliki adapter internal untuk kompatibilitas dan pengujian, tetapi tidak muncul sebagai pilihan terpisah.
++- Tidak menambah dependency, TypeScript, backend, atau multiplayer online.
++- Bom/roket Rebut Arena masih belum diimplementasikan; tetap batch berikutnya.
++- RotatePrompt portrait dan pemindahan menu ke panel samping HP landscape dipertahankan.
++- Mascot hasil, tint mood, dan confetti tidak diganti.
++
++## Validasi
++
++- **275 tes, 14 berkas uji, seluruhnya lolos.** Meliputi fase/HP, shield 5/10/15 detik dan cap 100, stacking orb, penyerapan shield sebelum HP, pause/reset, paket campuran, lima apel, bekal upgrade, kampanye solver, serta regresi Arkade.
++- `npm run build`: berhasil.
++- Browser Chromium: start, pause/resume, bantuan, game over, retry, kembali ke menu; halaman penjaga level 35; aset mode Malam/Portal/Time Attack.
++- Tampilan diperiksa pada **360, 390, 768, 1366 px** dan HP landscape **844 × 390**. Tidak ditemukan horizontal overflow; tombol mulai pada portal menu landscape tetap terjangkau.
++- Dialog bantuan dua kolom telah diperiksa di desktop dan HP; fokus tidak melompat ke bagian bawah.
++- Render Canvas fase 3 diperiksa dengan fixture visual shield/orb; transisi seluruh fase diuji lewat simulasi otomatis, bukan klaim menyelesaikan seluruh run dengan tangan di browser.
++- `git diff --check`: bersih.
++
++Uji browser memakai emulasi. Balancing kesulitan/durasi perjalanan dan performa di HP fisik masih memerlukan playtest.
++
++## Menjalankan
++
++```bash
++npm ci
++npm run dev
++npm test
++npm run build
++```
++
++Test dijalankan serial karena helper test menyiapkan cache modul bersama. Arsip tidak menyertakan `node_modules`, `.next`, atau folder `.git`.
++
++## Berkas yang berubah
++
++Daftar lengkap di bawah dibuat dari diff terhadap Boss Batch 1. `ADVENTURE_REVISION.diff` di dalam ZIP berisi diff source; penggantian gambar tersedia sebagai file WebP langsung.
++
++- `ADVENTURE_REVISION.md`
++- `BOSS_BATCH_1.md`
++- `CHANGELOG.md`
++- `README.md`
++- `app/globals.css`
++- `components/BackgroundLayer.jsx`
++- `components/HelpModal.jsx`
++- `components/Hud.jsx`
++- `components/Overlay.jsx`
++- `docs/ASSETS_ADVENTURE.md`
++- `docs/TAHAP-5.md`
++- `docs/TAHAP-9.md`
++- `lib/boss/controller.js`
++- `lib/boss/hud.js`
++- `lib/boss/render.js`
++- `lib/boss/sim.js`
++- `lib/constants.js`
++- `lib/delivery/controller.js`
++- `lib/delivery/render.js`
++- `lib/delivery/sim.js`
++- `lib/modes/registry.js`
++- `lib/progress.js`
++- `lib/puzzle/campaign.js`
++- `lib/puzzle/campaignData.js`
++- `lib/puzzle/controller.js`
++- `lib/puzzle/render.js`
++- `lib/puzzle/sim.js`
++- `lib/records.js`
++- `lib/render/face.js`
++- `lib/roguelite/controller.js`
++- `lib/roguelite/render.js`
++- `lib/roguelite/sim.js`
++- `lib/roguelite/upgrades.js`
++- `lib/territory/controller.js`
++- `lib/territory/render.js`
++- `package.json`
++- `public/assets/game/bg-boss-m.webp`
++- `public/assets/game/bg-boss.webp`
++- `public/assets/game/bg-classicnight-m.webp`
++- `public/assets/game/bg-classicnight.webp`
++- `public/assets/game/bg-delivery-m.webp`
++- `public/assets/game/bg-delivery.webp`
++- `public/assets/game/bg-portal-m.webp`
++- `public/assets/game/bg-portal.webp`
++- `public/assets/game/bg-puzzle-m.webp`
++- `public/assets/game/bg-puzzle.webp`
++- `public/assets/game/bg-roguelite-m.webp`
++- `public/assets/game/bg-roguelite.webp`
++- `public/assets/game/bg-territory-m.webp`
++- `public/assets/game/bg-territory.webp`
++- `public/assets/game/bg-timeattack-m.webp`
++- `public/assets/game/bg-timeattack.webp`
++- `tests/adventure-revision.test.mjs`
++- `tests/boss-campaign.test.mjs`
++- `tests/boss.test.mjs`
++- `tests/delivery.test.mjs`
++- `tests/puzzle9a.test.mjs`
++- `tests/registry.test.mjs`
++- `tests/roguelite.test.mjs`
+diff --git a/BOSS_BATCH_1.md b/BOSS_BATCH_1.md
+index 7af5cfc..18d3e9b 100644
+--- a/BOSS_BATCH_1.md
++++ b/BOSS_BATCH_1.md
+@@ -1,3 +1,5 @@
++> Arsip versi sebelumnya. Aturan terbaru dan hasil validasi ada di [ADVENTURE_REVISION.md](ADVENTURE_REVISION.md).
++
+ # Eat-eat — Batch 1: Penjaga Kebun
+ 
+ Basis: **Eat-eat Fokus UI**, kelanjutan dari `Eat-eat-main-tahap-9.zip`. Tidak ada ZIP unggahan lebih baru yang tersedia pada saat pengerjaan. Perubahan ini berisi implementasi, bukan hanya rancangan.
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 9668441..c6732c6 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -2,7 +2,7 @@
+ 
+ Format mengikuti [Keep a Changelog](https://keepachangelog.com/). Rilis dinamai menurut **tahap kerja**, bukan nomor versi.
+ Semua verifikasi dilakukan di sandbox Node (test otomatis, build, render SSR, dan gambar Canvas/SVG lewat renderer lain).
+-**Tidak ada satu pun tahap yang diuji di browser oleh saya** — hasil uji main datang dari kamu (lihat catatan di tiap tahap).
++Catatan tahap 0–9 di bawah adalah arsip. Revisi Petualangan terbaru telah diuji di Chromium dan dengan 275 tes otomatis; detail ada di [ADVENTURE_REVISION.md](ADVENTURE_REVISION.md).
+ 
+ | Tahap | Isi | Test | Ukuran rute `/` (First Load JS) | Berkas serah |
+ |---|---|---|---|---|
+diff --git a/README.md b/README.md
+index 3a94240..907307f 100644
+--- a/README.md
++++ b/README.md
+@@ -1,5 +1,7 @@
+ # Snake (Next.js)
+ 
++Revisi terbaru: [Petualangan & Boss](ADVENTURE_REVISION.md) — UI dua kolom, aset transparan, Ekspedisi gabungan, dan boss HP 3/5/10 dengan shield/orb.
++
+ Port dari game Snake single-file HTML lama ke Next.js (App Router), dipecah jadi komponen/hook/lib terpisah.
+ 
+ ## Cara jalanin
+diff --git a/app/globals.css b/app/globals.css
+index 930f83d..87fba87 100644
+--- a/app/globals.css
++++ b/app/globals.css
+@@ -233,3 +233,31 @@ button:active:not(:disabled) { transform:translateY(1px); }
+ 
+ /* Penjaga Kebun: satu ikon untuk simpanan hati, tetap ringkas di panel HP. */
+ .boss-heart-count { color: #ab4142; font-weight: 800; font-variant-numeric: tabular-nums; }
++
++/* Aset cutout: bagian kiri benar-benar transparan, judul memakai outline. */
++.menu-hero:has(.scene-cutout) { background:transparent; border-radius:0; }
++.scene-cutout picture { width:100%; mask-image:none; }
++.scene-cutout img { object-fit:contain; object-position:right center; }
++.menu-hero:has(.scene-cutout) .hero-copy h1 { color:#fffbed; -webkit-text-stroke:3px #304831; paint-order:stroke fill; text-shadow:0 2px 0 #304831; }
++.menu-hero:has(.scene-cutout) .hero-copy .eyebrow { color:#304831; text-shadow:0 1px 0 #fffbed; }
++.menu-hero:has(.scene-cutout) .hero-tag { background:transparent; border:0; color:#304831; padding-left:0; text-shadow:1px 0 #fffbed,-1px 0 #fffbed,0 1px #fffbed,0 -1px #fffbed; }
++.help-dialog { max-width:780px; padding:24px; border-radius:24px; }
++.help-dialog h3 { font-family:'Fredoka',ui-rounded,system-ui,sans-serif; font-size:25px; margin-bottom:16px; }
++.help-controls { display:flex; flex-wrap:wrap; gap:8px 20px; padding-bottom:16px; color:#41533b; font-size:13px; }
++.help-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; border-top:1px solid #d5ddca; padding-top:16px; }
++.help-rule { display:flex; align-items:flex-start; gap:9px; padding:14px; border:1px solid #dae2ce; border-radius:14px; background:#f0f3e7; color:#34442f; margin:0; line-height:1.55; }
++.help-rule-icon { color:#507139; margin-top:3px; }
++@media (max-width:480px) {
++ .help-dialog { padding:16px; }
++ .help-dialog h3 { font-size:22px; }
++ .help-grid { gap:8px; }
++ .help-rule { flex-direction:column; padding:10px; gap:6px; font-size:12px; }
++ .help-controls { font-size:12px; }
++ .menu-hero:has(.scene-cutout) .hero-copy { padding:12px; max-width:50%; }
++ .menu-hero:has(.scene-cutout) .hero-copy h1 { font-size:28px; -webkit-text-stroke:2.5px #304831; }
++}
++
++.focus-stage .adv-modes[data-n="4"] { grid-template-columns:repeat(4,minmax(0,1fr)); }
++@media (max-width:639px) { .focus-stage .adv-modes[data-n="4"] { grid-template-columns:repeat(2,minmax(0,1fr)); } }
++.stage-side.focus-stage .adv-modes[data-n="4"] { grid-template-columns:repeat(2,minmax(0,1fr)); }
++.boss-power { padding:7px 9px; border:1px solid #a8c5c3; border-radius:9px; background:#e7efe2; }
+diff --git a/components/BackgroundLayer.jsx b/components/BackgroundLayer.jsx
+index 4874d24..f2c9f58 100644
+--- a/components/BackgroundLayer.jsx
++++ b/components/BackgroundLayer.jsx
+@@ -16,7 +16,7 @@ export default function BackgroundLayer({ mode }) {
+     return () => { window.removeEventListener('snake:play-punch', punch); gsap.killTweensOf(el); };
+   }, []);
+   const src = BG[mode] || BG.classic;
+-  return <div ref={ref} className="focus-scene" aria-hidden="true"><picture key={mode}>
++  return <div ref={ref} className={`focus-scene ${['classicnight', 'portal', 'timeattack', 'puzzle', 'delivery', 'roguelite', 'boss', 'territory'].includes(mode) ? 'scene-cutout' : ''}`} aria-hidden="true"><picture key={mode}>
+     <source media="(max-width: 768px), (pointer: coarse)" srcSet={src.replace('.webp', '-m.webp')} />
+     <img src={src} alt="" width="1672" height="941" draggable={false} />
+   </picture></div>;
+diff --git a/components/HelpModal.jsx b/components/HelpModal.jsx
+index 5601cdd..6bc94cb 100644
+--- a/components/HelpModal.jsx
++++ b/components/HelpModal.jsx
+@@ -13,10 +13,10 @@ export default function HelpModal({ open, mode, onClose }) {
+     if (cardRef.current && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+       gsap.fromTo(cardRef.current, { opacity: 0, y: 16, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.3, ease: 'power2.out' });
+     }
+-    if (closeRef.current) closeRef.current.focus();
++    if (closeRef.current) closeRef.current.focus({ preventScroll: true });
+     function onKey(e) {
+       if (e.key === 'Escape') { e.preventDefault(); onClose(); }
+-      else if (e.key === 'Tab') { e.preventDefault(); if (closeRef.current) closeRef.current.focus(); } // satu-satunya kontrol: fokus tidak keluar dialog
++      else if (e.key === 'Tab') { e.preventDefault(); if (closeRef.current) closeRef.current.focus({ preventScroll: true }); } // satu-satunya kontrol: fokus tidak keluar dialog
+     }
+     window.addEventListener('keydown', onKey);
+     return () => {
+@@ -30,19 +30,19 @@ export default function HelpModal({ open, mode, onClose }) {
+ 
+   return (
+     <div role="dialog" aria-modal="true" aria-labelledby="help-title" className="no-swipe fixed inset-0 z-50 flex items-center justify-center p-5" style={{ background: 'rgba(0,0,0,.6)' }}>
+-      <div ref={cardRef} className="focus-dialog bg-[#232323] rounded-xl p-5 max-w-[360px] w-full max-h-[90dvh] overflow-y-auto text-sm leading-relaxed">
++      <div ref={cardRef} className="focus-dialog help-dialog w-full max-h-[90dvh] overflow-y-auto text-sm leading-relaxed">
+         <h3 id="help-title" className="text-base font-bold mb-2.5">Cara Main</h3>
+-        <div className="space-y-1.5 mb-3 text-[#c9d6bd]">
++        <div className="help-controls">
+           <p className="flex items-center gap-2"><ICONS.gamepad size={15} className="shrink-0" /> Panah / WASD — gerak ular</p>
+           <p className="flex items-center gap-2"><ICONS.right size={15} className="shrink-0" /> Swipe layar — gerak (mobile)</p>
+           <p className="flex items-center gap-2"><ICONS.pause size={15} className="shrink-0" /> Esc / tombol Jeda — jeda permainan</p>
+         </div>
+-        <div className="border-t border-[#3a3a3a] pt-3 space-y-2">
++        <div className="help-grid">
+           {rules.map((r, i) => {
+             const Icon = ICONS[r.icon] || ICONS.help;
+             return (
+-              <p key={i} className="flex items-start gap-2 text-[#c9d6bd]">
+-                <Icon size={16} className="shrink-0 mt-0.5 text-[#8fd13f]" />
++              <p key={i} className="help-rule">
++                <Icon size={16} className="help-rule-icon shrink-0" />
+                 <span>{r.text}</span>
+               </p>
+             );
+diff --git a/components/Hud.jsx b/components/Hud.jsx
+index 1c88e45..6ac5018 100644
+--- a/components/Hud.jsx
++++ b/components/Hud.jsx
+@@ -138,6 +138,10 @@ function BossStats({ b, cols }) {
+       </div>
+       <div className="hud-col">
+         <div className="puzzle-stats"><span>{b.weak.status === 'open' ? <KeyI size={14} /> : <LockI size={14} />}Titik lemah: {weakTxt}</span></div>
++        {b.isBoss && b.phase === 3 && <div className="puzzle-stats boss-power">
++          <span><ICONS.shield size={14} />Shield {b.shield}/{b.shieldMax}{b.shieldSecs > 0 ? ` · +10 dalam ${b.shieldSecs}s` : ''}</span>
++          <span><BoltI size={14} />Orb ×2: {b.damageStacks} · Damage {b.playerDamage.toLocaleString('id-ID')}</span>
++        </div>}
+         <div className="puzzle-stats"><span><b>{b.enemy}</b> · {b.isBoss ? `${b.hp}/${b.maxHp} HP · ${b.openings} celah` : '1 energi per pukulan'}</span><span>{b.stage}</span></div>
+         <div className="puzzle-msg" role="status" aria-live="polite" aria-atomic="true">{b.message}</div>
+       </div>
+@@ -176,7 +180,7 @@ export default function Hud({ mode, modeLabel, timerText, effects, score, best,
+   const isDelivery = mode === 'delivery' && !!delivery;
+   const isRogue = mode === 'roguelite' && !!roguelite;
+   const isTerritory = mode === 'territory' && !!territory;
+-  const isBoss = mode === 'boss' && !!boss;
++  const isBoss = (mode === 'boss' || mode === 'roguelite') && !!boss;
+ 
+   // Mode landscape di HP: kartu kecil & ringkas di panel samping kanvas.
+   if (side) {
+diff --git a/components/Overlay.jsx b/components/Overlay.jsx
+index 25e06ad..c4971f1 100644
+--- a/components/Overlay.jsx
++++ b/components/Overlay.jsx
+@@ -46,7 +46,7 @@ const CONFETTI_POS = '6px 10px, 34px 46px, 54px 8px, 20px 70px';
+ const DESCRIPTION = {
+   puzzle: 'Cari kunci, pecahkan teka-teki, temukan jalan keluar.',
+   delivery: 'Antar paket apel sebelum waktunya habis.',
+-  roguelite: 'Lima ronde, satu perjalanan. Pilih upgrade-mu.',
++  roguelite: 'Kumpulkan bekal. Tembus antek. Taklukkan boss.',
+   boss: 'Tembus 9 ronde antek, lalu taklukkan boss tiga fase.',
+   territory: 'Gambar jejak dan rebut wilayah dari lawan.',
+ };
+@@ -190,12 +190,12 @@ export default function Overlay({ side, host, visible, phase, mood, title, sub,
+                 key={l.id}
+                 disabled={!l.unlocked}
+                 aria-pressed={lv.selected === i}
+-                aria-label={`Level ${i + 1}: ${l.name}${l.unlocked ? '' : ', terkunci'}${l.cleared ? `, rekor ${l.best} langkah` : ''}`}
++                aria-label={`Level ${i + 1}: ${l.name}${l.unlocked ? '' : ', terkunci'}${l.cleared ? (l.legacyBest ? ', selesai di versi lama' : `, rekor ${l.best} langkah`) : ''}`}
+                 onClick={() => onSelectLevel && onSelectLevel(i)}
+                 className="level-btn"
+               >
+                 <b>{i + 1}</b>
+-                <small>{!l.unlocked ? 'Terkunci' : l.cleared ? `✓ ${l.best}` : 'Baru'}</small>
++                <small>{!l.unlocked ? 'Terkunci' : l.cleared ? (l.legacyBest ? 'Versi lama' : `✓ ${l.best}`) : 'Baru'}</small>
+               </button>
+             ))}
+           </div>
+@@ -213,7 +213,7 @@ export default function Overlay({ side, host, visible, phase, mood, title, sub,
+       )}
+       {isRogue && (
+         <div className="start-settings">
+-          <div className="start-menu-heading"><span>Struktur</span><span>5 ronde • target {rm ? rm.targets.join(' / ') : '28 / 40 / 52 / 64 / 76'}</span></div>
++          <div className="start-menu-heading"><span>Struktur</span><span>5 rute → 9 gelombang → boss</span></div>
+           <div className="start-menu-heading"><span>Kecepatan</span><span>Sesuai gayamu</span></div>
+           <div className="start-chips" role="group" aria-label="Kecepatan">
+             {SPEEDS.map(s => <Chip key={s.k} start on={speed === s.k} onClick={() => onSpeedChange(s.k)}>{s.l}</Chip>)}
+diff --git a/docs/ASSETS_ADVENTURE.md b/docs/ASSETS_ADVENTURE.md
+new file mode 100644
+index 0000000..4a8997f
+--- /dev/null
++++ b/docs/ASSETS_ADVENTURE.md
+@@ -0,0 +1,67 @@
++# Revisi aset Petualangan
++
++Dibuat dengan imagegen bawaan; delapan banner diedit dari aset sebelumnya. WebP desktop 1672 px, HP 960 px, alpha transparan dipertahankan.
++
++## classicnight
++
++File: public/assets/game/bg-classicnight.webp dan bg-classicnight-m.webp
++
++Prompt:
++
++Use case: style-transfer. Edit target: attached existing Snake game banner. Redraw in the SAME simple hand-drawn flat cartoon style, green snake identity, thick dark organic outlines, cream belly, limited colors. Make the acting MUCH more expressive. Night adventure: snake sneaks low, eyes very wide and looking sideways at a tiny glowing firefly, raised worried eyebrows and small nervous open mouth. Crescent moon and a few dark teal leaves. Landscape banner 16:9. All illustration occupies RIGHT 62% of canvas with generous safe margins. LEFT 38% completely empty and TRANSPARENT for live UI title. Remove the solid dark rectangular background; use actual alpha transparency around an isolated vignette of character and minimal mode props, no enclosing frame. No text, letters, watermark, gradients, 3D, glossy rendering, extra limbs. Preserve the coherent cute game aesthetic.
++
++## portal
++
++File: public/assets/game/bg-portal.webp dan bg-portal-m.webp
++
++Prompt:
++
++Use case: style-transfer. Edit target: attached existing Snake game banner. Redraw in the SAME simple hand-drawn flat cartoon style, green snake identity, thick dark organic outlines, cream belly, limited colors. Make the acting MUCH more expressive. Portal: snake bursts halfway through a purple swirling portal, body twisting, shocked wide eyes with unequal eyebrows and a surprised round open mouth. Clearly energetic and startled. Landscape banner 16:9. All illustration occupies RIGHT 62% of canvas with generous safe margins. LEFT 38% completely empty and TRANSPARENT for live UI title. Remove the solid dark rectangular background; use actual alpha transparency around an isolated vignette of character and minimal mode props, no enclosing frame. No text, letters, watermark, gradients, 3D, glossy rendering, extra limbs. Preserve the coherent cute game aesthetic.
++
++## timeattack
++
++File: public/assets/game/bg-timeattack.webp dan bg-timeattack-m.webp
++
++Prompt:
++
++Use case: style-transfer. Edit target: attached existing Snake game banner. Redraw in the SAME simple hand-drawn flat cartoon style, green snake identity, thick dark organic outlines, cream belly, limited colors. Make the acting MUCH more expressive. Time race: snake races forward urgently, sharply determined eyebrows, clenched toothy mouth, two sweat drops, tail trailing backward, a tilted nearly-empty hourglass and a rolling apple. Landscape banner 16:9. All illustration occupies RIGHT 62% of canvas with generous safe margins. LEFT 38% completely empty and TRANSPARENT for live UI title. Remove the solid dark rectangular background; use actual alpha transparency around an isolated vignette of character and minimal mode props, no enclosing frame. No text, letters, watermark, gradients, 3D, glossy rendering, extra limbs. Preserve the coherent cute game aesthetic.
++
++## puzzle
++
++File: public/assets/game/bg-puzzle.webp dan bg-puzzle-m.webp
++
++Prompt:
++
++Use case: style-transfer. Edit target: attached existing Snake game banner. Redraw in the SAME simple hand-drawn flat cartoon style, green snake identity, thick dark organic outlines, cream belly, limited colors. Make the acting MUCH more expressive. Key puzzle: clever sneaking snake with narrowed focused eyes, crooked mischievous grin and one raised eyebrow, holding a gold key toward a little locked garden gate; an alert little orange beetle sentry watches in the opposite direction. Landscape banner 16:9. All illustration occupies RIGHT 62% of canvas with generous safe margins. LEFT 38% completely empty and TRANSPARENT for live UI title. Remove the solid dark rectangular background; use actual alpha transparency around an isolated vignette of character and minimal mode props, no enclosing frame. No text, letters, watermark, gradients, 3D, glossy rendering, extra limbs. Preserve the coherent cute game aesthetic.
++
++## delivery
++
++File: public/assets/game/bg-delivery.webp dan bg-delivery-m.webp
++
++Prompt:
++
++Use case: style-transfer. Attached image is the edit target for a Snake game menu banner. Preserve its green snake identity, cream belly, simple thick dark outlines and cute flat cartoon aesthetic. Redraw with MUCH stronger acting: An energetic snake courier speeding toward a tiny garden cottage, tail curled around two matching apple parcels, determined brows, big focused eyes, small clenched smile, two sweat drops, parcels tilting and dust puffs. Clearly delivering in a hurry. Landscape 16:9. All action and props on the RIGHT 62%, LEFT 38% empty and truly transparent for live UI text. Remove the flat colored rectangular background completely. Actual alpha transparency outside an isolated character-and-props vignette, minimal foliage. No text, logos, frames, watermarks, 3D, glossy gradients. Consistent with a hand-drawn cartoon mobile game. Keep subjects inside safe margins.
++
++## roguelite
++
++File: public/assets/game/bg-roguelite.webp dan bg-roguelite-m.webp
++
++Prompt:
++
++Use case: style-transfer. Attached image is the edit target for a Snake game menu banner. Preserve its green snake identity, cream belly, simple thick dark outlines and cute flat cartoon aesthetic. Redraw with MUCH stronger acting: A brave green snake adventurer with tiny backpack confronts a large angry garden root-beetle boss behind a small stone garden gate. Snake has determined narrowed eyes and fierce grin. Boss scowls with exaggerated brows. Gold apples and a little map make expedition story clear. Two opponents, not friends. Landscape 16:9. All action and props on the RIGHT 62%, LEFT 38% empty and truly transparent for live UI text. Remove the flat colored rectangular background completely. Actual alpha transparency outside an isolated character-and-props vignette, minimal foliage. No text, logos, frames, watermarks, 3D, glossy gradients. Consistent with a hand-drawn cartoon mobile game. Keep subjects inside safe margins.
++
++## boss
++
++File: public/assets/game/bg-boss.webp dan bg-boss-m.webp
++
++Prompt:
++
++Use case: style-transfer. Attached image is the edit target for a Snake game menu banner. Preserve its green snake identity, cream belly, simple thick dark outlines and cute flat cartoon aesthetic. Redraw with MUCH stronger acting: Large angry garden beetle boss faces a determined green snake challenger, both fierce competitive eyes, beetle raised claws and clenched teeth, snake coiled ready to dodge. Two tiny seed minions. Clear dramatic confrontation, cute cartoon rather than scary. Landscape 16:9. All action and props on the RIGHT 62%, LEFT 38% empty and truly transparent for live UI text. Remove the flat colored rectangular background completely. Actual alpha transparency outside an isolated character-and-props vignette, minimal foliage. No text, logos, frames, watermarks, 3D, glossy gradients. Consistent with a hand-drawn cartoon mobile game. Keep subjects inside safe margins.
++
++## territory
++
++File: public/assets/game/bg-territory.webp dan bg-territory-m.webp
++
++Prompt:
++
++Use case: style-transfer. Attached image is the edit target for a Snake game menu banner. Preserve its green snake identity, cream belly, simple thick dark outlines and cute flat cartoon aesthetic. Redraw with MUCH stronger acting: Two rival snakes, lime green and teal, aggressively compete for a little tiled garden with orange and blue flags. Both have sharp competitive brows, fierce open mouths and dynamic lunging poses in opposite directions; a spark between flags. Sporting rivalry, NOT romantic, no hearts. Landscape 16:9. All action and props on the RIGHT 62%, LEFT 38% empty and truly transparent for live UI text. Remove the flat colored rectangular background completely. Actual alpha transparency outside an isolated character-and-props vignette, minimal foliage. No text, logos, frames, watermarks, 3D, glossy gradients. Consistent with a hand-drawn cartoon mobile game. Keep subjects inside safe margins.
+diff --git a/docs/TAHAP-5.md b/docs/TAHAP-5.md
+index e503df7..bdbc03b 100644
+--- a/docs/TAHAP-5.md
++++ b/docs/TAHAP-5.md
+@@ -1,3 +1,5 @@
++> Arsip versi sebelumnya. Aturan terbaru dan hasil validasi ada di [ADVENTURE_REVISION.md](../ADVENTURE_REVISION.md).
++
+ # Tahap 5: Roguelite "Ekspedisi Mayhem"
+ 
+ ## Alur run
+diff --git a/docs/TAHAP-9.md b/docs/TAHAP-9.md
+index bacfadd..fa338c9 100644
+--- a/docs/TAHAP-9.md
++++ b/docs/TAHAP-9.md
+@@ -1,3 +1,5 @@
++> Arsip versi sebelumnya. Aturan terbaru dan hasil validasi ada di [ADVENTURE_REVISION.md](../ADVENTURE_REVISION.md).
++
+ # Tahap 9: Jejak Kunci 50 level (buatan sistem) + rintangan, power-up, penjaga
+ 
+ ## Ringkas
+diff --git a/lib/boss/controller.js b/lib/boss/controller.js
+index 92d7b7e..a66bc82 100644
+--- a/lib/boss/controller.js
++++ b/lib/boss/controller.js
+@@ -3,6 +3,7 @@
+ import { createSimClock } from '../sim/clock';
+ import { bossConfig, isBossRound, energyNeed, phaseRules, ARENA_MAP, START, WEAK_TILES, DIRS, parseArena, createState, stepSim, advance, weakTile, isInvuln } from './sim';
+ import { drawBoss } from './render';
++import { bossHud } from './hud';
+ import { SPEEDS } from '../storage';
+ import { loadRecords, saveRecords, bossConfigKey, getBossRecord, recordBoss } from '../records';
+ import { isOpposite } from '../sim/grid';
+@@ -45,31 +46,7 @@ export function createBossGame({ canvas, sounds, onUpdate, rng, now: nowFn, raf:
+     emitFullState(true);
+   }
+ 
+-  function stageText() {
+-    if (!sim) return '';
+-    if (sim.status !== 'playing') return sim.status === 'won' ? 'Kebun aman!' : 'Run selesai';
+-    const k = sim.sched.kind, a = sim.attack, name = a ? ATTACK[a.kind] : '';
+-    if (k === 'tele') return `${name}: PERINGATAN • −${a.damage} hati`;
+-    if (k === 'active') return `${name}: AKTIF`;
+-    if (k === 'recovery') return `${name}: selesai`;
+-    if (k === 'window') return 'Titik lemah TERBUKA';
+-    if (k === 'transition') return 'Boss berubah fase… Ambil heal!';
+-    if (k === 'round') return sim.round === cfg.minionRounds ? 'Boss mendekat… Ambil heal!' : 'Ronde tuntas… Ambil heal!';
+-    return isBossRound(sim) ? 'Boss bersiap…' : `${sim.minion.name} bersiap…`;
+-  }
+-  function hudData() {
+-    if (!sim) return null;
+-    const w = sim.window;
+-    const weak = sim.sched.kind === 'window' && w.open ? { status: 'open', secs: secs(sim.sched.endAt - sim.t), ready: sim.energy >= energyNeed(sim) } : { status: sim.sched.kind === 'transition' ? 'locked' : (w.hit ? 'done' : 'locked'), secs: 0, ready: false };
+-    return {
+-      round: sim.round, rounds: cfg.minionRounds + 1, isBoss: isBossRound(sim), enemy: isBossRound(sim) ? sim.variant.name : sim.minion.name,
+-      minionsLeft: sim.minionsLeft, minionsTotal: sim.minionsTotal, phaseHp: sim.phaseHp, phaseMaxHp: cfg.phases[sim.phase - 1].hp, damage: phaseRules(sim).damage,
+-      openings: sim.window.open ? (sim.window.targets || []).length - (sim.window.used || []).length : phaseRules(sim).openings,
+-      hp: sim.hp, maxHp: cfg.bossHp, phase: Math.min(sim.phase, 3), phases: 3, lives: Math.max(0, sim.lives), maxLives: cfg.lives,
+-      energy: sim.energy, need: energyNeed(sim), max: cfg.energyMax, weak, invulnSecs: isInvuln(sim) ? secs(sim.invulnUntil - sim.t) : 0,
+-      stage: stageText(), message,
+-    };
+-  }
++  const hudData = () => bossHud(sim, message);
+   function menuData() {
+     const r = getBossRecord(records, keyFor(speedPref));
+     return { best: r.best, plays: r.plays, wins: r.wins, bestSecs: r.bestSecs, speed: speedPref, maxHp: cfg.bossHp, lives: cfg.lives, rounds: cfg.minionRounds + 1, bestRound: r.bestRounds };
+@@ -164,6 +141,7 @@ export function createBossGame({ canvas, sounds, onUpdate, rng, now: nowFn, raf:
+       else if (e.type === 'window' && e.open) message = sim.energy >= energyNeed(sim) ? 'Titik lemah terbuka: serang sekarang!' : `Titik lemah terbuka, butuh ${energyNeed(sim)} energi.`;
+       else if (e.type === 'phase') message = `Fase ${e.phase}: ${phaseRules(sim).openings} celah, serangan makin cepat!`;
+       else if (e.type === 'minionHit') { if (sounds.playChomp) sounds.playChomp(); message = e.left ? `Antek kalah! ${e.left} lagi.` : 'Ronde tuntas! Ambil hati sebelum lanjut.'; }
++      else if (e.type === 'damageOrb') { if (sounds.playChomp) sounds.playChomp(); message = `Orb ×2 ditumpuk ${e.stacks} kali. Damage saat ini ${e.damage}.`; }
+       else if (e.type === 'heal') { if (sounds.playChomp) sounds.playChomp(); message = `+${e.amount} hati! Simpanan: ${e.lives}.`; }
+       else if (e.type === 'round') message = e.boss ? `${sim.variant.name} muncul! Tiga fase, cari celahnya.` : `Ronde ${e.round}: ${sim.minionsTotal} antek menyerang bergiliran.`;
+     });
+@@ -194,8 +172,8 @@ export function createBossGame({ canvas, sounds, onUpdate, rng, now: nowFn, raf:
+     if (destroyed) return;
+     if (state === 'playing') stepWorld();
+     if (sim) {
+-      const prog = state === 'playing' ? Math.min(1, (clock.now() - lastTick) / interval) : 1;
+-      drawBoss(ctx, canvas.width, canvas.height, sim, { prog, from: prevSnake, t: realNow(), reduce: reduceMotion });
++      const prog = (state === 'playing' || state === 'paused') ? Math.min(1, (clock.now() - lastTick) / interval) : 1;
++      drawBoss(ctx, canvas.width, canvas.height, sim, { prog, from: prevSnake, t: clock.now(), reduce: reduceMotion });
+     }
+     rafId = raf(loop);
+   }
+diff --git a/lib/boss/hud.js b/lib/boss/hud.js
+new file mode 100644
+index 0000000..3e01df1
+--- /dev/null
++++ b/lib/boss/hud.js
+@@ -0,0 +1,36 @@
++import { isBossRound, energyNeed, phaseRules, isInvuln, playerDamage } from './sim';
++const ATTACK = { row: 'Baris berbahaya', mines: 'Ranjau kebun', corridor: 'Koridor menyempit' };
++
++export function bossHud(sim, message = '') {
++  if (!sim) return null;
++  const cfg = sim.cfg;
++  const secs = ms => Math.max(0, Math.ceil(ms / 1000));
++  function stageText() {
++    if (!sim) return '';
++    if (sim.status !== 'playing') return sim.status === 'won' ? 'Kebun aman!' : 'Run selesai';
++    const k = sim.sched.kind, a = sim.attack, name = a ? ATTACK[a.kind] : '';
++    if (k === 'tele') return `${name}: PERINGATAN • −${a.damage} hati`;
++    if (k === 'active') return `${name}: AKTIF`;
++    if (k === 'recovery') return `${name}: selesai`;
++    if (k === 'window') return 'Titik lemah TERBUKA';
++    if (k === 'transition') return 'Boss berubah fase… Ambil heal!';
++    if (k === 'round') return sim.round === cfg.minionRounds ? 'Boss mendekat… Ambil heal!' : 'Ronde tuntas… Ambil heal!';
++    return isBossRound(sim) ? 'Boss bersiap…' : `${sim.minion.name} bersiap…`;
++  }
++  function hudData() {
++    if (!sim) return null;
++    const w = sim.window;
++    const weak = sim.sched.kind === 'window' && w.open ? { status: 'open', secs: secs(sim.sched.endAt - sim.t), ready: sim.energy >= energyNeed(sim) } : { status: sim.sched.kind === 'transition' ? 'locked' : (w.hit ? 'done' : 'locked'), secs: 0, ready: false };
++    return {
++      round: sim.round, rounds: cfg.minionRounds + 1, isBoss: isBossRound(sim), enemy: isBossRound(sim) ? sim.variant.name : sim.minion.name,
++      minionsLeft: sim.minionsLeft, minionsTotal: sim.minionsTotal, phaseHp: sim.phaseHp, phaseMaxHp: cfg.phases[sim.phase - 1].hp, damage: phaseRules(sim).damage,
++      openings: sim.window.open ? (sim.window.targets || []).length - (sim.window.used || []).length : phaseRules(sim).openings,
++      hp: sim.hp, maxHp: cfg.bossHp, phase: Math.min(sim.phase, 3), phases: 3, lives: Math.max(0, sim.lives), maxLives: cfg.lives,
++      energy: sim.energy, need: energyNeed(sim), max: cfg.energyMax, weak, invulnSecs: isInvuln(sim) ? secs(sim.invulnUntil - sim.t) : 0,
++      shield: sim.shield, shieldMax: cfg.shieldMax, damageStacks: sim.damageStacks, playerDamage: playerDamage(sim),
++      shieldSecs: sim.shieldBursts.length ? secs(Math.min(...sim.shieldBursts.map(b => b.nextAt)) - sim.t) : 0,
++      stage: stageText(), message,
++    };
++  }
++  return hudData();
++}
+diff --git a/lib/boss/render.js b/lib/boss/render.js
+index c5ffdc6..fd00b07 100644
+--- a/lib/boss/render.js
++++ b/lib/boss/render.js
+@@ -1,10 +1,11 @@
+ // Render Canvas 2D Boss Battle. Bahaya dibedakan oleh POLA (arsir = peringatan, X = aktif, bom = ranjau, panah AMAN = koridor),
+ // bukan hanya warna. Tidak ada kedipan: peringatan hanya menebal pelan (statis bila reduced-motion).
+-import { animatedPoints, easeOutCubic } from '../sim/anim';
++import { animatedPoints } from '../sim/anim';
+ import { traceSmooth } from '../render/snakePath';
++import { drawFace } from '../render/face';
+ import { weakTiles, isInvuln, isBossRound } from './sim';
+ 
+-const C = { a: '#6fae4b', b: '#66a444', ink: '#10160f', white: '#fff', boss: '#5a3a22', bossDk: '#3b2415', snakeOut: '#16361a', snakeIn: '#5fd35a',
++const C = { a: '#c7d6ac', b: '#d0ddb7', ink: '#10160f', white: '#fff', boss: '#5a3a22', bossDk: '#3b2415', snakeOut: '#16361a', snakeIn: '#5fd35a',
+   warn: '#ffb020', danger: '#b3261e', safe: '#2fd27a', apple: '#ffd23f', weakOpen: '#38d6ff', weakLock: '#8a929a' };
+ 
+ function hatch(ctx, px, py, cell, color) {
+@@ -51,7 +52,8 @@ export function drawBoss(ctx, W, H, s, view) {
+ 
+   // Musuh menempati petak terlarang yang sama; antek terlihat dahulu, boss baru ronde 10.
+   const boss = isBossRound(s), enemy = boss ? s.variant : s.minion;
+-  const ex = cx(8), ey = py(1.5), radius = cell * (boss ? 1.2 : 0.85);
++  const breath = view.reduce ? 0 : Math.sin((view.t || 0) / 240) * 0.025;
++  const ex = cx(8), ey = py(1.5) + cell * breath, radius = cell * (boss ? 1.2 : 0.85) * (1 + breath);
+   ctx.fillStyle = '#3c502e'; ctx.fillRect(px(6), py(0), cell * 5, cell * 3);
+   ctx.strokeStyle = '#efdfac'; ctx.lineWidth = 2; ctx.setLineDash([5, 5]); ctx.strokeRect(px(6) + 2, py(0) + 2, cell * 5 - 4, cell * 3 - 4); ctx.setLineDash([]);
+   ctx.fillStyle = enemy.color; ctx.strokeStyle = C.ink; ctx.lineWidth = Math.max(2, cell * 0.07);
+@@ -79,6 +81,13 @@ export function drawBoss(ctx, W, H, s, view) {
+     ctx.fillStyle = '#f6c96c'; ctx.fillRect(px(6) + 5, py(0) + 4, (cell * 5 - 10) * s.phaseHp / s.cfg.phases[s.phase - 1].hp, cell * 0.13);
+   }
+ 
++  if (boss && s.shield > 0) {
++    ctx.strokeStyle = '#7ed4e6'; ctx.lineWidth = 3; ctx.setLineDash([6, 4]);
++    ctx.beginPath(); ctx.ellipse(ex, ey, radius * 1.6, radius * 1.05, 0, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
++    ctx.fillStyle = '#234f62'; ctx.fillRect(px(6) + 5, py(2.95), cell * 5 - 10, cell * 0.1);
++    ctx.fillStyle = '#7ed4e6'; ctx.fillRect(px(6) + 5, py(2.95), (cell * 5 - 10) * s.shield / s.cfg.shieldMax, cell * 0.1);
++  }
++
+   // peringatan (arsir + garis putus; menebal pelan, tanpa kedip) dan bahaya aktif (merah gelap + X / bom)
+   const mines = s.attack && s.attack.kind === 'mines';
+   const alpha = view.reduce ? 0.35 : 0.2 + 0.25 * tele;
+@@ -124,14 +133,23 @@ export function drawBoss(ctx, W, H, s, view) {
+     if (h.amount > 1) { ctx.fillStyle = C.ink; ctx.font = `bold ${Math.max(9, Math.round(cell * 0.24))}px sans-serif`; ctx.fillText(`+${h.amount}`, x, y + cell * 0.44); }
+   });
+ 
++  // Orb damage: jingga, simbol ×2; berbeda dari hati merah dan apel energi.
++  s.damageOrbs.forEach(o => {
++    const bob = view.reduce ? 0 : Math.sin((view.t || 0) / 260 + o.x) * cell * 0.05;
++    const x = cx(o.x), y = cy(o.y) + bob;
++    ctx.fillStyle = '#f8b655'; ctx.strokeStyle = '#734421'; ctx.lineWidth = 2.5;
++    ctx.beginPath(); ctx.arc(x, y, cell * 0.36, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
++    ctx.fillStyle = '#402a1e'; ctx.font = `bold ${Math.max(10, Math.round(cell * 0.31))}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('×2', x, y);
++    if (o.amount > 1) { ctx.font = `bold ${Math.max(9, Math.round(cell * 0.22))}px sans-serif`; ctx.fillText(`+${o.amount}`, x, y + cell * 0.43); }
++  });
++
+   // ular (meluncur halus); kebal = cincin putus-putus putih di kepala
+-  const cells = view.from ? animatedPoints(s.snake, view.from, easeOutCubic(view.prog == null ? 1 : view.prog)) : s.snake;
++  const cells = view.from ? animatedPoints(s.snake, view.from, (view.prog == null ? 1 : view.prog)) : s.snake;
+   const pts = cells.map(p => ({ x: cx(p.x), y: cy(p.y) }));
+   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+   ctx.strokeStyle = C.snakeOut; ctx.lineWidth = cell * 0.74; traceSmooth(ctx, pts, cell * 1.5); ctx.stroke();
+   ctx.strokeStyle = C.snakeIn; ctx.lineWidth = cell * 0.5; traceSmooth(ctx, pts, cell * 1.5); ctx.stroke();
+   const hd = pts[0], d = s.dir, off = cell * 0.15, r = cell * 0.09;
+-  const eyes = d.x !== 0 ? [[hd.x + d.x * off, hd.y - off], [hd.x + d.x * off, hd.y + off]] : [[hd.x - off, hd.y + d.y * off], [hd.x + off, hd.y + d.y * off]];
+-  eyes.forEach(e => { ctx.fillStyle = C.white; ctx.beginPath(); ctx.arc(e[0], e[1], r, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = C.ink; ctx.beginPath(); ctx.arc(e[0] + d.x * r * 0.3, e[1] + d.y * r * 0.3, r * 0.55, 0, Math.PI * 2); ctx.fill(); });
++  drawFace(ctx, hd, d, cell);
+   if (isInvuln(s)) { ctx.strokeStyle = C.white; ctx.lineWidth = 3; ctx.setLineDash([6, 4]); ctx.beginPath(); ctx.arc(hd.x, hd.y, cell * 0.55, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); }
+ }
+diff --git a/lib/boss/sim.js b/lib/boss/sim.js
+index f67e4ab..817fabe 100644
+--- a/lib/boss/sim.js
++++ b/lib/boss/sim.js
+@@ -1,5 +1,5 @@
+ // Penjaga Kebun — simulasi murni dengan RNG dan jam yang diinjeksi.
+-// Ronde 1–9: antek bergiliran. Ronde 10: boss dengan 3 lapis HP (3/4/5).
++// Ronde 1–9: antek bergiliran. Ronde 10: boss dengan 3 lapis HP (3/5/10).
+ // Tiap target bintang hanya dapat dipukul sekali per jendela. Semua bahaya berhenti
+ // ketika celah terbuka. Telegraph tetap mengikuti waktu tempuh, termasuk saat fase makin cepat.
+ import { cellKey, isOpposite, findSpawn } from '../sim/grid';
+@@ -16,16 +16,17 @@ export const START = { snake: [[6, 12], [5, 12], [4, 12]], dir: 'R' };
+ export const WEAK_TILES = [{ x: 8, y: 3 }, { x: 5, y: 3 }, { x: 11, y: 3 }];
+ 
+ export const DEFAULT_CONFIG = {
+-  lives: 5, minionRounds: 9, bossHp: 12, energyNeed: 3, energyMax: 9, apples: 3, startLen: 3, shrinkOnHit: 3,
++  lives: 5, minionRounds: 9, bossHp: 18, energyNeed: 3, energyMax: 9, apples: 3, startLen: 3, shrinkOnHit: 3,
+   invulnMs: 2500, transitionMs: 2200, initialGapMs: 3000, gapMs: 1600, marginSteps: 3, graceMs: 600, respawnClearRadius: 3,
+   healDropChance: 0.25, maxHealPickups: 3,
++  shieldGain: 10, shieldEveryMs: 5000, shieldPulses: 3, shieldMax: 100, baseDamage: 1, shieldPerDouble: 5,
+   row: { teleMs: 1600, activeMs: 800, recMs: 600 },
+   mines: { teleMs: 2000, activeMs: 3000, recMs: 500 },
+   corridor: { teleMs: 2500, activeMs: 2000, recMs: 700, width: 3, maxTeleMs: 5000 },
+   phases: [
+     { hp: 3, pool: ['row', 'mines', 'corridor'], windowMs: 6000, mines: 4, gapMs: 1600, pace: 1, openings: 1, damage: 1 },
+-    { hp: 4, pool: ['row', 'mines', 'corridor'], windowMs: 5000, mines: 6, gapMs: 900, pace: 0.7, openings: 2, damage: 1 },
+-    { hp: 5, pool: ['row', 'mines', 'corridor'], windowMs: 4200, mines: 8, gapMs: 400, pace: 0.45, openings: 3, damage: 2 },
++    { hp: 5, pool: ['row', 'mines', 'corridor'], windowMs: 5000, mines: 6, gapMs: 900, pace: 0.7, openings: 2, damage: 1 },
++    { hp: 10, pool: ['row', 'mines', 'corridor'], windowMs: 4200, mines: 8, gapMs: 400, pace: 0.45, openings: 3, damage: 2 },
+   ],
+ };
+ 
+@@ -92,6 +93,7 @@ export function createState({ arena, config, rng, interval, t }) {
+     hazard: new Uint8Array(W * H), warn: new Uint8Array(W * H), attack: null,
+     sched: { kind: 'gap', endAt: t0 + cfg.initialGapMs },
+     weakIdx: 0, window: { open: false, hit: false }, invulnUntil: 0, apples: [], heals: [], pendingHeal: 0,
++    shield: 0, shieldBursts: [], damageStacks: 0, damageOrbs: [], pendingDamage: 0,
+     safe: null, // sel koridor aman (indeks) saat koridor tampil
+   };
+   nextMinion(s);
+@@ -108,7 +110,7 @@ function blocked(s, x, y) { return !inArena(x, y) || s.arena.boss[idx(x, y)] ===
+ 
+ function spawnApple(s) {
+   const body = bodySet(s, false), cells = [];
+-  const taken = new Set([...s.apples, ...s.heals].map(a => idx(a.x, a.y)));
++  const taken = new Set([...s.apples, ...s.heals, ...s.damageOrbs].map(a => idx(a.x, a.y)));
+   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+     const c = idx(x, y);
+     if (s.arena.boss[c] || body.has(c) || taken.has(c) || s.hazard[c] || s.warn[c] || s.arena.weak.some(p => p.x === x && p.y === y)) continue;
+@@ -126,6 +128,33 @@ function flushHeal(s) {
+   if (p) { s.heals.push({ ...p, amount: s.pendingHeal }); s.pendingHeal = 0; }
+ }
+ 
++// Orb damage permanen selama run. Bonus shield hanya aktif setelah mengambil orb.
++export function playerDamage(s) {
++  const shieldStacks = s.damageStacks > 0 ? Math.floor(s.shield / s.cfg.shieldPerDouble) : 0;
++  return Math.min(Number.MAX_SAFE_INTEGER, s.cfg.baseDamage * Math.pow(2, Math.min(52, s.damageStacks + shieldStacks)));
++}
++function flushDamage(s) {
++  if (!s.pendingDamage) return;
++  if (s.damageOrbs.length >= 3) { s.damageOrbs[0].amount += s.pendingDamage; s.pendingDamage = 0; return; }
++  const p = spawnApple(s);
++  if (p) { s.damageOrbs.push({ ...p, amount: s.pendingDamage }); s.pendingDamage = 0; }
++}
++function phaseThreeDrops(s) {
++  queueHeal(s, 1); s.pendingDamage++; flushDamage(s);
++}
++function nextShieldAt(s) {
++  return s.shieldBursts.reduce((t, b) => Math.min(t, b.nextAt), Infinity);
++}
++function grantShield(s, at, ev) {
++  for (const b of s.shieldBursts) {
++    if (b.nextAt > at) continue;
++    const gained = Math.min(s.cfg.shieldGain, s.cfg.shieldMax - s.shield);
++    s.shield += gained; b.left--; b.nextAt += s.cfg.shieldEveryMs;
++    ev.push({ type: 'shieldGain', amount: gained, shield: s.shield });
++  }
++  s.shieldBursts = s.shieldBursts.filter(b => b.left > 0);
++}
++
+ // Jarak langkah (BFS) dari kepala ke sel yang memenuhi `goal`, lewat sel bebas non-tubuh. -1 bila tidak terjangkau.
+ function stepsTo(s, goal, maxSteps) {
+   const body = bodySet(s, true), h = s.snake[0], dist = new Map([[idx(h.x, h.y), 0]]), q = [h];
+@@ -168,7 +197,7 @@ function reachableRatio(s, mines) {
+ 
+ function genMines(s) {
+   const c = s.cfg.mines, n = phaseRules(s).mines, h = s.snake[0], body = bodySet(s, false), w = weakTile(s);
+-  const apples = new Set([...s.apples, ...s.heals].map(a => idx(a.x, a.y)));
++  const apples = new Set([...s.apples, ...s.heals, ...s.damageOrbs].map(a => idx(a.x, a.y)));
+   const cand = [];
+   for (let y = 3; y < H; y++) for (let x = 0; x < W; x++) {
+     const k = idx(x, y);
+@@ -241,9 +270,12 @@ export function advance(s, t, ev) {
+   ev = ev || [];
+   if (s.status !== 'playing') return ev;
+   let guard = 0;
+-  while (s.status === 'playing' && s.sched.endAt <= t && guard++ < 50) {
+-    const at = s.sched.endAt, k = s.sched.kind;
++  while (s.status === 'playing' && Math.min(s.sched.endAt, nextShieldAt(s)) <= t && guard++ < 200) {
++    const at = Math.min(s.sched.endAt, nextShieldAt(s));
+     s.t = at;
++    // Jadwal shield dan serangan diproses berurutan; tidak bergantung pada FPS.
++    if (nextShieldAt(s) <= at) { grantShield(s, at, ev); continue; }
++    const k = s.sched.kind;
+     if (k === 'gap') {
+       s.attack = pickAttack(s);
+       s.attack.cells.forEach(c => { s.warn[c] = 1; });
+@@ -255,6 +287,10 @@ export function advance(s, t, ev) {
+       s.sched = { kind: 'active', endAt: at + s.attack.activeMs };
+       ev.push({ type: 'attack', kind: s.attack.kind, stage: 'active' });
+     } else if (k === 'active') {
++      if (isBossRound(s) && s.phase === 3) {
++        s.shieldBursts.push({ nextAt: at + s.cfg.shieldEveryMs, left: s.cfg.shieldPulses });
++        phaseThreeDrops(s);
++      }
+       s.attack.cells.forEach(c => { s.hazard[c] = 0; });
+       s.sched = { kind: 'recovery', endAt: at + s.attack.recMs };
+     } else if (k === 'recovery') {
+@@ -266,6 +302,7 @@ export function advance(s, t, ev) {
+       ev.push({ type: 'window', open: false });
+     } else if (k === 'transition') {
+       s.phase += 1; s.phaseHp = s.cfg.phases[s.phase - 1].hp; s.lastAttack = null;
++      if (s.phase === 3) phaseThreeDrops(s);
+       s.sched = { kind: 'gap', endAt: at + phaseRules(s).gapMs };
+       ev.push({ type: 'phase', phase: s.phase });
+     } else if (k === 'round') {
+@@ -274,7 +311,7 @@ export function advance(s, t, ev) {
+       s.sched = { kind: 'gap', endAt: at + s.cfg.initialGapMs };
+       ev.push({ type: 'round', round: s.round, boss: isBossRound(s) });
+     }
+-    flushHeal(s);
++    flushHeal(s); flushDamage(s);
+   }
+   s.t = t;
+   return ev;
+@@ -298,6 +335,7 @@ export function stepSim(s, dir, t) {
+   const appleI = hk < 0 ? -1 : s.apples.findIndex(a => a.x === head.x && a.y === head.y);
+   const growing = appleI >= 0;
+   const healI = hk < 0 ? -1 : s.heals.findIndex(a => a.x === head.x && a.y === head.y);
++  const orbI = hk < 0 ? -1 : s.damageOrbs.findIndex(a => a.x === head.x && a.y === head.y);
+ 
+   let cause = null;
+   if (hk < 0 || s.arena.boss[hk]) cause = 'wall';
+@@ -307,7 +345,7 @@ export function stepSim(s, dir, t) {
+   const target = weakTiles(s).find(w => head.x === w.x && head.y === w.y && !w.used);
+   const hit = hk >= 0 && !!target && s.window.open && !s.window.hit && s.energy >= energyNeed(s);
+ 
+-  if (hit && isBossRound(s) && s.hp <= 1) { // pukulan terakhir menang; tubuh tetap valid walau bersamaan dengan tabrakan
++  if (hit && isBossRound(s) && s.phase === 3 && playerDamage(s) >= s.shield + s.phaseHp) { // pukulan terakhir menang; tubuh tetap valid walau bersamaan dengan tabrakan
+     if (!cause) { s.snake.unshift(head); s.snake.pop(); }
+     applyHit(s, ev, target.index);
+     finish(s, ev, 'won');
+@@ -335,8 +373,12 @@ export function stepSim(s, dir, t) {
+     const heal = s.heals.splice(healI, 1)[0]; s.lives += heal.amount;
+     ev.push({ type: 'heal', amount: heal.amount, lives: s.lives });
+   }
++  if (orbI >= 0) {
++    const orb = s.damageOrbs.splice(orbI, 1)[0]; s.damageStacks += orb.amount;
++    ev.push({ type: 'damageOrb', amount: orb.amount, stacks: s.damageStacks, damage: playerDamage(s) });
++  }
+   if (hit) applyHit(s, ev, target.index);
+-  flushHeal(s);
++  flushHeal(s); flushDamage(s);
+   return ev;
+ }
+ 
+@@ -357,14 +399,18 @@ function applyHit(s, ev, target) {
+     }
+     return;
+   }
+-  s.hp--; s.phaseHp--; s.damageDealt++;
++  const damage = playerDamage(s), absorbed = Math.min(s.shield, damage);
++  s.shield -= absorbed;
++  const hpDamage = Math.min(s.phaseHp, damage - absorbed);
++  s.hp -= hpDamage; s.phaseHp -= hpDamage; s.damageDealt += hpDamage;
+   s.window.used = [...(s.window.used || []), target];
+   const exhausted = s.window.used.length >= (s.window.targets || [s.weakIdx]).length;
+   s.window.hit = exhausted; s.window.open = !exhausted;
+-  ev.push({ type: 'hit', hp: s.hp });
++  ev.push({ type: 'hit', hp: s.hp, damage, absorbed, hpDamage, shield: s.shield });
+   if (s.phaseHp <= 0) {
+     s.window = { open: false, hit: true }; clearThreats(s);
+-    if (s.hp > 0) { queueHeal(s, 2); s.sched = { kind: 'transition', endAt: s.t + s.cfg.transitionMs }; }
++    if (s.phase < 3) { queueHeal(s, 2); s.sched = { kind: 'transition', endAt: s.t + s.cfg.transitionMs }; }
++    else finish(s, ev, 'won');
+   } else if (exhausted) {
+     clearThreats(s); s.sched = { kind: 'gap', endAt: s.t + phaseRules(s).gapMs };
+   }
+@@ -375,7 +421,7 @@ function respawn(s, ev) {
+   const base = new Set(); for (let c = 0; c < s.arena.boss.length; c++) if (s.arena.boss[c]) base.add(cellKey(c % W, Math.floor(c / W)));
+   const withSet = (...layers) => { const o = new Set(base); layers.forEach(l => l.forEach(c => o.add(cellKey(c % W, Math.floor(c / W))))); return o; };
+   const haz = []; for (let c = 0; c < s.hazard.length; c++) if (s.hazard[c] || s.warn[c]) haz.push(c);
+-  const apples = [...s.apples, ...s.heals].map(a => idx(a.x, a.y));
++  const apples = [...s.apples, ...s.heals, ...s.damageOrbs].map(a => idx(a.x, a.y));
+   const dirs = [DIRS.R, DIRS.L, DIRS.U, DIRS.D];
+   const sp = findSpawn(b, withSet(haz, apples), dirs, 8, 12) || findSpawn(b, withSet(haz), dirs, 8, 12) || findSpawn(b, withSet([]), dirs, 8, 12);
+   if (!sp) { finish(s, ev, 'lost'); return; } // praktis mustahil
+@@ -388,7 +434,11 @@ function respawn(s, ev) {
+     if (!sp.snake.some(p => p.x === a.x && p.y === a.y)) return true;
+     s.pendingHeal += a.amount; return false;
+   });
+-  flushHeal(s);
++  s.damageOrbs = s.damageOrbs.filter(a => {
++    if (!sp.snake.some(p => p.x === a.x && p.y === a.y)) return true;
++    s.pendingDamage += a.amount; return false;
++  });
++  flushHeal(s); flushDamage(s);
+   while (s.apples.length < s.cfg.apples) { const a = spawnApple(s); if (!a) break; s.apples.push(a); }
+   s.invulnUntil = s.t + s.cfg.invulnMs;
+   ev.push({ type: 'respawn' });
+@@ -396,7 +446,7 @@ function respawn(s, ev) {
+ 
+ function finish(s, ev, status) {
+   if (s.status !== 'playing') return;
+-  s.window.open = false;
++  s.window.open = false; s.shieldBursts = [];
+   s.status = status; s.result = { status, hp: s.hp, lives: Math.max(0, s.lives), damage: s.damageDealt, round: s.round, minions: s.minionsDefeated };
+   clearThreats(s);
+   ev.push({ type: status === 'won' ? 'win' : 'lose' });
+diff --git a/lib/constants.js b/lib/constants.js
+index 78a8ad4..6097773 100644
+--- a/lib/constants.js
++++ b/lib/constants.js
+@@ -118,13 +118,15 @@ export const MODE_RULES = {
+     { icon: 'delivery', text: 'Ambil paket di titik pickup (ikon + huruf A/B/C), lalu antar ke rumah dengan huruf yang sama' },
+     { icon: 'timeattack', text: 'Satu shift 120 detik. Menang bila minimal 5 paket terkirim saat waktu habis' },
+     { icon: 'normal', text: 'Tiap paket menambah 1 segmen kargo di ekor. Kapasitas 3 paket, pesanan aktif maksimal 2' },
+-    { icon: 'steps', text: 'Rumah menerima paket tertua yang cocok, satu per kali masuk. Keluar lalu masuk lagi untuk paket berikutnya' },
++    { icon: 'steps', text: 'Semua paket dengan tujuan sama diantar sekaligus dalam satu kunjungan. Bonus cepat dihitung per paket' },
+     { icon: 'poison', text: 'Paket punya umur. Paket basi dibuang dari kargo dan mengurangi skor (minimal 0)' },
+     { icon: 'wall', text: 'Menabrak tembok, gedung, atau tubuh sendiri = shift gagal' },
+   ],
+   boss: [
++    { icon: 'shield', text: 'Fase 3: tiap serangan selesai menjadwalkan shield +10 pada detik 5, 10, 15 (maks 100). Ambil orb ×2 untuk menumpuk damage; setiap 5 shield memberi pengali ×2 tambahan selama kamu punya orb. Shield menyerap damage lebih dulu' },
++
+     { icon: 'steps', text: 'Panah / WASD, atau geser layar. Esc untuk jeda' },
+-    { icon: 'boss', text: 'Ronde 1–9: kalahkan antek bergiliran (1, 2, lalu 3 antek per ronde). Boss acak muncul di ronde 10 dengan tiga fase: 3, 4, dan 5 HP' },
++    { icon: 'boss', text: 'Ronde 1–9: kalahkan antek bergiliran (1, 2, lalu 3 antek per ronde). Boss acak muncul di ronde 10 dengan tiga fase: 3, 5, dan 10 HP' },
+     { icon: 'bolt', text: 'Apel memberi +1 energi (maks 9) dan memanjangkan tubuh. Masuk bintang terbuka: 1 energi untuk antek, 3 untuk boss; tubuh memendek 3 segmen' },
+     { icon: 'key', text: 'Boss membuka 1 / 2 / 3 celah sesuai fase. Setiap bintang hanya bisa dipukul sekali per jendela. Bahaya berhenti selama celah terbuka' },
+     { icon: 'wall', text: 'Baris, ranjau, dan koridor dipilih acak. Hindari arsiran sebelum X/bom aktif. Fase makin cepat, serangan fase 3 mengurangi 2 hati' },
+@@ -141,12 +143,17 @@ export const MODE_RULES = {
+     { icon: 'help', text: 'Area yang hanya berbatas tepi papan tidak ikut direbut; susuri tepi dengan jejakmu. Dua klaim serentak atas petak yang sama: petak tetap netral' },
+   ],
+   roguelite: [
+-    { icon: 'roguelite', text: 'Satu run = 5 ronde pendek. Tiap ronde ada target poin; capai target untuk lanjut' },
++    { icon: 'shield', text: 'Fase 3: tiap serangan selesai menjadwalkan shield +10 pada detik 5, 10, 15 (maks 100). Ambil orb ×2 untuk menumpuk damage; setiap 5 shield memberi pengali ×2 tambahan selama kamu punya orb. Shield menyerap damage lebih dulu' },
++
++    { icon: 'heart', text: 'Bekal kebun: Kulit tebal +2 hati/tingkat; Penawar +1 hati/tingkat; Bekal manis +2 energi/tingkat. Tubuh ringkas, kecepatan Langkah berani, dan durasi kebal Napas panjang ikut dibawa' },
++    { icon: 'boss', text: 'Kebun: apel mengisi energi, bintang terbuka untuk menyerang (1 energi/antek, 3/boss). Ambil heal untuk menabung hati. Boss membuka 1/2/3 celah; fase akhir menyerang 2 hati' },
++    { icon: 'normal', text: 'Lima apel aktif, dihitung terpisah dari bom. Apel diisi ulang setelah dimakan selama masih ada tempat' },
++    { icon: 'roguelite', text: 'Satu run: 5 rute pengumpulan apel dan upgrade, lalu 9 gelombang antek. Boss acak tiga fase muncul pada gelombang kebun ke-10' },
+     { icon: 'normal', text: 'Apel normal +4, besar +10, racun −6 dan ekor −2, keberuntungan +4 dan memicu efek sementara' },
+-    { icon: 'bomb', text: 'Ranjau dan tembok mematikan. Efek sementara bisa menguntungkan atau merugikan' },
++    { icon: 'bomb', text: 'Di rute pengumpulan, ranjau dan tembok mematikan. Efek sementara bisa menguntungkan atau merugikan' },
+     { icon: 'trophy', text: 'Setelah ronde tuntas, game berhenti dan kamu memilih 1 dari 3 upgrade (manfaat dan harga tertulis)' },
+     { icon: 'shield', text: 'Upgrade dan skor dibawa antar ronde; efek sementara dan posisi di-reset tiap ronde' },
+-    { icon: 'steps', text: 'Tiap ronde menunggu arah pertamamu. Mati = run berakhir, upgrade tidak dibawa ke run baru' },
++    { icon: 'steps', text: 'Tiap rute dan awal kebun menunggu arah pertama. Di kebun, tabrakan mengurangi hati; hati habis mengakhiri run' },
+   ],
+ };
+ 
+diff --git a/lib/delivery/controller.js b/lib/delivery/controller.js
+index d0e137f..bac5484 100644
+--- a/lib/delivery/controller.js
++++ b/lib/delivery/controller.js
+@@ -151,10 +151,15 @@ export function createDeliveryGame({ canvas, sounds, onUpdate, rng, now: nowFn,
+     ev.forEach(e => {
+       if (e.type === 'pickup') { sounds.playChomp(); message = `Paket ${e.cargo.type} (${TYPES[e.cargo.type].label}) diambil — antar ke rumah ${e.cargo.type}.`; }
+       else if (e.type === 'pickupBlocked') { if (sounds.playBump) sounds.playBump(); message = 'Kargo penuh! Antar dulu sebelum mengambil paket lain.'; }
+-      else if (e.type === 'deliver') { if (sounds.playDeliver) sounds.playDeliver(); message = `Terkirim: ${TYPES[e.cargo.type].label} +${e.points}${e.quick ? ' (cepat!)' : ''}`; }
++
+       else if (e.type === 'stale') { sounds.playEits(); message = `Paket ${e.cargo.type} basi! Kargo dibuang, skor -${cfg.stalePenalty}.`; }
+       else if (e.type === 'orderSpawn') { message = message || `Pesanan baru: paket ${e.order.type} (${TYPES[e.order.type].label}).`; }
+     });
++    const sent = ev.filter(e => e.type === 'deliver');
++    if (sent.length) {
++      if (sounds.playDeliver) sounds.playDeliver();
++      message = `${sent.length} paket ${sent[0].site} terkirim sekaligus! +${sent.reduce((n, e) => n + e.points, 0)} poin.`;
++    }
+   }
+ 
+   function doTick(T) {
+@@ -191,8 +196,8 @@ export function createDeliveryGame({ canvas, sounds, onUpdate, rng, now: nowFn,
+     if (destroyed) return;
+     if (state === 'playing') stepWorld();
+     if (sim) {
+-      const prog = state === 'playing' ? Math.min(1, (clock.now() - lastTick) / interval) : 1;
+-      drawDelivery(ctx, canvas.width, canvas.height, sim, { prog, from: prevSnake, t: realNow() });
++      const prog = (state === 'playing' || state === 'paused') ? Math.min(1, (clock.now() - lastTick) / interval) : 1;
++      drawDelivery(ctx, canvas.width, canvas.height, sim, { prog, from: prevSnake, t: clock.now() });
+     }
+     rafId = raf(loop);
+   }
+diff --git a/lib/delivery/render.js b/lib/delivery/render.js
+index 047841d..cfbb912 100644
+--- a/lib/delivery/render.js
++++ b/lib/delivery/render.js
+@@ -1,10 +1,11 @@
+ // Render Canvas 2D Delivery. Warna paket SELALU didampingi huruf (A/B/C) dan bentuk (apel = bulat, surat = amplop, kotak = persegi bertali).
+ import { TYPES, pickups, lifeLeft } from './sim';
+-import { animatedPoints, easeOutCubic } from '../sim/anim';
++import { animatedPoints } from '../sim/anim';
+ import { traceSmooth } from '../render/snakePath';
++import { drawFace } from '../render/face';
+ 
+ const COL = { A: '#e0453a', B: '#4aa3ff', C: '#f2b84b' };
+-const C = { tileA: '#38454f', tileB: '#3d4b56', build: '#8a5a48', buildTop: '#5d3b30', win: '#ffd98a', snakeOut: '#3f7d1a', snakeIn: '#7fcf34', ink: '#0e1316', white: '#ffffff' };
++const C = { tileA: '#d8d8b9', tileB: '#e2dfc4', build: '#8a5a48', buildTop: '#5d3b30', win: '#ffd98a', snakeOut: '#304831', snakeIn: '#7fcf34', ink: '#0e1316', white: '#ffffff' };
+ 
+ export function drawParcel(ctx, type, cx, cy, s) {
+   ctx.save();
+@@ -66,7 +67,7 @@ export function drawDelivery(ctx, W, H, s, view) {
+   });
+ 
+   // ular: tubuh dasar hijau + segmen kargo di ekor (huruf + bentuk + warna), meluncur halus antar langkah
+-  const cells = view.from ? animatedPoints(s.snake, view.from, easeOutCubic(view.prog == null ? 1 : view.prog)) : s.snake;
++  const cells = view.from ? animatedPoints(s.snake, view.from, (view.prog == null ? 1 : view.prog)) : s.snake;
+   const pts = cells.map(p => ({ x: cx(p.x), y: cy(p.y) }));
+   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+   ctx.strokeStyle = C.snakeOut; ctx.lineWidth = cell * 0.74; traceSmooth(ctx, pts, cell * 1.5); ctx.stroke();
+@@ -78,6 +79,5 @@ export function drawDelivery(ctx, W, H, s, view) {
+     drawParcel(ctx, c.type, p.x, p.y, cell * 0.6);
+   });
+   const hd = pts[0], d = s.dir, off = cell * 0.15, r = cell * 0.09;
+-  const eyes = d.x !== 0 ? [[hd.x + d.x * off, hd.y - off], [hd.x + d.x * off, hd.y + off]] : [[hd.x - off, hd.y + d.y * off], [hd.x + off, hd.y + d.y * off]];
+-  eyes.forEach(e => { ctx.fillStyle = C.white; ctx.beginPath(); ctx.arc(e[0], e[1], r, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = C.ink; ctx.beginPath(); ctx.arc(e[0] + d.x * r * 0.3, e[1] + d.y * r * 0.3, r * 0.55, 0, Math.PI * 2); ctx.fill(); });
++  drawFace(ctx, hd, d, cell);
+ }
+diff --git a/lib/delivery/sim.js b/lib/delivery/sim.js
+index 34e372d..cf58ed4 100644
+--- a/lib/delivery/sim.js
++++ b/lib/delivery/sim.js
+@@ -207,11 +207,11 @@ export function stepSim(s, dirKey, t) {
+   }
+   const site = siteAt(s, target);
+   if (site) {
+-    const i = s.cargo.findIndex(c => c.type === site); // cargo berurutan menurut waktu ambil: indeks terkecil = paket tertua
+-    if (i !== -1) {
+-      const c = s.cargo[i];
++    // Semua paket tujuan ini diantar bersamaan; bonus tetap dihitung per paket.
++    const matching = s.cargo.filter(c => c.type === site);
++    for (const c of matching) {
+       const quick = lifeLeft(c, t) >= c.lifeMs * 0.5;
+-      s.cargo.splice(i, 1);
++      s.cargo = s.cargo.filter(pkg => pkg.id !== c.id);
+       s.orders = s.orders.filter(o => o.id !== c.id);
+       shrinkTail(s);
+       const pts = cfg.points + (quick ? cfg.quickBonus : 0);
+diff --git a/lib/modes/registry.js b/lib/modes/registry.js
+index 2d806e1..090a711 100644
+--- a/lib/modes/registry.js
++++ b/lib/modes/registry.js
+@@ -19,7 +19,7 @@ export const MODES = [
+   { id: 'classic', label: 'Classic', short: 'Classic', group: 'classic', kind: 'arcade', players: 1, touch: true, speedMode: 'pref', controls: ARCADE_CTRL, finish: 'Berakhir saat menabrak tembok atau tubuh.', description: 'Makan apel, tumbuh panjang, hindari tembok.' },
+   { id: 'classicnight', label: 'Malam', short: 'Malam', group: 'classic', kind: 'arcade', players: 1, touch: true, speedMode: 'pref', controls: ARCADE_CTRL, finish: 'Berakhir saat menabrak tembok atau tubuh.', description: 'Arena malam dengan kepala ular menyala.' },
+   { id: 'portal', label: 'Portal', short: 'Portal', group: 'classic', kind: 'arcade', players: 1, touch: true, speedMode: 'pref', controls: ARCADE_CTRL, finish: 'Berakhir saat menabrak tubuh.', description: 'Tembus tepi arena dan muncul di sisi lainnya.' },
+-  { id: 'timeattack', label: 'Time Attack', short: 'Time', group: 'classic', kind: 'arcade', players: 1, touch: true, speedMode: 'pref+duration', controls: ARCADE_CTRL, finish: 'Berakhir saat waktu habis.', description: 'Kejar skor sebelum waktu habis.' },
++  { id: 'timeattack', label: 'Time Attack', short: 'Time Attack', group: 'classic', kind: 'arcade', players: 1, touch: true, speedMode: 'pref+duration', controls: ARCADE_CTRL, finish: 'Berakhir saat waktu habis.', description: 'Kejar skor sebelum waktu habis.' },
+   { id: 'mayhem', label: 'Mayhem', short: 'Mayhem', group: 'mayhem', kind: 'arcade', players: 1, touch: true, speedMode: 'pref', controls: ARCADE_CTRL, finish: 'Berakhir saat menabrak, terkena ranjau, atau terlalu pendek.', description: 'Apel spesial, efek acak, dan ranjau menanti.' },
+   { id: 'mayhemplus', label: 'Mayhem+', short: 'Mayhem+', group: 'mayhem', kind: 'arcade', players: 1, touch: true, speedMode: 'pref', controls: ARCADE_CTRL, finish: 'Berakhir saat menabrak, terkena ranjau, atau terlalu pendek.', description: 'Kekacauan Mayhem yang lebih intens.' },
+   { id: 'mayhemhard', label: 'Mayhem Hard', short: 'Hard', group: 'mayhem', kind: 'arcade', players: 1, touch: true, speedMode: 'pref', controls: ARCADE_CTRL, finish: 'Berakhir saat menabrak, terkena ranjau, atau terlalu pendek.', description: 'Waspadai racun tersamar dan kontrol terbalik.' },
+@@ -32,12 +32,12 @@ export const MODES = [
+   { id: 'delivery', label: 'Kurir Apel', short: 'Kurir Apel', group: 'adventure', kind: 'delivery', players: 1, touch: true, speedMode: 'pref', controls: 'Panah / WASD, atau geser layar. Esc jeda.', finish: 'Shift berakhir saat waktu habis: menang bila terkirim >= 5, kalah bila kurang atau menabrak.', description: 'Ambil paket, antar ke rumah yang tepat sebelum paket basi. Satu shift penuh.',
+     goal: 'Antar minimal 5 paket dalam satu shift tanpa menabrak.',
+     duration: { fixedSec: 120, label: '120 detik (tetap)' },
+-    preview: ['Ambil paket A/B/C di titik pickup, antar ke rumah dengan huruf yang sama.', 'Tiap paket = 1 segmen kargo di ekor; kapasitas 3, pesanan aktif maksimal 2.', 'Paket punya umur: basi = kargo dibuang dan skor berkurang.'] },
+-  { id: 'roguelite', label: 'Ekspedisi Mayhem', short: 'Ekspedisi', group: 'adventure', kind: 'roguelite', players: 1, touch: true, speedMode: 'pref', controls: 'Panah / WASD, atau geser layar. Esc jeda. Tekan arah untuk memulai tiap ronde.', finish: 'Run berakhir saat menabrak; menang bila kelima ronde tuntas.', description: 'Lima ronde Mayhem pendek. Capai target poin, lalu pilih satu dari tiga upgrade.',
+-    goal: 'Selesaikan 5 ronde (target 28, 40, 52, 64, 76 poin) dengan upgrade pilihanmu.',
+-    preview: ['Apel normal, besar, racun, dan keberuntungan (memicu efek untung atau rugi); ranjau mematikan.', 'Tiap ronde tuntas: pilih 1 dari 3 upgrade. Tiap upgrade punya manfaat dan harga.', 'Mati mengakhiri run; upgrade tidak dibawa ke run baru.'] },
+-  { id: 'boss', label: 'Penjaga Kebun', short: 'Penjaga Kebun', group: 'adventure', kind: 'boss', players: 1, touch: true, speedMode: 'pref', controls: 'Panah / WASD, atau geser layar. Esc jeda.', finish: 'Menang setelah boss ronde 10 kalah; run berakhir jika hati habis.', description: 'Tembus sembilan ronde antek, kumpulkan hati, lalu hadapi boss acak dengan tiga fase.',
+-    goal: 'Selesaikan 10 ronde: antek dahulu, lalu boss dengan HP fase 3 / 4 / 5.',
++    preview: ['Ambil paket A/B/C; semua paket dengan tujuan sama diantar sekaligus.', 'Tiap paket = 1 segmen kargo di ekor; kapasitas 3, pesanan aktif maksimal 2.', 'Paket punya umur: basi = kargo dibuang dan skor berkurang.'] },
++  { id: 'roguelite', label: 'Ekspedisi Mayhem', short: 'Ekspedisi', group: 'adventure', kind: 'roguelite', players: 1, touch: true, speedMode: 'pref', controls: 'Panah / WASD, atau geser layar. Esc jeda. Tekan arah untuk memulai tiap ronde.', finish: 'Lima rute dilanjutkan pertahanan kebun; menang setelah boss tiga fase kalah.', description: 'Kumpulkan apel, pilih upgrade, tembus antek, lalu taklukkan boss tiga fase.',
++    goal: 'Tuntaskan 5 rute, lalu 9 gelombang antek dan boss acak pada gelombang 10.',
++    preview: ['Apel normal, besar, racun, dan keberuntungan (memicu efek untung atau rugi); ranjau mematikan.', 'Tiap ronde tuntas: pilih 1 dari 3 upgrade. Tiap upgrade punya manfaat dan harga.', 'Upgrade menjadi bekal di kebun. Kalah mengakhiri seluruh ekspedisi; coba lagi dari rute pertama.'] },
++  { id: 'boss', hidden: true, label: 'Penjaga Kebun', short: 'Penjaga Kebun', group: 'adventure', kind: 'boss', players: 1, touch: true, speedMode: 'pref', controls: 'Panah / WASD, atau geser layar. Esc jeda.', finish: 'Menang setelah boss ronde 10 kalah; run berakhir jika hati habis.', description: 'Tembus sembilan ronde antek, kumpulkan hati, lalu hadapi boss acak dengan tiga fase.',
++    goal: 'Selesaikan 10 ronde: antek dahulu, lalu boss dengan HP fase 3 / 5 / 10.',
+     duration: { fixedSec: 0, label: 'Tanpa batas waktu' },
+     preview: ['Antek menyerang bergiliran. Apel mengisi energi: 1 per pukulan ke antek, 3 ke boss.', 'Boss acak punya pola favorit. Fase makin cepat dan keras, tetapi membuka 1 / 2 / 3 titik lemah.', 'Mulai 5 hati. Ambil heal untuk menambah simpanan hati; fase akhir memberi damage 2 hati.'] },
+   { id: 'territory', label: 'Rebut Arena', short: 'Rebut Arena', group: 'adventure', kind: 'territory', players: 2, touch: false, speedMode: 'pref', controls: 'P1 panah, P2 WASD (satu keyboard). Esc jeda.', finish: 'Berakhir saat satu pemain menguasai 60% wilayah, lawan kehabisan nyawa, atau 90 detik habis.', description: 'Duel 2 pemain: keluar dari wilayahmu, gambar jejak, lalu kembali untuk merebut area.',
+@@ -50,7 +50,7 @@ const byId = Object.fromEntries(MODES.map(m => [m.id, m]));
+ export const getMode = (id) => byId[id] || null;
+ export const kindOf = (id) => (byId[id] ? byId[id].kind : 'arcade');
+ export const isAdventure = (id) => !!byId[id] && byId[id].group === 'adventure';
+-export const modesInGroup = (g) => MODES.filter(m => m.group === g);
++export const modesInGroup = (g) => MODES.filter(m => m.group === g && !m.hidden);
+ export const arcadeModes = () => MODES.filter(m => m.kind === 'arcade');
+ export const needsKeyboard = (id) => !!byId[id] && !byId[id].touch;
+ export const isTwoPlayer = (id) => !!byId[id] && byId[id].players === 2;
+diff --git a/lib/progress.js b/lib/progress.js
+index fefc679..032db38 100644
+--- a/lib/progress.js
++++ b/lib/progress.js
+@@ -16,7 +16,10 @@ export function parseProgress(raw) {
+   if (src && typeof src === 'object') {
+     Object.keys(src).forEach(id => {
+       const best = src[id] && src[id].best;
+-      if (ID_RE.test(id) && Number.isInteger(best) && best >= 1 && best <= 9999) out.puzzle.levels[id] = { best };
++      if (ID_RE.test(id) && Number.isInteger(best) && best >= 1 && best <= 9999) {
++        const revision = src[id].revision;
++        out.puzzle.levels[id] = { best, ...(Number.isInteger(revision) && revision > 1 && revision <= 99 ? { revision } : {}) };
++      }
+     });
+   }
+   return out;
+@@ -26,12 +29,12 @@ export const loadProgress = () => parseProgress(read(PROGRESS_KEY));
+ export const saveProgress = (p) => write(PROGRESS_KEY, JSON.stringify(p));
+ 
+ // Murni: catat hasil level. Replay tidak merusak rekor (best = minimum). `firstClear` hanya benar sekali per level.
+-export function recordPuzzleResult(progress, levelId, steps) {
++export function recordPuzzleResult(progress, levelId, steps, revision = 1) {
+   const prev = progress.puzzle.levels[levelId];
+   const firstClear = !prev;
+-  const newBest = !prev || steps < prev.best;
++  const newBest = !prev || (prev.revision || 1) !== revision || steps < prev.best;
+   if (!Number.isInteger(steps) || steps < 1 || steps > 9999) return { progress, newBest: false, firstClear: false };
+-  const next = { v: 1, puzzle: { levels: { ...progress.puzzle.levels, [levelId]: { best: newBest ? steps : prev.best } } } };
++  const next = { v: 1, puzzle: { levels: { ...progress.puzzle.levels, [levelId]: { best: newBest ? steps : prev.best, ...(revision > 1 ? { revision } : {}) } } } };
+   return { progress: next, newBest, firstClear };
+ }
+ 
+diff --git a/lib/puzzle/campaign.js b/lib/puzzle/campaign.js
+index cf93d9e..586aa62 100644
+--- a/lib/puzzle/campaign.js
++++ b/lib/puzzle/campaign.js
+@@ -9,6 +9,6 @@ export const CAMPAIGN_SEED = 0;
+ const tutorialSpecs = RAW_LEVELS.map(s => ({ ...s, tier: 'Tutorial', intro: null }));
+ const loaded = loadLevels([...tutorialSpecs, ...CAMPAIGN_SPECS]);
+ // Metadata tampilan (tier, kartu pengantar, tutorial?) ditempel ke objek level hasil build.
+-const metaById = Object.fromEntries([...tutorialSpecs, ...CAMPAIGN_SPECS].map((s, i) => [s.id, { tier: s.tier, intro: s.intro || null, tutorial: i < tutorialSpecs.length }]));
++const metaById = Object.fromEntries([...tutorialSpecs, ...CAMPAIGN_SPECS].map((s, i) => [s.id, { tier: s.tier, intro: s.intro || null, tutorial: i < tutorialSpecs.length, revision: (s.guards || []).length ? 2 : 1 }]));
+ export const CAMPAIGN_LEVELS = loaded.levels.map(l => ({ ...l, ...metaById[l.id] }));
+ export const CAMPAIGN_REJECTED = loaded.rejected;
+diff --git a/lib/puzzle/campaignData.js b/lib/puzzle/campaignData.js
+index f028146..6810d3e 100644
+--- a/lib/puzzle/campaignData.js
++++ b/lib/puzzle/campaignData.js
+@@ -1,4 +1,4 @@
+ // DIBUAT OTOMATIS oleh scripts/build-campaign.mjs dari generator (seed kampanye tetap). Jangan diedit tangan.
+ // Level 6..50 "Jejak Kunci". Generator dijalankan di luar runtime karena butuh sampai ~1,5 dtk per level.
+-export const CAMPAIGN_SPECS = [{ "id": "gen-6", "name": "Lorong Kunci", "tier": "Lorong Kunci", "intro": null, "goal": "Capai pintu keluar. Ambil kunci dulu.", "par": 14, "map": ["#############", "#...#...#...#", "##..#...#...#", "#...........#", "#..F#.F.#...#", "#...#...#.E.#", "#.K.#.#.#...#", "#############"], "snake": [[2, 5], [1, 5]], "dir": "R", "exit": { "keys": 1, "plates": [] }, "guards": [] }, { "id": "gen-7", "name": "Lorong Kunci", "tier": "Lorong Kunci", "intro": null, "goal": "Capai pintu keluar. Ambil kunci dulu.", "par": 13, "map": ["#############", "#..F.#......#", "#....#.E....#", "#....#......#", "#....#K..F..#", "#.#.....#...#", "#############"], "snake": [[1, 1], [2, 1]], "dir": "L", "exit": { "keys": 1, "plates": [] }, "guards": [] }, { "id": "gen-8", "name": "Lorong Kunci", "tier": "Lorong Kunci", "intro": null, "goal": "Capai pintu keluar. Ambil kunci dulu.", "par": 15, "map": ["############", "#....#.....#", "#..F##.....#", "#........E.#", "#.#.F#.....#", "#....#.....#", "#K...#.....#", "#....#.....#", "############"], "snake": [[4, 7], [3, 7]], "dir": "R", "exit": { "keys": 1, "plates": [] }, "guards": [] }, { "id": "gen-9", "name": "Lorong Kunci", "tier": "Lorong Kunci", "intro": null, "goal": "Capai pintu keluar. Ambil kunci dulu.", "par": 18, "map": ["###########", "#.........#", "#.....#...#", "##....#...#", "#.....#...#", "#.....#...#", "#F..K.#.E.#", "###########"], "snake": [[5, 3], [5, 4]], "dir": "U", "exit": { "keys": 1, "plates": [] }, "guards": [] }, { "id": "gen-10", "name": "Lorong Kunci", "tier": "Lorong Kunci", "intro": null, "goal": "Capai pintu keluar. Ambil kunci dulu.", "par": 17, "map": ["#############", "#...#.......#", "#...#...E...#", "#FK.#.....#.#", "#.#F#.......#", "#...........#", "#...#.......#", "#...#.......#", "#############"], "snake": [[2, 7], [3, 7]], "dir": "L", "exit": { "keys": 1, "plates": [] }, "guards": [] }, { "id": "gen-11", "name": "Lorong Kunci", "tier": "Lorong Kunci", "intro": null, "goal": "Capai pintu keluar. Ambil kunci dulu.", "par": 16, "map": ["############", "#.....#....#", "#K.#..#....#", "#..........#", "#....##....#", "#..F..#....#", "#...F.#E...#", "############"], "snake": [[5, 2], [4, 2]], "dir": "R", "exit": { "keys": 1, "plates": [] }, "guards": [] }, { "id": "gen-12", "name": "Lorong Kunci", "tier": "Lorong Kunci", "intro": null, "goal": "Capai pintu keluar. Ambil kunci dulu.", "par": 18, "map": ["#############", "#......##...#", "#......#.F.##", "#......#....#", "#........#..#", "#F.....#....#", "#......#E..K#", "#############"], "snake": [[1, 1], [2, 1]], "dir": "L", "exit": { "keys": 1, "plates": [] }, "guards": [] }, { "id": "gen-13", "name": "Lompatan Portal", "tier": "Lompatan Portal", "intro": "Baru: Portal. Masuk satu ujung, kepalamu muncul di ujung pasangannya (angka dan jumlah cincin sama).", "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Pakai portal untuk pindah ruang.", "par": 22, "map": ["#############", "#.......#..E#", "#.#.#...#K.##", "#...#.1.#.#.#", "#...#...#...#", "#...#...#...#", "#K..#.F.#.FF#", "#...#...#1..#", "#############"], "snake": [[2, 5], [2, 4]], "dir": "D", "exit": { "keys": 2, "plates": [] }, "guards": [] }, { "id": "gen-14", "name": "Lompatan Portal", "tier": "Lompatan Portal", "intro": null, "goal": "Capai pintu keluar. Ambil kunci dulu. Pakai portal untuk pindah ruang.", "par": 17, "map": ["##############", "#...#....#.1.#", "##..#.1..#...#", "#...#....#...#", "#..##....#...#", "#...#....#.K.#", "#...#.#.F#.#.#", "#........#E..#", "##############"], "snake": [[1, 7], [1, 6]], "dir": "D", "exit": { "keys": 1, "plates": [] }, "guards": [] }, { "id": "gen-15", "name": "Lompatan Portal", "tier": "Lompatan Portal", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Panjangkan tubuh agar plate tertahan saat kepala masuk pintu.", "par": 22, "map": ["############", "#...#.#....#", "##F...#..FK#", "#.F...#..K.#", "#.......####", "#.....#.a.E#", "#..#..#.####", "#.....#....#", "############"], "snake": [[1, 6], [1, 7]], "dir": "U", "exit": { "keys": 2, "plates": ["a"] }, "guards": [] }, { "id": "gen-16", "name": "Lompatan Portal", "tier": "Lompatan Portal", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu.", "par": 23, "map": ["##############", "#...#....#...#", "#...#......#F#", "#K..#....#..##", "#...##...#..E#", "#...#....#...#", "#...#.F.K#...#", "#.F......#...#", "##############"], "snake": [[1, 4], [2, 4]], "dir": "L", "exit": { "keys": 2, "plates": [] }, "guards": [] }, { "id": "gen-17", "name": "Lompatan Portal", "tier": "Lompatan Portal", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu.", "par": 23, "map": ["#############", "#...##..#..E#", "#.......#..K#", "#.F##...#.FK#", "#...#...#...#", "#.F.#...#...#", "#...#.......#", "#############"], "snake": [[1, 6], [2, 6]], "dir": "L", "exit": { "keys": 2, "plates": [] }, "guards": [] }, { "id": "gen-18", "name": "Lompatan Portal", "tier": "Lompatan Portal", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Pakai portal untuk pindah ruang.", "par": 23, "map": ["##############", "#..1#....#...#", "#...#....##..#", "#...#..F1#...#", "#..K#....#...#", "#...#....#..E#", "#.#.#.#......#", "#..K#....#...#", "##############"], "snake": [[1, 6], [1, 7]], "dir": "U", "exit": { "keys": 2, "plates": [] }, "guards": [] }, { "id": "gen-19", "name": "Lompatan Portal", "tier": "Lompatan Portal", "intro": null, "goal": "Capai pintu keluar. Ambil kunci dulu. Panjangkan tubuh agar plate tertahan saat kepala masuk pintu.", "par": 23, "map": ["############", "#..........#", "#.#F#......#", "#F..#...####", "#.F.##..a.E#", "#...#K..####", "#...#.....##", "############"], "snake": [[1, 6], [2, 6]], "dir": "L", "exit": { "keys": 1, "plates": ["a"] }, "guards": [] }, { "id": "gen-20", "name": "Duri dan Retak", "tier": "Duri dan Retak", "intro": "Baru: Duri dan tembok retak. Duri hanya bisa dilewati dengan Perisai (S), tembok retak dengan Palu (P). Keduanya sekali pakai.", "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Pakai portal untuk pindah ruang. Duri butuh Perisai.", "par": 28, "map": ["#############", "#...#...#...#", "#K..#.#.#...#", "#.F.#...#..F#", "#.#.^...##.1#", "#.F.#.#.#..E#", "#...#...#...#", "#.S.#..1#K..#", "#############"], "snake": [[1, 6], [1, 5]], "dir": "D", "exit": { "keys": 2, "plates": [] }, "guards": [] }, { "id": "gen-21", "name": "Duri dan Retak", "tier": "Duri dan Retak", "intro": null, "goal": "Capai pintu keluar. Ambil kunci dulu. Panjangkan tubuh agar plate tertahan saat kepala masuk pintu. Tembok retak butuh Palu.", "par": 27, "map": ["###############", "#FF.#...#.....#", "#...#...#..####", "#...#...#..a.E#", "#..##...#..####", "#K..x...#.....#", "#P..#.#.#.....#", "#...#.......#.#", "###############"], "snake": [[2, 3], [2, 4]], "dir": "U", "exit": { "keys": 1, "plates": ["a"] }, "guards": [] }, { "id": "gen-22", "name": "Duri dan Retak", "tier": "Duri dan Retak", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Tembok retak butuh Palu.", "par": 32, "map": ["#############", "#...#.F.#...#", "#...x...#EK.#", "#...#...#...#", "#...#..##...#", "#..##...#...#", "#P..#...#...#", "#P.K#...x...#", "#############"], "snake": [[1, 2], [1, 1]], "dir": "D", "exit": { "keys": 2, "plates": [] }, "guards": [] }, { "id": "gen-23", "name": "Duri dan Retak", "tier": "Duri dan Retak", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Panjangkan tubuh agar plate tertahan saat kepala masuk pintu. Pakai portal untuk pindah ruang.", "par": 33, "map": ["###############", "#....#..F#.FF##", "#....#...#.####", "#....#..##.a.E#", "##..K#...#.####", "#.......1#....#", "#K...#..##..1.#", "###############"], "snake": [[4, 6], [3, 6]], "dir": "R", "exit": { "keys": 2, "plates": ["a"] }, "guards": [] }, { "id": "gen-24", "name": "Duri dan Retak", "tier": "Duri dan Retak", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu.", "par": 20, "map": ["#############", "#...#..K#...#", "#...#...#...#", "#..........##", "#...#...#E..#", "#..F#...#...#", "#...#...#..##", "#.#.#...#K.F#", "#############"], "snake": [[3, 2], [2, 2]], "dir": "R", "exit": { "keys": 2, "plates": [] }, "guards": [] }, { "id": "gen-25", "name": "Duri dan Retak", "tier": "Duri dan Retak", "intro": null, "goal": "Capai pintu keluar. Ambil kunci dulu. Panjangkan tubuh agar plate tertahan saat kepala masuk pintu. Duri butuh Perisai.", "par": 23, "map": ["###############", "##..#....#.F..#", "#...#....#.####", "#..F#....#.a.E#", "#K.......#.####", "#...#....#....#", "#.FS#F...^..#.#", "###############"], "snake": [[2, 3], [2, 2]], "dir": "D", "exit": { "keys": 1, "plates": ["a"] }, "guards": [] }, { "id": "gen-26", "name": "Duri dan Retak", "tier": "Duri dan Retak", "intro": null, "goal": "Capai pintu keluar. Ambil kunci dulu. Duri butuh Perisai. Tembok retak butuh Palu.", "par": 24, "map": ["#############", "#...^.K.x...#", "#...#...#...#", "#...#F.F#...#", "##S.#...#F..#", "#...###.#...#", "#...##..#...#", "#..P#...#.E.#", "#############"], "snake": [[3, 4], [3, 3]], "dir": "D", "exit": { "keys": 1, "plates": [] }, "guards": [] }, { "id": "gen-27", "name": "Duri dan Retak", "tier": "Duri dan Retak", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Panjangkan tubuh agar plate tertahan saat kepala masuk pintu. Pakai portal untuk pindah ruang.", "par": 27, "map": ["##############", "#...#...#.a.E#", "##..#1..#.####", "#...#......#.#", "#...#...#.K.F#", "#..1#F..#....#", "#.K.#.#.#....#", "#.#.#...#.F..#", "##############"], "snake": [[2, 1], [2, 2]], "dir": "U", "exit": { "keys": 2, "plates": ["a"] }, "guards": [] }, { "id": "gen-28", "name": "Gerbang Bergantian", "tier": "Gerbang Bergantian", "intro": "Baru: Gerbang bergantian. Gerbang bertanda 2 terbuka bila langkah yang akan kamu ambil genap, bertanda 1 bila ganjil.", "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Duri butuh Perisai. Gerbang hanya terbuka pada langkah genap/ganjil.", "par": 26, "map": ["##############", "#..S#....##..#", "#...h..#.^..##", "#..F#....#...#", "#...#...K#...#", "##..#..F.#..E#", "#...#....#...#", "##.K#....#...#", "##############"], "snake": [[3, 6], [3, 5]], "dir": "D", "exit": { "keys": 2, "plates": [] }, "guards": [] }, { "id": "gen-29", "name": "Gerbang Bergantian", "tier": "Gerbang Bergantian", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Duri butuh Perisai. Gerbang hanya terbuka pada langkah genap/ganjil.", "par": 30, "map": ["###############", "#....#....#..K#", "#....#....#.K.#", "#....##...#.#.#", "#.S..g..F.#...#", "#....#....#.F.#", "#....#....#...#", "#....#..#.^.E.#", "#....#.##.#...#", "###############"], "snake": [[3, 4], [3, 3]], "dir": "D", "exit": { "keys": 2, "plates": [] }, "guards": [] }, { "id": "gen-30", "name": "Gerbang Bergantian", "tier": "Gerbang Bergantian", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Tembok retak butuh Palu.", "par": 33, "map": ["################", "#.........x....#", "#.....#...#.#..#", "#.....#P..##..E#", "#.....#..K#....#", "#.....#.FF#....#", "#.....#...#....#", "#.....#.K.#....#", "#.....#...#....#", "#.....#...#...##", "################"], "snake": [[3, 9], [2, 9]], "dir": "R", "exit": { "keys": 2, "plates": [] }, "guards": [] }, { "id": "gen-31", "name": "Gerbang Bergantian", "tier": "Gerbang Bergantian", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Panjangkan tubuh agar plate tertahan saat kepala masuk pintu. Tembok retak butuh Palu.", "par": 31, "map": ["##############", "##..x.K##.#.F#", "#...#..##.K..#", "#.PF#...#.####", "#F..#.#P#.a.E#", "#...#...x.####", "##############"], "snake": [[3, 2], [2, 2]], "dir": "R", "exit": { "keys": 2, "plates": ["a"] }, "guards": [] }, { "id": "gen-32", "name": "Gerbang Bergantian", "tier": "Gerbang Bergantian", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Pakai portal untuk pindah ruang.", "par": 30, "map": ["##############", "#...#...#....#", "#...#...#..K.#", "#...#..K#....#", "###1#..1#....#", "#...#..F#..F.#", "#...#...#....#", "#..##...#..F.#", "#..##.......E#", "##############"], "snake": [[1, 1], [1, 2]], "dir": "U", "exit": { "keys": 2, "plates": [] }, "guards": [] }, { "id": "gen-33", "name": "Gerbang Bergantian", "tier": "Gerbang Bergantian", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Panjangkan tubuh agar plate tertahan saat kepala masuk pintu. Duri butuh Perisai.", "par": 30, "map": ["###############", "#S..#..##...FF#", "#K..#...#.#####", "#...##..#.a..E#", "#...#F.F#.#####", "#.#.#...^.K...#", "#.......#.....#", "#...#...#F....#", "###############"], "snake": [[3, 1], [2, 1]], "dir": "R", "exit": { "keys": 2, "plates": ["a"] }, "guards": [] }, { "id": "gen-34", "name": "Gerbang Bergantian", "tier": "Gerbang Bergantian", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Pakai portal untuk pindah ruang. Duri butuh Perisai.", "par": 34, "map": ["################", "#...#....#.....#", "#...#....#..E..#", "#...#....#...F.#", "#.#S#...K#.....#", "#K.F##...#..#..#", "#...#....#.....#", "#...^....#.....#", "#...#..1.#.....#", "#..F#....#....1#", "################"], "snake": [[1, 1], [2, 1]], "dir": "L", "exit": { "keys": 2, "plates": [] }, "guards": [] }, { "id": "gen-35", "name": "Penjaga Kebun", "tier": "Penjaga Kebun", "intro": "Baru: Penjaga. Masuk area pandangnya = dikejar. Sembunyi di semak agar ia pulang. Tersengat = game over.", "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Duri butuh Perisai. Tembok retak butuh Palu. Sembunyi di semak bila penjaga mengejar.", "par": 30, "map": ["###############", "#...##...##E..#", "#S...#KF..x.#.#", "#....#.v..#F.##", "#...##....#.v.#", "#....#....#...#", "#....#....#...#", "#....^.v..#...#", "#....#P.K.#...#", "###############"], "snake": [[2, 4], [3, 4]], "dir": "L", "exit": { "keys": 2, "plates": [] }, "guards": [{ "x": 12, "y": 1, "dir": "U", "range": 3 }] }, { "id": "gen-36", "name": "Penjaga Kebun", "tier": "Penjaga Kebun", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Pakai portal untuk pindah ruang. Duri butuh Perisai. Gerbang hanya terbuka pada langkah genap/ganjil. Sembunyi di semak bila penjaga mengejar.", "par": 44, "map": ["#################", "#...#...#1..#..1#", "#...#..v#F..#...#", "#...#...^...#.v.#", "#...#...#...#...#", "#...#...#...#...#", "###.#...#...#...#", "#.S.h...#...#...#", "#...#...##..#...#", "#...#...#.KK#F.E#", "#################"], "snake": [[2, 4], [3, 4]], "dir": "L", "exit": { "keys": 2, "plates": [] }, "guards": [{ "x": 11, "y": 1, "dir": "D", "range": 3 }] }, { "id": "gen-37", "name": "Penjaga Kebun", "tier": "Penjaga Kebun", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Tembok retak butuh Palu. Sembunyi di semak bila penjaga mengejar.", "par": 31, "map": ["###############", "#....#v..v#...#", "#....#....#.#F#", "#K.....#.F#v..#", "#..#.#....#...#", "#....#....#...#", "#.#..#....#...#", "#....#....#E..#", "#...P#..#.x...#", "#....#..K.#...#", "###############"], "snake": [[1, 6], [1, 7]], "dir": "U", "exit": { "keys": 2, "plates": [] }, "guards": [{ "x": 7, "y": 2, "dir": "U", "range": 3 }] }, { "id": "gen-38", "name": "Penjaga Kebun", "tier": "Penjaga Kebun", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Tembok retak butuh Palu. Sembunyi di semak bila penjaga mengejar.", "par": 36, "map": ["###############", "#....#v...#..K#", "#.#..#v...#...#", "#....#F.PK#.E.#", "#....#....#...#", "#....#....#.F.#", "#....#....#...#", "#.#.......#...#", "#....#....x...#", "#.#..#...F#..##", "###############"], "snake": [[4, 1], [4, 2]], "dir": "U", "exit": { "keys": 2, "plates": [] }, "guards": [{ "x": 6, "y": 4, "dir": "L", "range": 3 }] }, { "id": "gen-39", "name": "Penjaga Kebun", "tier": "Penjaga Kebun", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Panjangkan tubuh agar plate tertahan saat kepala masuk pintu. Gerbang hanya terbuka pada langkah genap/ganjil. Sembunyi di semak bila penjaga mengejar.", "par": 36, "map": ["#################", "#...#.....#.v...#", "#...#.....#.v####", "#...#........a.E#", "#...g.....#..####", "#F.##.....#.....#", "#...#.....#.v.F.#", "#...#.....###...#", "#...#.....#..K.##", "#.F##.....#.K...#", "#################"], "snake": [[3, 7], [3, 8]], "dir": "U", "exit": { "keys": 2, "plates": ["a"] }, "guards": [{ "x": 11, "y": 2, "dir": "U", "range": 3 }] }, { "id": "gen-40", "name": "Penjaga Kebun", "tier": "Penjaga Kebun", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Duri butuh Perisai. Sembunyi di semak bila penjaga mengejar.", "par": 37, "map": ["################", "#...#.....#.K.v#", "#...^....S#...##", "#...#.F...#..E.#", "#...##..K.#....#", "#...#.....#.F..#", "#...#v....#....#", "#S#.#....v#....#", "#...#.....^....#", "################"], "snake": [[1, 6], [2, 6]], "dir": "L", "exit": { "keys": 2, "plates": [] }, "guards": [{ "x": 6, "y": 4, "dir": "D", "range": 3 }] }, { "id": "gen-41", "name": "Penjaga Kebun", "tier": "Penjaga Kebun", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Duri butuh Perisai. Tembok retak butuh Palu. Sembunyi di semak bila penjaga mengejar.", "par": 39, "map": ["###############", "#...P#.#..#...#", "#....#.#..#...#", "#....#....#...#", "#...F#.K..#E..#", "#..#.#v...#...#", "#K...#...##...#", "#.S..#....#..F#", "#....#....x...#", "#....^....#.v.#", "###############"], "snake": [[4, 6], [3, 6]], "dir": "R", "exit": { "keys": 2, "plates": [] }, "guards": [{ "x": 6, "y": 2, "dir": "R", "range": 3 }] }, { "id": "gen-42", "name": "Penjaga Kebun", "tier": "Penjaga Kebun", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Tembok retak butuh Palu. Sembunyi di semak bila penjaga mengejar.", "par": 32, "map": ["################", "#...F.#...#..E.#", "#.........#F#..#", "#.....#...#...v#", "#.....##..#....#", "##....#...#....#", "#..K..#.v.#....#", "#.....#.K.#....#", "#.....#...x....#", "#..#.##P..#....#", "################"], "snake": [[3, 5], [4, 5]], "dir": "L", "exit": { "keys": 2, "plates": [] }, "guards": [{ "x": 14, "y": 5, "dir": "D", "range": 3 }] }, { "id": "gen-43", "name": "Penjaga Ganda", "tier": "Penjaga Ganda", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Tembok retak butuh Palu. Sembunyi di semak bila penjaga mengejar.", "par": 37, "map": ["################", "#.....#.F..#.#.#", "#.....#....x...#", "#.........P#.#.#", "#..#..#.#..#...#", "#..K..#....#...#", "#.....#v...#...#", "#.....#.v..#F..#", "#.#...#....#v..#", "#.....#K...#E..#", "#.....#...F#...#", "################"], "snake": [[1, 1], [2, 1]], "dir": "L", "exit": { "keys": 2, "plates": [] }, "guards": [{ "x": 9, "y": 1, "dir": "L", "range": 3 }] }, { "id": "gen-44", "name": "Penjaga Ganda", "tier": "Penjaga Ganda", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Pakai portal untuk pindah ruang. Duri butuh Perisai. Sembunyi di semak bila penjaga mengejar.", "par": 35, "map": ["################", "#....##.F.v#...#", "#....K#...1#.1.#", "#.S...##...#...#", "#...F.#....#...#", "#.....#....#..F#", "#.....#....#...#", "#.....#..#.#.#E#", "#....K#....#..F#", "#.....^.v..#.v.#", "#.....#....#...#", "################"], "snake": [[4, 7], [4, 8]], "dir": "U", "exit": { "keys": 2, "plates": [] }, "guards": [{ "x": 13, "y": 5, "dir": "D", "range": 3 }] }, { "id": "gen-45", "name": "Penjaga Ganda", "tier": "Penjaga Ganda", "intro": null, "goal": "Capai pintu keluar. Ambil 3 kunci dulu. Pakai portal untuk pindah ruang. Duri butuh Perisai. Sembunyi di semak bila penjaga mengejar.", "par": 37, "map": ["#################", "#.....#.#...#F..#", "#.....#Fv.v.#...#", "#.....#..#..#...#", "#1....#.....#..F#", "#...#.#.....#...#", "#.....#.S...#..v#", "#.....#K....#...#", "#...K.#.....#.E.#", "#.....##....##..#", "#....K#...1.^...#", "#################"], "snake": [[4, 4], [3, 4]], "dir": "R", "exit": { "keys": 3, "plates": [] }, "guards": [{ "x": 13, "y": 6, "dir": "U", "range": 3 }] }, { "id": "gen-46", "name": "Penjaga Ganda", "tier": "Penjaga Ganda", "intro": null, "goal": "Capai pintu keluar. Ambil 3 kunci dulu. Duri butuh Perisai. Sembunyi di semak bila penjaga mengejar.", "par": 31, "map": ["###############", "#....##...#...#", "#....^.v..^.v.#", "#....#...v#..K#", "#....#F.KK#.E.#", "#....#F#v.#...#", "##.SF#.S..#...#", "#...###...#...#", "###############"], "snake": [[4, 1], [3, 1]], "dir": "R", "exit": { "keys": 3, "plates": [] }, "guards": [{ "x": 13, "y": 1, "dir": "U", "range": 3 }] }, { "id": "gen-47", "name": "Penjaga Ganda", "tier": "Penjaga Ganda", "intro": null, "goal": "Capai pintu keluar. Ambil 3 kunci dulu. Pakai portal untuk pindah ruang. Duri butuh Perisai. Sembunyi di semak bila penjaga mengejar.", "par": 28, "map": ["#################", "#...#..S#..v#...#", "#...#...#...#...#", "#...#..1#...#...#", "#...#...#2..#K.E#", "#...#..F#...#...#", "###.#...^...#...#", "#...#...#...#.K.#", "#.1.##..#...#.2.#", "#...#...#...#...#", "#...#vvF#...#.v.#", "#K..#...#...#.F.#", "#################"], "snake": [[3, 11], [2, 11]], "dir": "R", "exit": { "keys": 3, "plates": [] }, "guards": [{ "x": 5, "y": 3, "dir": "L", "range": 3 }] }, { "id": "gen-48", "name": "Penjaga Ganda", "tier": "Penjaga Ganda", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Pakai portal untuk pindah ruang. Duri butuh Perisai. Sembunyi di semak bila penjaga mengejar.", "par": 32, "map": ["################", "#SF.#....F##vK.#", "#...^......#...#", "#.#.#...1..#..E#", "#...#......#1#.#", "#...#......#v..#", "#...#......#.K.#", "#...#......#v..#", "################"], "snake": [[2, 4], [2, 5]], "dir": "U", "exit": { "keys": 2, "plates": [] }, "guards": [{ "x": 13, "y": 5, "dir": "U", "range": 3 }] }, { "id": "gen-49", "name": "Penjaga Kebun", "tier": "Penjaga Ganda", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Panjangkan tubuh agar plate tertahan saat kepala masuk pintu. Tembok retak butuh Palu. Sembunyi di semak bila penjaga mengejar.", "par": 35, "map": ["###############", "#....#...#.v..#", "#..###..K#vF#.#", "#....#.#.#K...#", "#....#...#.####", "#....#.F.#.a.E#", "#.P..#.F...####", "#....x...#v..##", "#....#...#....#", "###############"], "snake": [[2, 3], [2, 4]], "dir": "U", "exit": { "keys": 2, "plates": ["a"] }, "guards": [{ "x": 10, "y": 8, "dir": "L", "range": 3 }] }, { "id": "gen-50", "name": "Penjaga Ganda", "tier": "Penjaga Ganda", "intro": null, "goal": "Capai pintu keluar. Ambil 3 kunci dulu. Sembunyi di semak bila penjaga mengejar.", "par": 44, "map": ["###############", "#...#..F.#....#", "#...#...##....#", "#...#........K#", "#.#.#....#.vv.#", "#..K#....#.#..#", "#...#...v#..v.#", "#...#....#F...#", "#...#....#....#", "#........#....#", "#..##....#E.K.#", "###############"], "snake": [[1, 5], [1, 4]], "dir": "D", "exit": { "keys": 3, "plates": [] }, "guards": [{ "x": 13, "y": 8, "dir": "L", "range": 3 }, { "x": 6, "y": 7, "dir": "U", "range": 3 }] }
++export const CAMPAIGN_SPECS = [{ "id": "gen-6", "name": "Lorong Kunci", "tier": "Lorong Kunci", "intro": null, "goal": "Capai pintu keluar. Ambil kunci dulu.", "par": 14, "map": ["#############", "#...#...#...#", "##..#...#...#", "#...........#", "#..F#.F.#...#", "#...#...#.E.#", "#.K.#.#.#...#", "#############"], "snake": [[2, 5], [1, 5]], "dir": "R", "exit": { "keys": 1, "plates": [] }, "guards": [] }, { "id": "gen-7", "name": "Lorong Kunci", "tier": "Lorong Kunci", "intro": null, "goal": "Capai pintu keluar. Ambil kunci dulu.", "par": 13, "map": ["#############", "#..F.#......#", "#....#.E....#", "#....#......#", "#....#K..F..#", "#.#.....#...#", "#############"], "snake": [[1, 1], [2, 1]], "dir": "L", "exit": { "keys": 1, "plates": [] }, "guards": [] }, { "id": "gen-8", "name": "Lorong Kunci", "tier": "Lorong Kunci", "intro": null, "goal": "Capai pintu keluar. Ambil kunci dulu.", "par": 15, "map": ["############", "#....#.....#", "#..F##.....#", "#........E.#", "#.#.F#.....#", "#....#.....#", "#K...#.....#", "#....#.....#", "############"], "snake": [[4, 7], [3, 7]], "dir": "R", "exit": { "keys": 1, "plates": [] }, "guards": [] }, { "id": "gen-9", "name": "Lorong Kunci", "tier": "Lorong Kunci", "intro": null, "goal": "Capai pintu keluar. Ambil kunci dulu.", "par": 18, "map": ["###########", "#.........#", "#.....#...#", "##....#...#", "#.....#...#", "#.....#...#", "#F..K.#.E.#", "###########"], "snake": [[5, 3], [5, 4]], "dir": "U", "exit": { "keys": 1, "plates": [] }, "guards": [] }, { "id": "gen-10", "name": "Lorong Kunci", "tier": "Lorong Kunci", "intro": null, "goal": "Capai pintu keluar. Ambil kunci dulu.", "par": 17, "map": ["#############", "#...#.......#", "#...#...E...#", "#FK.#.....#.#", "#.#F#.......#", "#...........#", "#...#.......#", "#...#.......#", "#############"], "snake": [[2, 7], [3, 7]], "dir": "L", "exit": { "keys": 1, "plates": [] }, "guards": [] }, { "id": "gen-11", "name": "Lorong Kunci", "tier": "Lorong Kunci", "intro": null, "goal": "Capai pintu keluar. Ambil kunci dulu.", "par": 16, "map": ["############", "#.....#....#", "#K.#..#....#", "#..........#", "#....##....#", "#..F..#....#", "#...F.#E...#", "############"], "snake": [[5, 2], [4, 2]], "dir": "R", "exit": { "keys": 1, "plates": [] }, "guards": [] }, { "id": "gen-12", "name": "Lorong Kunci", "tier": "Lorong Kunci", "intro": null, "goal": "Capai pintu keluar. Ambil kunci dulu.", "par": 18, "map": ["#############", "#......##...#", "#......#.F.##", "#......#....#", "#........#..#", "#F.....#....#", "#......#E..K#", "#############"], "snake": [[1, 1], [2, 1]], "dir": "L", "exit": { "keys": 1, "plates": [] }, "guards": [] }, { "id": "gen-13", "name": "Lompatan Portal", "tier": "Lompatan Portal", "intro": "Baru: Portal. Masuk satu ujung, kepalamu muncul di ujung pasangannya (angka dan jumlah cincin sama).", "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Pakai portal untuk pindah ruang.", "par": 22, "map": ["#############", "#.......#..E#", "#.#.#...#K.##", "#...#.1.#.#.#", "#...#...#...#", "#...#...#...#", "#K..#.F.#.FF#", "#...#...#1..#", "#############"], "snake": [[2, 5], [2, 4]], "dir": "D", "exit": { "keys": 2, "plates": [] }, "guards": [] }, { "id": "gen-14", "name": "Lompatan Portal", "tier": "Lompatan Portal", "intro": null, "goal": "Capai pintu keluar. Ambil kunci dulu. Pakai portal untuk pindah ruang.", "par": 17, "map": ["##############", "#...#....#.1.#", "##..#.1..#...#", "#...#....#...#", "#..##....#...#", "#...#....#.K.#", "#...#.#.F#.#.#", "#........#E..#", "##############"], "snake": [[1, 7], [1, 6]], "dir": "D", "exit": { "keys": 1, "plates": [] }, "guards": [] }, { "id": "gen-15", "name": "Lompatan Portal", "tier": "Lompatan Portal", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Panjangkan tubuh agar plate tertahan saat kepala masuk pintu.", "par": 22, "map": ["############", "#...#.#....#", "##F...#..FK#", "#.F...#..K.#", "#.......####", "#.....#.a.E#", "#..#..#.####", "#.....#....#", "############"], "snake": [[1, 6], [1, 7]], "dir": "U", "exit": { "keys": 2, "plates": ["a"] }, "guards": [] }, { "id": "gen-16", "name": "Lompatan Portal", "tier": "Lompatan Portal", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu.", "par": 23, "map": ["##############", "#...#....#...#", "#...#......#F#", "#K..#....#..##", "#...##...#..E#", "#...#....#...#", "#...#.F.K#...#", "#.F......#...#", "##############"], "snake": [[1, 4], [2, 4]], "dir": "L", "exit": { "keys": 2, "plates": [] }, "guards": [] }, { "id": "gen-17", "name": "Lompatan Portal", "tier": "Lompatan Portal", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu.", "par": 23, "map": ["#############", "#...##..#..E#", "#.......#..K#", "#.F##...#.FK#", "#...#...#...#", "#.F.#...#...#", "#...#.......#", "#############"], "snake": [[1, 6], [2, 6]], "dir": "L", "exit": { "keys": 2, "plates": [] }, "guards": [] }, { "id": "gen-18", "name": "Lompatan Portal", "tier": "Lompatan Portal", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Pakai portal untuk pindah ruang.", "par": 23, "map": ["##############", "#..1#....#...#", "#...#....##..#", "#...#..F1#...#", "#..K#....#...#", "#...#....#..E#", "#.#.#.#......#", "#..K#....#...#", "##############"], "snake": [[1, 6], [1, 7]], "dir": "U", "exit": { "keys": 2, "plates": [] }, "guards": [] }, { "id": "gen-19", "name": "Lompatan Portal", "tier": "Lompatan Portal", "intro": null, "goal": "Capai pintu keluar. Ambil kunci dulu. Panjangkan tubuh agar plate tertahan saat kepala masuk pintu.", "par": 23, "map": ["############", "#..........#", "#.#F#......#", "#F..#...####", "#.F.##..a.E#", "#...#K..####", "#...#.....##", "############"], "snake": [[1, 6], [2, 6]], "dir": "L", "exit": { "keys": 1, "plates": ["a"] }, "guards": [] }, { "id": "gen-20", "name": "Duri dan Retak", "tier": "Duri dan Retak", "intro": "Baru: Duri dan tembok retak. Duri hanya bisa dilewati dengan Perisai (S), tembok retak dengan Palu (P). Keduanya sekali pakai.", "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Pakai portal untuk pindah ruang. Duri butuh Perisai.", "par": 28, "map": ["#############", "#...#...#...#", "#K..#.#.#...#", "#.F.#...#..F#", "#.#.^...##.1#", "#.F.#.#.#..E#", "#...#...#...#", "#.S.#..1#K..#", "#############"], "snake": [[1, 6], [1, 5]], "dir": "D", "exit": { "keys": 2, "plates": [] }, "guards": [] }, { "id": "gen-21", "name": "Duri dan Retak", "tier": "Duri dan Retak", "intro": null, "goal": "Capai pintu keluar. Ambil kunci dulu. Panjangkan tubuh agar plate tertahan saat kepala masuk pintu. Tembok retak butuh Palu.", "par": 27, "map": ["###############", "#FF.#...#.....#", "#...#...#..####", "#...#...#..a.E#", "#..##...#..####", "#K..x...#.....#", "#P..#.#.#.....#", "#...#.......#.#", "###############"], "snake": [[2, 3], [2, 4]], "dir": "U", "exit": { "keys": 1, "plates": ["a"] }, "guards": [] }, { "id": "gen-22", "name": "Duri dan Retak", "tier": "Duri dan Retak", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Tembok retak butuh Palu.", "par": 32, "map": ["#############", "#...#.F.#...#", "#...x...#EK.#", "#...#...#...#", "#...#..##...#", "#..##...#...#", "#P..#...#...#", "#P.K#...x...#", "#############"], "snake": [[1, 2], [1, 1]], "dir": "D", "exit": { "keys": 2, "plates": [] }, "guards": [] }, { "id": "gen-23", "name": "Duri dan Retak", "tier": "Duri dan Retak", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Panjangkan tubuh agar plate tertahan saat kepala masuk pintu. Pakai portal untuk pindah ruang.", "par": 33, "map": ["###############", "#....#..F#.FF##", "#....#...#.####", "#....#..##.a.E#", "##..K#...#.####", "#.......1#....#", "#K...#..##..1.#", "###############"], "snake": [[4, 6], [3, 6]], "dir": "R", "exit": { "keys": 2, "plates": ["a"] }, "guards": [] }, { "id": "gen-24", "name": "Duri dan Retak", "tier": "Duri dan Retak", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu.", "par": 20, "map": ["#############", "#...#..K#...#", "#...#...#...#", "#..........##", "#...#...#E..#", "#..F#...#...#", "#...#...#..##", "#.#.#...#K.F#", "#############"], "snake": [[3, 2], [2, 2]], "dir": "R", "exit": { "keys": 2, "plates": [] }, "guards": [] }, { "id": "gen-25", "name": "Duri dan Retak", "tier": "Duri dan Retak", "intro": null, "goal": "Capai pintu keluar. Ambil kunci dulu. Panjangkan tubuh agar plate tertahan saat kepala masuk pintu. Duri butuh Perisai.", "par": 23, "map": ["###############", "##..#....#.F..#", "#...#....#.####", "#..F#....#.a.E#", "#K.......#.####", "#...#....#....#", "#.FS#F...^..#.#", "###############"], "snake": [[2, 3], [2, 2]], "dir": "D", "exit": { "keys": 1, "plates": ["a"] }, "guards": [] }, { "id": "gen-26", "name": "Duri dan Retak", "tier": "Duri dan Retak", "intro": null, "goal": "Capai pintu keluar. Ambil kunci dulu. Duri butuh Perisai. Tembok retak butuh Palu.", "par": 24, "map": ["#############", "#...^.K.x...#", "#...#...#...#", "#...#F.F#...#", "##S.#...#F..#", "#...###.#...#", "#...##..#...#", "#..P#...#.E.#", "#############"], "snake": [[3, 4], [3, 3]], "dir": "D", "exit": { "keys": 1, "plates": [] }, "guards": [] }, { "id": "gen-27", "name": "Duri dan Retak", "tier": "Duri dan Retak", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Panjangkan tubuh agar plate tertahan saat kepala masuk pintu. Pakai portal untuk pindah ruang.", "par": 27, "map": ["##############", "#...#...#.a.E#", "##..#1..#.####", "#...#......#.#", "#...#...#.K.F#", "#..1#F..#....#", "#.K.#.#.#....#", "#.#.#...#.F..#", "##############"], "snake": [[2, 1], [2, 2]], "dir": "U", "exit": { "keys": 2, "plates": ["a"] }, "guards": [] }, { "id": "gen-28", "name": "Gerbang Bergantian", "tier": "Gerbang Bergantian", "intro": "Baru: Gerbang bergantian. Gerbang bertanda 2 terbuka bila langkah yang akan kamu ambil genap, bertanda 1 bila ganjil.", "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Duri butuh Perisai. Gerbang hanya terbuka pada langkah genap/ganjil.", "par": 26, "map": ["##############", "#..S#....##..#", "#...h..#.^..##", "#..F#....#...#", "#...#...K#...#", "##..#..F.#..E#", "#...#....#...#", "##.K#....#...#", "##############"], "snake": [[3, 6], [3, 5]], "dir": "D", "exit": { "keys": 2, "plates": [] }, "guards": [] }, { "id": "gen-29", "name": "Gerbang Bergantian", "tier": "Gerbang Bergantian", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Duri butuh Perisai. Gerbang hanya terbuka pada langkah genap/ganjil.", "par": 30, "map": ["###############", "#....#....#..K#", "#....#....#.K.#", "#....##...#.#.#", "#.S..g..F.#...#", "#....#....#.F.#", "#....#....#...#", "#....#..#.^.E.#", "#....#.##.#...#", "###############"], "snake": [[3, 4], [3, 3]], "dir": "D", "exit": { "keys": 2, "plates": [] }, "guards": [] }, { "id": "gen-30", "name": "Gerbang Bergantian", "tier": "Gerbang Bergantian", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Tembok retak butuh Palu.", "par": 33, "map": ["################", "#.........x....#", "#.....#...#.#..#", "#.....#P..##..E#", "#.....#..K#....#", "#.....#.FF#....#", "#.....#...#....#", "#.....#.K.#....#", "#.....#...#....#", "#.....#...#...##", "################"], "snake": [[3, 9], [2, 9]], "dir": "R", "exit": { "keys": 2, "plates": [] }, "guards": [] }, { "id": "gen-31", "name": "Gerbang Bergantian", "tier": "Gerbang Bergantian", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Panjangkan tubuh agar plate tertahan saat kepala masuk pintu. Tembok retak butuh Palu.", "par": 31, "map": ["##############", "##..x.K##.#.F#", "#...#..##.K..#", "#.PF#...#.####", "#F..#.#P#.a.E#", "#...#...x.####", "##############"], "snake": [[3, 2], [2, 2]], "dir": "R", "exit": { "keys": 2, "plates": ["a"] }, "guards": [] }, { "id": "gen-32", "name": "Gerbang Bergantian", "tier": "Gerbang Bergantian", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Pakai portal untuk pindah ruang.", "par": 30, "map": ["##############", "#...#...#....#", "#...#...#..K.#", "#...#..K#....#", "###1#..1#....#", "#...#..F#..F.#", "#...#...#....#", "#..##...#..F.#", "#..##.......E#", "##############"], "snake": [[1, 1], [1, 2]], "dir": "U", "exit": { "keys": 2, "plates": [] }, "guards": [] }, { "id": "gen-33", "name": "Gerbang Bergantian", "tier": "Gerbang Bergantian", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Panjangkan tubuh agar plate tertahan saat kepala masuk pintu. Duri butuh Perisai.", "par": 30, "map": ["###############", "#S..#..##...FF#", "#K..#...#.#####", "#...##..#.a..E#", "#...#F.F#.#####", "#.#.#...^.K...#", "#.......#.....#", "#...#...#F....#", "###############"], "snake": [[3, 1], [2, 1]], "dir": "R", "exit": { "keys": 2, "plates": ["a"] }, "guards": [] }, { "id": "gen-34", "name": "Gerbang Bergantian", "tier": "Gerbang Bergantian", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Pakai portal untuk pindah ruang. Duri butuh Perisai.", "par": 34, "map": ["################", "#...#....#.....#", "#...#....#..E..#", "#...#....#...F.#", "#.#S#...K#.....#", "#K.F##...#..#..#", "#...#....#.....#", "#...^....#.....#", "#...#..1.#.....#", "#..F#....#....1#", "################"], "snake": [[1, 1], [2, 1]], "dir": "L", "exit": { "keys": 2, "plates": [] }, "guards": [] }, { "id": "gen-35", "name": "Penjaga Kebun", "tier": "Penjaga Kebun", "intro": "Baru: Penjaga. Masuk area pandangnya = dikejar. Sembunyi di semak agar ia pulang. Tersengat = game over.", "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Duri butuh Perisai. Tembok retak butuh Palu. Sembunyi di semak bila penjaga mengejar.", "par": 30, "map": ["###############", "#...##...##E..#", "#S...#KF..x.#.#", "#....#.v..#F.##", "#...##....#.v.#", "#....#....#...#", "#....#....#...#", "#....^.v..#...#", "#....#P.K.#...#", "###############"], "snake": [[2, 4], [3, 4]], "dir": "L", "exit": { "keys": 2, "plates": [] }, "guards": [{ "x": 12, "y": 1, "dir": "U", "range": 3 }] }, { "id": "gen-36", "name": "Penjaga Kebun", "tier": "Penjaga Kebun", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Pakai portal untuk pindah ruang. Duri butuh Perisai. Gerbang hanya terbuka pada langkah genap/ganjil. Sembunyi di semak bila penjaga mengejar.", "par": 44, "map": ["#################", "#...#...#1..#..1#", "#...#..v#F..#...#", "#...#...^...#.v.#", "#...#...#...#...#", "#...#...#...#...#", "###.#...#...#...#", "#.S.h...#...#...#", "#...#...##..#...#", "#...#...#.KK#F.E#", "#################"], "snake": [[2, 4], [3, 4]], "dir": "L", "exit": { "keys": 2, "plates": [] }, "guards": [{ "x": 11, "y": 1, "dir": "D", "range": 3 }] }, { "id": "gen-37", "name": "Penjaga Kebun", "tier": "Penjaga Kebun", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Tembok retak butuh Palu. Sembunyi di semak bila penjaga mengejar.", "par": 31, "map": ["###############", "#....#v..v#...#", "#....#....#.#F#", "#K.....#.F#v..#", "#..#.#....#...#", "#....#....#...#", "#.#..#....#...#", "#....#....#E..#", "#...P#..#.x...#", "#....#..K.#...#", "###############"], "snake": [[1, 6], [1, 7]], "dir": "U", "exit": { "keys": 2, "plates": [] }, "guards": [{ "x": 7, "y": 2, "dir": "U", "range": 3 }] }, { "id": "gen-38", "name": "Penjaga Kebun", "tier": "Penjaga Kebun", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Pakai portal untuk pindah ruang. Tembok retak butuh Palu. Sembunyi di semak bila penjaga mengejar.", "par": 31, "map": ["###############", "#...#1...#..v.#", "#...#..K.x....#", "#...#....#....#", "#.P.#..v.#.#..#", "#.#.#.FK.#..#.#", "#...#....#..#.#", "#...#....#....#", "#.1.#..F.#...E#", "#...#....#.v..#", "###############"], "snake": [[1, 1], [1, 2]], "dir": "U", "exit": { "keys": 2, "plates": [] }, "guards": [{ "x": 10, "y": 3, "dir": "D", "range": 3 }] }, { "id": "gen-39", "name": "Penjaga Kebun", "tier": "Penjaga Kebun", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Panjangkan tubuh agar plate tertahan saat kepala masuk pintu. Gerbang hanya terbuka pada langkah genap/ganjil. Sembunyi di semak bila penjaga mengejar.", "par": 36, "map": ["#################", "#...#.....#.v...#", "#...#.....#.v####", "#...#........a.E#", "#...g.....#..####", "#F.##.....#.....#", "#...#.....#.v.F.#", "#...#.....###...#", "#...#.....#..K.##", "#.F##.....#.K...#", "#################"], "snake": [[3, 7], [3, 8]], "dir": "U", "exit": { "keys": 2, "plates": ["a"] }, "guards": [{ "x": 11, "y": 2, "dir": "U", "range": 3 }] }, { "id": "gen-40", "name": "Penjaga Kebun", "tier": "Penjaga Kebun", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Duri butuh Perisai. Sembunyi di semak bila penjaga mengejar.", "par": 37, "map": ["################", "#...#.....#.K.v#", "#...^....S#...##", "#...#.F...#..E.#", "#...##..K.#....#", "#...#.....#.F..#", "#...#v....#....#", "#S#.#....v#....#", "#...#.....^....#", "################"], "snake": [[1, 6], [2, 6]], "dir": "L", "exit": { "keys": 2, "plates": [] }, "guards": [{ "x": 6, "y": 4, "dir": "D", "range": 3 }] }, { "id": "gen-41", "name": "Gerbang Bergantian", "tier": "Penjaga Kebun", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Panjangkan tubuh agar plate tertahan saat kepala masuk pintu. Pakai portal untuk pindah ruang. Duri butuh Perisai.", "par": 29, "map": ["##############", "#.F.#...#....#", "#F..#...#....#", "#...^...#..K.#", "#..S#...#...##", "#...#...#..F.#", "#K..#.1.#.1..#", "#.#.#..F#.####", "#...#..##.a.E#", "##############"], "snake": [[3, 8], [3, 7]], "dir": "D", "exit": { "keys": 2, "plates": ["a"] }, "guards": [] }, { "id": "gen-42", "name": "Penjaga Kebun", "tier": "Penjaga Kebun", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Tembok retak butuh Palu. Sembunyi di semak bila penjaga mengejar.", "par": 32, "map": ["################", "#...F.#...#..E.#", "#.........#F#..#", "#.....#...#...v#", "#.....##..#....#", "##....#...#....#", "#..K..#.v.#....#", "#.....#.K.#....#", "#.....#...x....#", "#..#.##P..#....#", "################"], "snake": [[3, 5], [4, 5]], "dir": "L", "exit": { "keys": 2, "plates": [] }, "guards": [{ "x": 14, "y": 5, "dir": "D", "range": 3 }] }, { "id": "gen-43", "name": "Penjaga Ganda", "tier": "Penjaga Ganda", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Tembok retak butuh Palu. Sembunyi di semak bila penjaga mengejar.", "par": 37, "map": ["################", "#.....#.F..#.#.#", "#.....#....x...#", "#.........P#.#.#", "#..#..#.#..#...#", "#..K..#....#...#", "#.....#v...#...#", "#.....#.v..#F..#", "#.#...#....#v..#", "#.....#K...#E..#", "#.....#...F#...#", "################"], "snake": [[1, 1], [2, 1]], "dir": "L", "exit": { "keys": 2, "plates": [] }, "guards": [{ "x": 9, "y": 1, "dir": "L", "range": 3 }] }, { "id": "gen-44", "name": "Penjaga Ganda", "tier": "Penjaga Ganda", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Pakai portal untuk pindah ruang. Duri butuh Perisai. Sembunyi di semak bila penjaga mengejar.", "par": 35, "map": ["################", "#....##.F.v#...#", "#....K#...1#.1.#", "#.S...##...#...#", "#...F.#....#...#", "#.....#....#..F#", "#.....#....#...#", "#.....#..#.#.#E#", "#....K#....#..F#", "#.....^.v..#.v.#", "#.....#....#...#", "################"], "snake": [[4, 7], [4, 8]], "dir": "U", "exit": { "keys": 2, "plates": [] }, "guards": [{ "x": 13, "y": 5, "dir": "D", "range": 3 }] }, { "id": "gen-45", "name": "Penjaga Ganda", "tier": "Penjaga Ganda", "intro": null, "goal": "Capai pintu keluar. Ambil 3 kunci dulu. Pakai portal untuk pindah ruang. Duri butuh Perisai. Sembunyi di semak bila penjaga mengejar.", "par": 37, "map": ["#################", "#.....#.#...#F..#", "#.....#Fv.v.#...#", "#.....#..#..#...#", "#1....#.....#..F#", "#...#.#.....#...#", "#.....#.S...#..v#", "#.....#K....#...#", "#...K.#.....#.E.#", "#.....##....##..#", "#....K#...1.^...#", "#################"], "snake": [[4, 4], [3, 4]], "dir": "R", "exit": { "keys": 3, "plates": [] }, "guards": [{ "x": 13, "y": 6, "dir": "U", "range": 3 }] }, { "id": "gen-46", "name": "Penjaga Ganda", "tier": "Penjaga Ganda", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Pakai portal untuk pindah ruang. Gerbang hanya terbuka pada langkah genap/ganjil. Sembunyi di semak bila penjaga mengejar.", "par": 18, "map": ["###############", "#...#..F.g...E#", "#K1.#..1.#v...#", "#...#...F#.K..#", "#..##....#....#", "#...#..#.#...v#", "#...#.F..#v.v.#", "#...#...##...##", "#.F.#....#....#", "###############"], "snake": [[3, 6], [3, 7]], "dir": "U", "exit": { "keys": 2, "plates": [] }, "guards": [{ "x": 8, "y": 2, "dir": "R", "range": 3 }, { "x": 5, "y": 2, "dir": "D", "range": 3, "patrol": [[5, 2], [5, 3], [5, 4]] }] }, { "id": "gen-47", "name": "Penjaga Ganda", "tier": "Penjaga Ganda", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Panjangkan tubuh agar plate tertahan saat kepala masuk pintu. Pakai portal untuk pindah ruang. Duri butuh Perisai. Sembunyi di semak bila penjaga mengejar.", "par": 27, "map": ["################", "#...#F...v#1####", "#...#.1...#.a.E#", "#...^.....#.####", "#S..#...F.#F.v.#", "#...#..#..#.vv.#", "#...#.....##...#", "#...#..K.K#F#F.#", "################"], "snake": [[2, 5], [1, 5]], "dir": "R", "exit": { "keys": 2, "plates": ["a"] }, "guards": [{ "x": 12, "y": 6, "dir": "L", "range": 3 }] }, { "id": "gen-48", "name": "Penjaga Ganda", "tier": "Penjaga Ganda", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Gerbang hanya terbuka pada langkah genap/ganjil. Sembunyi di semak bila penjaga mengejar.", "par": 21, "map": ["#################", "#...#....##..#E.#", "#...#.#..#....vv#", "#.K......#K.....#", "#...#..F.#.....v#", "#...#F..##.F...##", "#...#....h..v...#", "#...#....#......#", "#################"], "snake": [[1, 3], [1, 2]], "dir": "D", "exit": { "keys": 2, "plates": [] }, "guards": [{ "x": 5, "y": 2, "dir": "U", "range": 3 }, { "x": 7, "y": 7, "dir": "L", "range": 3 }] }, { "id": "gen-49", "name": "Penjaga Kebun", "tier": "Penjaga Ganda", "intro": null, "goal": "Capai pintu keluar. Ambil 2 kunci dulu. Panjangkan tubuh agar plate tertahan saat kepala masuk pintu. Gerbang hanya terbuka pada langkah genap/ganjil. Sembunyi di semak bila penjaga mengejar.", "par": 28, "map": ["###############", "#...#F..#.....#", "#..##..##..####", "#F..#.#.#..a.E#", "#K..#...#..####", "#.#.#.........#", "#...g...#.v...#", "#...##..#.....#", "#...#.K.#.....#", "#FF.#..v#.....#", "###############"], "snake": [[1, 7], [2, 7]], "dir": "L", "exit": { "keys": 2, "plates": ["a"] }, "guards": [{ "x": 7, "y": 4, "dir": "L", "range": 3, "patrol": [[7, 4], [6, 4], [5, 4]] }] }, { "id": "gen-50", "name": "Penjaga Ganda", "tier": "Penjaga Ganda", "intro": null, "goal": "Capai pintu keluar. Ambil 3 kunci dulu. Sembunyi di semak bila penjaga mengejar.", "par": 44, "map": ["###############", "#...#..F.#....#", "#...#...##....#", "#...#........K#", "#.#.#....#.vv.#", "#..K#....#.#..#", "#...#...v#..v.#", "#...#....#F...#", "#...#....#....#", "#........#....#", "#..##....#E.K.#", "###############"], "snake": [[1, 5], [1, 4]], "dir": "D", "exit": { "keys": 3, "plates": [] }, "guards": [{ "x": 13, "y": 8, "dir": "L", "range": 3 }, { "x": 6, "y": 7, "dir": "U", "range": 3 }] }
+ ];
+diff --git a/lib/puzzle/controller.js b/lib/puzzle/controller.js
+index 139a698..500d5a7 100644
+--- a/lib/puzzle/controller.js
++++ b/lib/puzzle/controller.js
+@@ -37,7 +37,7 @@ export function createPuzzleGame({ canvas, sounds, onUpdate, levels, io, raf: ra
+   let anim = null, fx = [], rafId = 0;
+   const currentView = () => {
+     const t = clockNow(), v = {};
+-    if (anim) { const p = (t - anim.t0) / anim.dur; if (p < 1) v.anim = { from: anim.from, p: Math.max(0, p) }; }
++    if (anim) { const p = (t - anim.t0) / anim.dur; if (p < 1) v.anim = { from: anim.from, guards: anim.guards, p: Math.max(0, p) }; }
+     v.fx = fx.map(f => ({ kind: f.kind, x: f.x, y: f.y, p: (t - f.t0) / f.dur })).filter(f => f.p < 1);
+     return v;
+   };
+@@ -53,16 +53,17 @@ export function createPuzzleGame({ canvas, sounds, onUpdate, levels, io, raf: ra
+   function drawNow() { if (session && !destroyed) drawPuzzle(ctx, canvas.width, canvas.height, session, currentView()); }
+   // Loop RAF hanya hidup selama ada animasi; saat diam tidak ada pekerjaan per-frame.
+   const draw = () => { drawNow(); if ((anim || fx.length) && raf && !rafId) rafId = raf(pump); };
+-  function beginAnim(fromSnake, effects) {
++  function beginAnim(fromSnake, effects, guards) {
+     if (!raf || reducedMotion()) { anim = null; fx = []; return; }
+     const t = clockNow();
+-    anim = { from: fromSnake.map(s => ({ x: s.x, y: s.y })), t0: t, dur: STEP_MS };
++    anim = { from: fromSnake.map(s => ({ x: s.x, y: s.y })), guards: guards || [], t0: t, dur: STEP_MS };
+     fx = (effects || []).map(e => ({ ...e, t0: t, dur: FX_MS }));
+   }
+ 
++  const currentBest = (level, rec) => rec && (rec.revision || 1) === (level.revision || 1) ? rec.best : 0;
+   function levelInfo(i) {
+     const l = L[i], rec = progress.puzzle.levels[l.id];
+-    return { id: l.id, name: l.name, goal: l.goal, par: l.par, best: rec ? rec.best : 0, cleared: !!rec, unlocked: isUnlocked(progress, L, i), tutorial: !!l.tutorial, tier: l.tier || '', intro: l.intro || null };
++    return { id: l.id, name: l.name, goal: l.goal, par: l.par, best: currentBest(l, rec), legacyBest: rec && !currentBest(l, rec) ? rec.best : 0, cleared: !!rec, unlocked: isUnlocked(progress, L, i), tutorial: !!l.tutorial, tier: l.tier || '', intro: l.intro || null };
+   }
+   // Ringkasan penjaga untuk HUD: null bila level tanpa penjaga; 'chase' > 'return' > 'stunned' > 'idle'.
+   function guardStatus() {
+@@ -77,7 +78,7 @@ export function createPuzzleGame({ canvas, sounds, onUpdate, levels, io, raf: ra
+     const lv = session.level, st = exitStatus(lv, session.state), rec = progress.puzzle.levels[lv.id];
+     return {
+       levelNo: L.indexOf(lv) + 1, levelCount: L.length, name: lv.name, goal: lv.goal,
+-      steps: session.state.steps, par: lv.par, best: rec ? rec.best : 0,
++      steps: session.state.steps, par: lv.par, best: currentBest(lv, rec),
+       keys: { have: st.keysHave, need: st.keysNeed }, plates: { active: st.platesActive, need: st.platesNeed },
+       hammer: session.state.hammer || 0, shield: session.state.shield || 0, guard: guardStatus(), tier: lv.tier || '',
+       message, canUndo: state === 'playing' && session.history.length > 0, status: session.state.status,
+@@ -87,7 +88,7 @@ export function createPuzzleGame({ canvas, sounds, onUpdate, levels, io, raf: ra
+     if (!session) { emit({ running: false, paused: false, puzzle: null, delivery: null, deliveryMenu: null, roguelite: null, rogueMenu: null, territory: null, territoryMenu: null, boss: null, bossMenu: null, puzzleMenu: { levels: [], selected: 0 }, mode: 'puzzle', modeLabel: 'Snake · Jejak Kunci', effects: [], mpHud: null, timerText: null, score: 0, best: 0 }); return; }
+     const rec = progress.puzzle.levels[session.level.id];
+     emit({
+-      score: session.state.steps, best: rec ? rec.best : 0, modeLabel: 'Snake · Jejak Kunci', mode: 'puzzle',
++      score: session.state.steps, best: currentBest(session.level, rec), modeLabel: 'Snake · Jejak Kunci', mode: 'puzzle',
+       effects: [], mpHud: null, timerText: null, running: isActive(), paused: state === 'paused',
+       puzzle: puzzleHud(), puzzleMenu: { levels: L.map((_, i) => levelInfo(i)), selected }, delivery: null, deliveryMenu: null, roguelite: null, rogueMenu: null, territory: null, territoryMenu: null, boss: null, bossMenu: null,
+     });
+@@ -156,10 +157,10 @@ export function createPuzzleGame({ canvas, sounds, onUpdate, levels, io, raf: ra
+       refresh();
+       return;
+     }
+-    const prevSnake = session.state.snake;
++    const prevSnake = session.state.snake, prevGuards = session.state.guards;
+     session = r.session;
+     const head = session.state.snake[0];
+-    beginAnim(prevSnake, [r.events.ate && { kind: 'pop', x: head.x, y: head.y }, r.events.key && { kind: 'key', x: head.x, y: head.y }, r.events.warped && { kind: 'warp', x: head.x, y: head.y }].filter(Boolean));
++    beginAnim(prevSnake, [r.events.ate && { kind: 'pop', x: head.x, y: head.y }, r.events.key && { kind: 'key', x: head.x, y: head.y }, r.events.warped && { kind: 'warp', x: head.x, y: head.y }].filter(Boolean), prevGuards);
+     const ev = r.events;
+     message = ev.won ? '' : ev.stung ? '' : ev.shielded ? 'Perisai menahan sengatan! Penjaga pingsan sebentar.' : ev.alerted ? 'Penjaga melihatmu! Sembunyi di semak.'
+       : ev.pickup === 'shield' ? 'Perisai didapat!' : ev.pickup === 'hammer' ? 'Palu didapat!' : ev.key ? 'Kunci didapat!' : ev.ate ? 'Tubuh bertambah panjang.' : ev.warped ? 'Lewat portal.' : '';
+@@ -172,9 +173,9 @@ export function createPuzzleGame({ canvas, sounds, onUpdate, levels, io, raf: ra
+     if (state !== 'playing') return false;
+     const r = undoSim(session);
+     if (!r.undone) { message = 'Belum ada langkah untuk dibatalkan.'; refresh(); return false; }
+-    const before = session.state.snake;
++    const before = session.state.snake, beforeGuards = session.state.guards;
+     session = r.session; message = 'Langkah dibatalkan.';
+-    beginAnim(before, []);
++    beginAnim(before, [], beforeGuards);
+     refresh();
+     return true;
+   }
+@@ -190,7 +191,7 @@ export function createPuzzleGame({ canvas, sounds, onUpdate, levels, io, raf: ra
+     if (completed || state !== 'playing') return;
+     completed = true; state = 'won';
+     const lv = session.level, steps = session.state.steps;
+-    const r = recordPuzzleResult(progress, lv.id, steps);
++    const r = recordPuzzleResult(progress, lv.id, steps, lv.revision || 1);
+     progress = r.progress;
+     store.save(progress);
+     const hasNext = selected + 1 < L.length;
+diff --git a/lib/puzzle/render.js b/lib/puzzle/render.js
+index 37aed5a..721a61e 100644
+--- a/lib/puzzle/render.js
++++ b/lib/puzzle/render.js
+@@ -3,11 +3,12 @@
+ import { exitStatus, activePlates, visionCells, gateOpen } from './sim';
+ import { animatedPoints, easeOutCubic } from '../sim/anim';
+ import { traceSmooth } from '../render/snakePath';
++import { drawFace } from '../render/face';
+ 
+ const C = {
+-  bg: '#182126', floorA: '#2a3a43', floorB: '#2f414b', wall: '#0e1316', wallHatch: '#3b4a53',
+-  food: '#e0453a', leaf: '#6fbf3a', key: '#f5c542', plateLine: '#ffffff', plateOn: '#6ed3ff', portal: '#c58bff',
+-  doorLocked: '#6b3f2a', doorOpen: '#e7d38a', ink: '#0e1316', snakeOut: '#4f7d17', snakeIn: '#7cc22d', eye: '#ffffff',
++  bg: '#f3ecd8', floorA: '#c7d6ac', floorB: '#d0ddb7', wall: '#687f58', wallHatch: '#81936d',
++  food: '#e0453a', leaf: '#6fbf3a', key: '#9d6a13', plateLine: '#3f5961', plateOn: '#6ed3ff', portal: '#c58bff',
++  doorLocked: '#6b3f2a', doorOpen: '#e7d38a', ink: '#0e1316', snakeOut: '#304831', snakeIn: '#7cc22d', eye: '#ffffff',
+   spike: '#d9dfe3', crack: '#8a7f73', gate: '#b07a3a', bush: '#2f8f4a', bushDark: '#1d6b35', hammer: '#c9a36a', shield: '#6ed3ff', guard: '#e0873a', guardAlert: '#ff5a4a',
+ };
+ 
+@@ -27,10 +28,9 @@ export function drawPuzzle(ctx, W, H, session, view) {
+   ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
+   for (let y = 0; y < level.h; y++) for (let x = 0; x < level.w; x++) { ctx.fillStyle = (x + y) % 2 ? C.floorA : C.floorB; ctx.fillRect(px(x), py(y), cell, cell); }
+   level.walls.forEach(w => {
+-    ctx.fillStyle = C.wall; ctx.fillRect(px(w.x), py(w.y), cell, cell);
+-    ctx.strokeStyle = C.wallHatch; ctx.lineWidth = 2; ctx.beginPath();
+-    for (let k = -cell; k < cell; k += cell / 3) { ctx.moveTo(px(w.x) + Math.max(0, k), py(w.y) + Math.max(0, -k)); ctx.lineTo(px(w.x) + Math.min(cell, k + cell), py(w.y) + Math.min(cell, cell - k)); }
+-    ctx.stroke();
++    ctx.fillStyle = C.wall; ctx.strokeStyle = '#425638'; ctx.lineWidth = 2;
++    ctx.beginPath(); ctx.roundRect(px(w.x) + 1, py(w.y) + 1, cell - 2, cell - 2, cell * 0.16); ctx.fill(); ctx.stroke();
++    ctx.strokeStyle = C.wallHatch; ctx.beginPath(); ctx.moveTo(px(w.x) + cell * 0.2, py(w.y) + cell * 0.23); ctx.lineTo(px(w.x) + cell * 0.75, py(w.y) + cell * 0.23); ctx.stroke();
+   });
+ 
+   // plate: kosong = garis putus-putus, digambar DI BAWAH ular. Plate yang tertahan digambar DI ATAS ular
+@@ -126,15 +126,33 @@ export function drawPuzzle(ctx, W, H, session, view) {
+     ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.beginPath(); ctx.arc(cxm(f.x) - cell * 0.1, cym(f.y) - cell * 0.06, cell * 0.06, 0, Math.PI * 2); ctx.fill();
+   });
+ 
+-  // penjaga: kotak bermata + panah arah; penanda: ! mengejar, ? pulang, zZ pingsan
+-  (state.guards || []).forEach(g => {
++  // Kumbang penjaga: kepala/mata mengikuti arah asli, kaki bergerak selama satu langkah.
++  (state.guards || []).forEach((g, i) => {
++    const old = view.anim && view.anim.guards && view.anim.guards[i];
++    const p = view.anim ? easeOutCubic(view.anim.p) : 1;
++    const walk = old && Math.abs(old.x - g.x) + Math.abs(old.y - g.y) <= 1;
++    const gx = walk ? old.x + (g.x - old.x) * p : g.x, gy = walk ? old.y + (g.y - old.y) * p : g.y;
+     const stun = g.cd > 0, chasing = g.mode === 'chase';
+-    ctx.fillStyle = stun ? '#6b7378' : chasing ? C.guardAlert : C.guard; ctx.strokeStyle = C.ink; ctx.lineWidth = 3;
+-    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(px(g.x) + cell * 0.12, py(g.y) + cell * 0.12, cell * 0.76, cell * 0.76, cell * 0.14) : ctx.rect(px(g.x) + cell * 0.12, py(g.y) + cell * 0.12, cell * 0.76, cell * 0.76); ctx.fill(); ctx.stroke();
+-    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(cxm(g.x) + g.dir.x * cell * 0.12 - cell * 0.12, cym(g.y) + g.dir.y * cell * 0.12 - cell * 0.06, cell * 0.08, 0, Math.PI * 2); ctx.arc(cxm(g.x) + g.dir.x * cell * 0.12 + cell * 0.12, cym(g.y) + g.dir.y * cell * 0.12 - cell * 0.06, cell * 0.08, 0, Math.PI * 2); ctx.fill();
+-    ctx.strokeStyle = C.ink; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(cxm(g.x), cym(g.y) + cell * 0.12); ctx.lineTo(cxm(g.x) + g.dir.x * cell * 0.3, cym(g.y) + cell * 0.12 + g.dir.y * cell * 0.3); ctx.stroke();
++    ctx.save(); ctx.translate(cxm(gx), cym(gy)); ctx.rotate(Math.atan2(g.dir.y, g.dir.x));
++    ctx.strokeStyle = C.ink; ctx.lineWidth = Math.max(2, cell * 0.055); ctx.lineCap = 'round';
++    for (const side of [-1, 1]) for (const leg of [-1, 0, 1]) {
++      const wiggle = walk ? Math.sin(p * Math.PI * 2 + leg) * cell * 0.06 : 0;
++      ctx.beginPath(); ctx.moveTo(leg * cell * 0.15, side * cell * 0.21); ctx.lineTo(leg * cell * 0.19 + wiggle, side * cell * 0.39); ctx.stroke();
++    }
++    ctx.fillStyle = stun ? '#9a9c87' : chasing ? '#e66f4c' : '#e7a04c';
++    ctx.beginPath(); ctx.ellipse(-cell * 0.07, 0, cell * 0.31, cell * 0.29, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
++    ctx.beginPath(); ctx.moveTo(-cell * 0.35, 0); ctx.lineTo(cell * 0.13, 0); ctx.stroke();
++    ctx.fillStyle = '#8c4f28';
++    for (const side of [-1, 1]) { ctx.beginPath(); ctx.arc(-cell * 0.12, side * cell * 0.15, cell * 0.065, 0, Math.PI * 2); ctx.fill(); }
++    ctx.fillStyle = '#f5d99a'; ctx.beginPath(); ctx.ellipse(cell * 0.21, 0, cell * 0.2, cell * 0.25, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
++    for (const side of [-1, 1]) {
++      ctx.beginPath(); ctx.moveTo(cell * 0.26, side * cell * 0.18); ctx.lineTo(cell * 0.4, side * cell * 0.3); ctx.stroke();
++      ctx.fillStyle = '#fffdf1'; ctx.beginPath(); ctx.arc(cell * 0.28, side * cell * 0.105, cell * 0.095, 0, Math.PI * 2); ctx.fill();
++      ctx.fillStyle = C.ink; ctx.beginPath(); ctx.arc(cell * 0.32, side * cell * 0.105, cell * 0.047, 0, Math.PI * 2); ctx.fill();
++    }
++    ctx.restore();
+     const tag = stun ? 'zZ' : chasing ? '!' : g.mode === 'return' ? '?' : '';
+-    if (tag) { ctx.fillStyle = '#fff'; ctx.strokeStyle = C.ink; ctx.lineWidth = 3.5; ctx.font = `bold ${Math.round(cell * 0.42)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.strokeText(tag, cxm(g.x), py(g.y) - cell * 0.04); ctx.fillText(tag, cxm(g.x), py(g.y) - cell * 0.04); }
++    if (tag) { ctx.fillStyle = '#fffdf1'; ctx.strokeStyle = C.ink; ctx.lineWidth = 3.5; ctx.font = `bold ${Math.round(cell * 0.42)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.strokeText(tag, cxm(gx), py(gy) - cell * 0.04); ctx.fillText(tag, cxm(gx), py(gy) - cell * 0.04); }
+   });
+ 
+   // ular: tiap segmen meluncur dari posisi lamanya (animatedPoints); tikungan dibulatkan, garis diputus saat lompatan portal
+@@ -145,8 +163,7 @@ export function drawPuzzle(ctx, W, H, session, view) {
+   ctx.strokeStyle = C.snakeOut; ctx.lineWidth = cell * 0.7; trace(); ctx.stroke();
+   ctx.strokeStyle = C.snakeIn; ctx.lineWidth = cell * 0.46; trace(); ctx.stroke();
+   const hd = pts[0], d = state.dir, off = cell * 0.14, r = cell * 0.08;
+-  const eyes = d.x !== 0 ? [[hd.x + d.x * off, hd.y - off], [hd.x + d.x * off, hd.y + off]] : [[hd.x - off, hd.y + d.y * off], [hd.x + off, hd.y + d.y * off]];
+-  eyes.forEach(e => { ctx.fillStyle = C.eye; ctx.beginPath(); ctx.arc(e[0], e[1], r, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = C.ink; ctx.beginPath(); ctx.arc(e[0] + d.x * r * 0.3, e[1] + d.y * r * 0.3, r * 0.5, 0, Math.PI * 2); ctx.fill(); });
++  drawFace(ctx, hd, d, cell);
+ 
+   // kepala di semak = tersembunyi: semak digambar lagi di atas kepala (setengah transparan) + label
+   const hb = level.bushes.find(b => b.x === state.snake[0].x && b.y === state.snake[0].y);
+diff --git a/lib/puzzle/sim.js b/lib/puzzle/sim.js
+index 8357c18..d93cb35 100644
+--- a/lib/puzzle/sim.js
++++ b/lib/puzzle/sim.js
+@@ -144,7 +144,7 @@ export function initialState(level) {
+     snake: level.snake.map(p => ({ ...p })), dir: { ...level.dir }, steps: 0,
+     foods: level.foods.map(p => ({ ...p })), keys: level.keys.map(p => ({ ...p })), keysHeld: 0, status: 'playing',
+     hammer: 0, shield: 0, pickups: (level.pickups || []).map(p => ({ ...p })), cleared: [],
+-    guards: (level.guards || []).map(g => ({ x: g.x, y: g.y, dir: { ...g.dir }, mode: 'idle', pi: 0, pd: 1, cd: 0 })),
++    guards: (level.guards || []).map(g => ({ x: g.x, y: g.y, dir: openFacing(level, g, new Set(), 1), mode: 'idle', pi: 0, pd: 1, cd: 0 })),
+   };
+ }
+ 
+@@ -184,6 +184,23 @@ function blocks(level, cleared, p, stepNo, forVision) {
+   return false;
+ }
+ 
++// Pilih arah terbuka terpanjang bila arah saat ini menghadap rintangan.
++// Tie-break tetap: hasil level, undo, dan solver tetap deterministik.
++export function openFacing(level, guard, cleared, stepNo) {
++  const ahead = { x: guard.x + guard.dir.x, y: guard.y + guard.dir.y };
++  if (!blocks(level, cleared, ahead, stepNo, true)) return { ...guard.dir };
++  let best = guard.dir, longest = 0;
++  for (const dir of ORDER) {
++    let length = 0;
++    for (let n = 1; n <= 5; n++) {
++      if (blocks(level, cleared, { x: guard.x + dir.x * n, y: guard.y + dir.y * n }, stepNo, true)) break;
++      length++;
++    }
++    if (length > longest) { longest = length; best = dir; }
++  }
++  return { ...best };
++}
++
+ // Sel yang dilihat penjaga: kedalaman 1..range, selebar 3 sel (lateral -1..1), terhalang tembok/retak/gerbang tertutup.
+ export function visionCells(level, state, guard, stepNo) {
+   const cleared = new Set(state.cleared || []);
+@@ -215,7 +232,7 @@ function bfsNext(level, cleared, from, to, stepNo) {
+       const nk = key(n.x, n.y);
+       if (prev.has(nk)) continue;
+       const isGoal = same(n, to);
+-      if (!isGoal && blocks(level, cleared, n, stepNo, false)) continue;
++      if (blocks(level, cleared, n, stepNo, false)) continue;
+       prev.set(nk, c);
+       if (isGoal) {
+         let cur = n, p = c;
+@@ -258,6 +275,7 @@ function advanceGuards(level, state, snake, stepNo, cleared) {
+       const np = spec.patrol[pi];
+       if (!blocks(level, cleared, np, stepNo, false)) n = { ...n, x: np.x, y: np.y, dir: { x: np.x - g.x, y: np.y - g.y }, pi, pd };
+     }
++    if (n.mode === 'idle') n.dir = openFacing(level, n, cleared, stepNo + 1);
+     return n;
+   });
+   return { guards, events };
+diff --git a/lib/records.js b/lib/records.js
+index 241fbf9..d1493b6 100644
+--- a/lib/records.js
++++ b/lib/records.js
+@@ -37,9 +37,9 @@ export const loadRecords = () => parseRecords(read(RECORDS_KEY));
+ export const saveRecords = (r) => write(RECORDS_KEY, JSON.stringify(r));
+ 
+ export const deliveryConfigKey = (cfg, speed) => `delivery|shift:${Math.round(cfg.shiftMs / 1000)}|target:${cfg.target}|speed:${speed}`;
+-export const rogueConfigKey = (cfg, speed) => `roguelite|rounds:${cfg.rounds}|speed:${speed}`;
++export const rogueConfigKey = (cfg, speed) => `roguelite|v:2|rounds:${cfg.rounds}|food:${cfg.foodCount}|speed:${speed}`;
+ export const territoryConfigKey = (cfg, speed) => `territory|match:${Math.round(cfg.matchMs / 1000)}|target:${cfg.targetPct}|speed:${speed}`;
+-export const bossConfigKey = (speed, cfg = { bossHp: 12, lives: 5, minionRounds: 9 }) => `boss|v:2|hp:${cfg.bossHp}|lives:${cfg.lives}|rounds:${cfg.minionRounds + 1}|speed:${speed}`;
++export const bossConfigKey = (speed, cfg = { bossHp: 18, lives: 5, minionRounds: 9 }) => `boss|v:3|hp:${cfg.bossHp}|lives:${cfg.lives}|rounds:${cfg.minionRounds + 1}|speed:${speed}`;
+ export const getRecord = (records, key) => records.records[key] || { best: 0, bestDeliveries: 0, bestRounds: 0, plays: 0, wins: 0 };
+ 
+ // Murni: catat hasil satu ronde. Skor/pengantaran terbaik = maksimum; hasil tidak valid ditolak.
+@@ -51,7 +51,7 @@ export function recordResult(records, key, { score, delivered, won }) {
+   return { records: next, newBest };
+ }
+ 
+-// Murni: catat satu run Roguelite. Skor total terbaik dan ronde tertinggi yang dicapai = maksimum; `won` = kelima ronde selesai.
++// Murni: catat satu run Roguelite. Skor total terbaik dan ronde tertinggi yang dicapai = maksimum; `won` = seluruh rute dan boss kebun selesai.
+ export function recordRun(records, key, { score, rounds, won }) {
+   if (!KEY_RE.test(key) || !intIn(score, 0, 999999) || !intIn(rounds, 0, 99)) return { records, newBest: false };
+   const prev = getRecord(records, key);
+@@ -73,7 +73,7 @@ export function recordMatch(records, key, { best, winner }) {
+   return { records: next, newBest };
+ }
+ 
+-// Boss v2: best = kerusakan boss terbesar (0..12); rekor v1 tetap disimpan terpisah; bestSecs = kemenangan tercepat (detik, 0 = belum ada); wins = boss kalah.
++// Boss v3: best = kerusakan HP boss (0..18, shield tidak dihitung); rekor lama tetap disimpan terpisah; bestSecs = kemenangan tercepat (detik, 0 = belum ada); wins = boss kalah.
+ export const getBossRecord = (records, key) => ({ bestSecs: 0, ...getRecord(records, key) });
+ export function recordBoss(records, key, { damage, won, secs, round = 1 }) {
+   const limit = Number((key.match(/\|hp:(\d+)\|/) || [])[1]) || 12;
+diff --git a/lib/render/face.js b/lib/render/face.js
+new file mode 100644
+index 0000000..bc09720
+--- /dev/null
++++ b/lib/render/face.js
+@@ -0,0 +1,15 @@
++// Wajah kartun bersama; koordinat visual saja, tidak mengubah hitbox.
++export function drawFace(ctx, head, dir, cell, t = 0) {
++  ctx.save(); ctx.translate(head.x, head.y); ctx.rotate(Math.atan2(dir.y, dir.x));
++  ctx.fillStyle = '#fff0c6'; ctx.beginPath(); ctx.ellipse(cell * 0.14, 0, cell * 0.2, cell * 0.24, 0, 0, Math.PI * 2); ctx.fill();
++  for (const side of [-1, 1]) {
++    const ex = cell * 0.03, ey = side * cell * 0.16;
++    ctx.fillStyle = '#fffdf5'; ctx.strokeStyle = '#304831'; ctx.lineWidth = Math.max(1, cell * 0.025);
++    ctx.beginPath(); ctx.ellipse(ex, ey, cell * 0.115, cell * 0.1, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
++    ctx.fillStyle = '#283a24'; ctx.beginPath(); ctx.arc(ex + cell * 0.045, ey, cell * 0.052, 0, Math.PI * 2); ctx.fill();
++    ctx.fillStyle = '#e89576'; ctx.beginPath(); ctx.arc(cell * 0.17, side * cell * 0.19, cell * 0.045, 0, Math.PI * 2); ctx.fill();
++  }
++  ctx.strokeStyle = '#304831'; ctx.lineWidth = Math.max(1, cell * 0.035); ctx.lineCap = 'round';
++  ctx.beginPath(); ctx.arc(cell * 0.17, 0, cell * 0.075, -Math.PI / 2, Math.PI / 2); ctx.stroke();
++  ctx.restore();
++}
+diff --git a/lib/roguelite/controller.js b/lib/roguelite/controller.js
+index f097a9f..6481635 100644
+--- a/lib/roguelite/controller.js
++++ b/lib/roguelite/controller.js
+@@ -1,4 +1,4 @@
+-// Controller Ekspedisi Mayhem: satu RUN = 5 ronde pendek. Setelah target ronde tercapai simulasi DIBEKUKAN dan pemain memilih 1 dari 3 upgrade.
++// Controller Ekspedisi: 5 ronde pengumpulan/upgrade, lalu 9 gelombang antek dan boss tiga fase. Setelah target ronde tercapai simulasi DIBEKUKAN dan pemain memilih 1 dari 3 upgrade.
+ // API sama dengan engine lain + chooseUpgrade(id). State: menu | playing | paused | choosingUpgrade | won | lost.
+ //  - Ronde baru: reset arena/posisi/panjang dasar (dipengaruhi upgrade), efek sementara dibuang; upgrade dan total skor run DIBAWA.
+ //  - Mati mengakhiri run; upgrade TIDAK terbawa ke run baru. Run berjalan tidak disimpan (hanya rekor saat run selesai).
+@@ -12,6 +12,10 @@ import { loadRecords, saveRecords, rogueConfigKey, getRecord, recordRun } from '
+ import { DEFAULT_CFG, createRound, stepRound, expireEffects, isReversed, DIRS } from './sim';
+ import { UPGRADES, getUpgrade, emptyCounts, deriveStats, intervalFor, offerUpgrades, EFFECTS, normalValue } from './upgrades';
+ import { drawRound } from './render';
++import { createState as createBattle, stepSim as stepBattle, advance as advanceBattle, parseArena, ARENA_MAP, START, WEAK_TILES, bossConfig } from '../boss/sim';
++import { bossHud } from '../boss/hud';
++import { drawBoss } from '../boss/render';
++import { expeditionSupplies } from './upgrades';
+ 
+ const BLOCKERS = ['help', 'orientation', 'hidden'];
+ const KEY_OF = { '0,-1': 'U', '0,1': 'D', '-1,0': 'L', '1,0': 'R' };
+@@ -32,13 +36,15 @@ export function createRogueliteGame({ canvas, sounds, onUpdate, seed, now: nowFn
+   let state = 'menu';
+   const pauseReasons = new Set();
+   let run = null;            // { seed, rng, round, upgrades, stats, doneScore, offer }
++  let battle = null;
+   let sim = null, prevSnake = [], queue = [], awaiting = false;
+-  let lastTick = 0, nextTickAt = 0, interval = BASE_INTERVAL.normal, message = '', destroyed = false, rafId = 0;
++  let lastTick = 0, nextTickAt = 0, interval = BASE_INTERVAL.normal, message = '', lastFull = '', destroyed = false, rafId = 0;
+ 
+   const isActive = () => state === 'playing' || state === 'paused';
+   const emit = (p) => { if (!destroyed) onUpdate(p); };
+   const baseInterval = () => BASE_INTERVAL[runSpeed] || BASE_INTERVAL.normal;
+-  const totalScore = () => (run ? run.doneScore + (sim ? sim.roundScore : 0) : 0);
++  const totalScore = () => (run ? run.doneScore + (sim ? sim.roundScore : 0) + (battle ? battle.damageDealt * 10 + battle.minionsDefeated * 5 : 0) : 0);
++  const activeSim = () => battle || sim;
+   const retime = () => { interval = intervalFor(baseInterval(), run.stats, sim.effects); nextTickAt = lastTick + interval; };
+ 
+   function rogueHud() {
+@@ -55,17 +61,20 @@ export function createRogueliteGame({ canvas, sounds, onUpdate, seed, now: nowFn
+   }
+   function menuData() {
+     const r = getRecord(records, rogueConfigKey(cfg, speedPref));
+-    return { best: r.best, bestRounds: r.bestRounds, plays: r.plays, wins: r.wins, rounds: cfg.rounds, speed: speedPref, targets: cfg.targets };
++    return { best: r.best, bestRounds: r.bestRounds, plays: r.plays, wins: r.wins, rounds: cfg.rounds, speed: speedPref, targets: cfg.targets, combined: true };
+   }
+   function emitFullState() {
+     const rec = getRecord(records, rogueConfigKey(cfg, run ? runSpeed : speedPref));
+     const h = rogueHud();
+-    emit({
++    const payload = {
+       score: totalScore(), best: rec.best, modeLabel: 'Snake · Ekspedisi Mayhem', mode: 'roguelite',
+       effects: h ? h.effects.map(e => ({ type: e.type, label: `${e.label} (${e.good ? 'untung' : 'rugi'})`, t: e.secs + 's' })) : [], mpHud: null, timerText: null,
+       running: isActive(), paused: state === 'paused',
+-      puzzle: null, puzzleMenu: null, delivery: null, deliveryMenu: null, roguelite: h, rogueMenu: menuData(), territory: null, territoryMenu: null, boss: null, bossMenu: null,
+-    });
++      puzzle: null, puzzleMenu: null, delivery: null, deliveryMenu: null, roguelite: battle ? null : h, rogueMenu: menuData(), territory: null, territoryMenu: null, boss: bossHud(battle, message), bossMenu: null,
++    };
++    const signature = JSON.stringify(payload);
++    if (signature === lastFull) return;
++    lastFull = signature; emit(payload);
+   }
+ 
+   function newRun() {
+@@ -74,12 +83,26 @@ export function createRogueliteGame({ canvas, sounds, onUpdate, seed, now: nowFn
+     return { seed: sd, rng: createRng(sd), round: 1, upgrades, stats: deriveStats(upgrades), doneScore: 0, offer: null };
+   }
+   function startRound() {
++    battle = null;
+     sim = createRound({ cfg, stats: run.stats, round: run.round, rng: run.rng }); // efek lama otomatis hilang (state ronde baru)
+     prevSnake = sim.snake.map(p => ({ ...p }));
+     queue = []; awaiting = true; message = `Ronde ${run.round}/${cfg.rounds}: kumpulkan ${sim.target} poin. Tekan arah untuk mulai.`;
+     clock.reset(); lastTick = 0; interval = intervalFor(baseInterval(), run.stats, []); nextTickAt = 0;
+   }
+ 
++  function startBattle() {
++    clock.reset(); sim.effects = [];
++    const supplies = expeditionSupplies(run.upgrades);
++    const bc = bossConfig({ ...supplies.config, ...(cfg.boss || {}) });
++    const start = { ...START, snake: Array.from({ length: run.stats.startLen }, (_, i) => [6 - i, 12]) };
++    interval = intervalFor(baseInterval(), run.stats, []);
++    battle = createBattle({ arena: parseArena(ARENA_MAP, start, WEAK_TILES), config: bc, rng: run.rng, interval, t: 0 });
++    battle.energy = Math.min(bc.energyMax, supplies.energy);
++    prevSnake = battle.snake.map(p => ({ ...p })); queue = []; awaiting = true;
++    lastTick = 0; nextTickAt = interval;
++    message = `Bekal kebun: ♥ × ${battle.lives}, energi ${battle.energy}. Tekan arah untuk menghadapi antek.`;
++  }
++
+   // ----- lifecycle -----
+   function startRun() {
+     if (state !== 'menu' && state !== 'won' && state !== 'lost') return false; // hanya berhasil sekali
+@@ -115,7 +138,7 @@ export function createRogueliteGame({ canvas, sounds, onUpdate, seed, now: nowFn
+   const togglePause = () => (state === 'playing' ? pauseRun('user') : state === 'paused' ? resumeRun() : false);
+   function returnToMenu() {
+     if (state === 'menu') return;
+-    state = 'menu'; clock.reset(); pauseReasons.clear(); run = null; sim = null; queue = []; awaiting = false; message = '';
++    state = 'menu'; clock.reset(); pauseReasons.clear(); run = null; sim = null; battle = null; queue = []; awaiting = false; message = '';
+     emitFullState();
+     emit({ overlay: MENU_OVERLAY });
+   }
+@@ -123,16 +146,17 @@ export function createRogueliteGame({ canvas, sounds, onUpdate, seed, now: nowFn
+   // ----- input: hanya saat `playing` (menu upgrade, jeda, hasil: input gameplay DIABAIKAN) -----
+   function setDir(x, y) {
+     if (state !== 'playing' || !sim) return;
+-    if (isReversed(sim)) { x = -x; y = -y; }
++    const current = activeSim();
++    if (!battle && isReversed(sim)) { x = -x; y = -y; }
+     if (awaiting) {
+       // Menunggu arah pertama: menekan arah yang SAMA dengan hadap awal (kanan) juga memulai ronde; berbalik arah ditolak.
+-      if (isOpposite(sim.dir, { x, y })) return;
+-      if (!(sim.dir.x === x && sim.dir.y === y)) queue.push({ x, y });
++      if (isOpposite(current.dir, { x, y })) return;
++      if (!(current.dir.x === x && current.dir.y === y)) queue.push({ x, y });
+       awaiting = false; message = ''; clock.start(); lastTick = clock.now(); nextTickAt = lastTick + interval;
+       emitFullState(); sounds.playMove();
+       return;
+     }
+-    const last = queue.length ? queue[queue.length - 1] : sim.dir;
++    const last = queue.length ? queue[queue.length - 1] : current.dir;
+     if (isOpposite(last, { x, y }) || (last.x === x && last.y === y) || queue.length >= 2) return;
+     queue.push({ x, y });
+     sounds.playMove();
+@@ -143,9 +167,9 @@ export function createRogueliteGame({ canvas, sounds, onUpdate, seed, now: nowFn
+     if (state !== 'choosingUpgrade' || !run || !run.offer || !run.offer.includes(id)) return false; // dua klik cepat: hanya yang pertama diterima
+     run.upgrades[id] += 1;
+     run.stats = deriveStats(run.upgrades);
+-    run.doneScore += sim.roundScore;
+-    run.round += 1; run.offer = null;
+-    startRound();
++    run.offer = null;
++    if (run.round >= cfg.rounds) startBattle();
++    else { run.doneScore += sim.roundScore; run.round += 1; startRound(); }
+     state = 'playing';
+     message = `${getUpgrade(id).name} diambil. ` + message;
+     emitFullState();
+@@ -166,13 +190,13 @@ export function createRogueliteGame({ canvas, sounds, onUpdate, seed, now: nowFn
+     emit({ overlay: { ...overlay, sub: overlay.sub + (res.newBest && total > 0 ? ' • Rekor baru!' : '') } });
+     return true;
+   }
+-  const lose = () => endRun('lost', { phase: 'gameover', mood: 'shock', title: 'Ekspedisi Gagal', sub: `Berhenti di ronde ${run.round}/${cfg.rounds} • Skor ${totalScore()}`, btnText: 'Main Lagi' }, { death: true });
+-  const winRun = () => endRun('won', { phase: 'gameover', mood: 'win', title: 'Ekspedisi Selesai!', sub: `Lima ronde tuntas • Skor ${totalScore()}`, btnText: 'Main Lagi' });
++  const lose = () => endRun('lost', { phase: 'gameover', mood: 'shock', title: 'Ekspedisi Gagal', sub: `${battle ? `Kebun gelombang ${battle.round}/${battle.cfg.minionRounds + 1}` : `Rute ${run.round}/${cfg.rounds}`} • Skor ${totalScore()}`, btnText: 'Main Lagi' }, { death: true });
++  const winRun = () => endRun('won', { phase: 'gameover', mood: 'win', title: 'Ekspedisi Selesai!', sub: `Ekspedisi dan Penjaga Kebun tuntas • Skor ${totalScore()}`, btnText: 'Main Lagi' });
+ 
+   function roundCleared() {
+     clock.stop();
+-    if (run.round >= cfg.rounds) { winRun(); return; }
+     run.offer = offerUpgrades(run.upgrades, run.rng, 3);
++    if (!run.offer.length && run.round >= cfg.rounds) { startBattle(); emitFullState(); return; }
+     if (!run.offer.length) { run.doneScore += sim.roundScore; run.round += 1; run.offer = null; startRound(); message = 'Tidak ada upgrade tersedia. ' + message; emitFullState(); return; }
+     state = 'choosingUpgrade';
+     emitFullState();
+@@ -188,7 +212,30 @@ export function createRogueliteGame({ canvas, sounds, onUpdate, seed, now: nowFn
+     });
+   }
+ 
++  function handleBattleEvents(events) {
++    for (const e of events) {
++      if (e.type === 'eat' || e.type === 'hit' || e.type === 'minionHit' || e.type === 'heal' || e.type === 'damageOrb') sounds.playChomp();
++      if (e.type === 'death') { queue = []; sounds.playEits(); message = `−${e.damage} hati. Sisa ${Math.max(0, e.lives)}.`; }
++      else if (e.type === 'respawn') { queue = []; prevSnake = battle.snake.map(p => ({ ...p })); }
++      else if (e.type === 'damageOrb') message = `Orb ×2 ditumpuk ${e.stacks} kali. Damage saat ini ${e.damage}.`;
++      else if (e.type === 'heal') message = `+${e.amount} hati! Simpanan ♥ × ${e.lives}.`;
++      else if (e.type === 'phase') message = `Fase ${e.phase}: serangan lebih cepat, celah bertambah!`;
++      else if (e.type === 'round') message = e.boss ? `${battle.variant.name} muncul! Cari titik lemah.` : `Gelombang ${e.round}: kalahkan anteknya.`;
++      else if (e.type === 'minionHit') message = e.left ? `${e.left} antek tersisa.` : 'Gelombang tuntas! Ambil heal.';
++      else if (e.type === 'window' && e.open) message = 'Bintang terbuka! Isi energi lalu serang.';
++      else if (e.type === 'hit') message = `Kena! Boss tersisa ${e.hp} HP.`;
++    }
++    if (battle.status === 'won') winRun();
++    else if (battle.status === 'lost') lose();
++  }
++
+   function doTick(T) {
++    if (battle) {
++      prevSnake = battle.snake.map(p => ({ ...p }));
++      handleBattleEvents(stepBattle(battle, queue.length ? queue.shift() : null, T));
++      nextTickAt = lastTick + interval;
++      return;
++    }
+     prevSnake = sim.snake.map(p => ({ ...p }));
+     const d = queue.length ? queue.shift() : sim.dir;
+     const ev = stepRound(sim, KEY_OF[d.x + ',' + d.y], T);
+@@ -205,6 +252,10 @@ export function createRogueliteGame({ canvas, sounds, onUpdate, seed, now: nowFn
+     while (state === 'playing' && !awaiting && nextTickAt <= now && steps < 3) { lastTick = nextTickAt; doTick(lastTick); steps++; }
+     if (state !== 'playing' || awaiting) return;
+     if (nextTickAt <= now - interval) { lastTick = now; nextTickAt = now + interval; }
++    if (battle) {
++      handleBattleEvents(advanceBattle(battle, now));
++      emitFullState(); return;
++    }
+     if (expireEffects(sim, now)) { retime(); emitFullState(); }
+   }
+ 
+@@ -212,8 +263,10 @@ export function createRogueliteGame({ canvas, sounds, onUpdate, seed, now: nowFn
+     if (destroyed) return;
+     if (state === 'playing') stepWorld();
+     if (sim) {
+-      const prog = state === 'playing' && !awaiting ? Math.min(1, (clock.now() - lastTick) / interval) : 1;
+-      drawRound(ctx, canvas.width, canvas.height, sim, { prog, from: prevSnake, t: realNow() });
++      const prog = (state === 'playing' || state === 'paused') && !awaiting ? Math.min(1, (clock.now() - lastTick) / interval) : 1;
++      const view = { prog, from: prevSnake, t: clock.now(), reduce: typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches };
++      if (battle) drawBoss(ctx, canvas.width, canvas.height, battle, view);
++      else drawRound(ctx, canvas.width, canvas.height, sim, view);
+     }
+     rafId = raf(loop);
+   }
+@@ -224,9 +277,9 @@ export function createRogueliteGame({ canvas, sounds, onUpdate, seed, now: nowFn
+ 
+   if (inspect) {
+     inspect({
+-      get sim() { return sim; }, get run() { return run; }, get state() { return state; }, get awaiting() { return awaiting; }, get simNow() { return clock.now(); },
++      get sim() { return sim; }, get battle() { return battle; }, get run() { return run; }, get state() { return state; }, get awaiting() { return awaiting; }, get simNow() { return clock.now(); },
+       get interval() { return interval; }, get records() { return records; }, get pauseReasons() { return [...pauseReasons]; },
+-      setSnake(cells, dirKey) { sim.snake = cells.map(([x, y]) => ({ x, y })); sim.dir = { ...DIRS[dirKey] }; queue = []; prevSnake = sim.snake.map(p => ({ ...p })); },
++      setSnake(cells, dirKey) { const current = activeSim(); current.snake = cells.map(([x, y]) => ({ x, y })); current.dir = { ...DIRS[dirKey] }; queue = []; prevSnake = current.snake.map(p => ({ ...p })); },
+       stepWorld, doTick,
+     });
+   }
+diff --git a/lib/roguelite/render.js b/lib/roguelite/render.js
+index f4faba1..df6dc0e 100644
+--- a/lib/roguelite/render.js
++++ b/lib/roguelite/render.js
+@@ -2,10 +2,11 @@
+ // racun = apel dengan tanda silang, keberuntungan = bintang. Ranjau = bola hitam bersumbu + tanda seru.
+ import { COLS, ROWS } from '../constants';
+ import { hasEffect } from './upgrades';
+-import { animatedPoints, easeOutCubic } from '../sim/anim';
++import { animatedPoints } from '../sim/anim';
+ import { traceSmooth } from '../render/snakePath';
++import { drawFace } from '../render/face';
+ 
+-const C = { a: '#2f5230', b: '#35592f', apple: '#e0453a', big: '#f2b84b', poison: '#9a4fd6', ink: '#0e1316', leaf: '#6fbf3a', snakeOut: '#3f7d1a', snakeIn: '#7fcf34', white: '#fff' };
++const C = { a: '#c7d6ac', b: '#d0ddb7', apple: '#e0453a', big: '#f2b84b', poison: '#9a4fd6', ink: '#0e1316', leaf: '#6fbf3a', snakeOut: '#304831', snakeIn: '#7fcf34', white: '#fff' };
+ 
+ function star(ctx, cx, cy, r) {
+   ctx.beginPath();
+@@ -45,13 +46,12 @@ export function drawRound(ctx, W, H, s, view) {
+   ctx.strokeStyle = '#ff5d4a'; ctx.lineWidth = 4; ctx.strokeRect(ox + 2, oy + 2, cell * COLS - 4, cell * ROWS - 4); // dinding mematikan
+   s.bombs.forEach(b => drawBomb(ctx, cx(b.x), cy(b.y), cell * 1.05, tv));
+   s.foods.forEach(f => drawFood(ctx, f.kind, cx(f.x), cy(f.y) + Math.sin(tv / 300 + f.x) * cell * 0.03, cell * 1.08));
+-  const cells = view.from ? animatedPoints(s.snake, view.from, easeOutCubic(view.prog == null ? 1 : view.prog)) : s.snake;
++  const cells = view.from ? animatedPoints(s.snake, view.from, (view.prog == null ? 1 : view.prog)) : s.snake;
+   const pts = cells.map(p => ({ x: cx(p.x), y: cy(p.y) }));
+   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+   ctx.strokeStyle = hasEffect(s.effects, 'reverse') ? '#8e3a9b' : C.snakeOut; ctx.lineWidth = cell * 0.74; traceSmooth(ctx, pts, cell * 1.5); ctx.stroke();
+   ctx.strokeStyle = hasEffect(s.effects, 'double') ? '#ffe27a' : C.snakeIn; ctx.lineWidth = cell * 0.5; traceSmooth(ctx, pts, cell * 1.5); ctx.stroke();
+   const hd = pts[0], d = s.dir, off = cell * 0.15, r = cell * 0.09;
+   if (s.shield > 0) { ctx.strokeStyle = '#6ed3ff'; ctx.lineWidth = 3; ctx.setLineDash([5, 4]); ctx.beginPath(); ctx.arc(hd.x, hd.y, cell * 0.55, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); }
+-  const eyes = d.x !== 0 ? [[hd.x + d.x * off, hd.y - off], [hd.x + d.x * off, hd.y + off]] : [[hd.x - off, hd.y + d.y * off], [hd.x + off, hd.y + d.y * off]];
+-  eyes.forEach(e => { ctx.fillStyle = C.white; ctx.beginPath(); ctx.arc(e[0], e[1], r, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = C.ink; ctx.beginPath(); ctx.arc(e[0] + d.x * r * 0.3, e[1] + d.y * r * 0.3, r * 0.55, 0, Math.PI * 2); ctx.fill(); });
++  drawFace(ctx, hd, d, cell);
+ }
+diff --git a/lib/roguelite/sim.js b/lib/roguelite/sim.js
+index bc8872b..31f79a3 100644
+--- a/lib/roguelite/sim.js
++++ b/lib/roguelite/sim.js
+@@ -13,7 +13,7 @@ import { appleValue, BASE, effectDuration, rollEffect, EFFECTS, MAX_BOMBS } from
+ 
+ export const DIRS = { U: { x: 0, y: -1 }, D: { x: 0, y: 1 }, L: { x: -1, y: 0 }, R: { x: 1, y: 0 } };
+ export const DEFAULT_CFG = {
+-  rounds: 5, targets: [28, 40, 52, 64, 76], baseBombs: [2, 3, 4, 4, 5], foodCount: 3, minBombDist: 4,
++  rounds: 5, targets: [28, 40, 52, 64, 76], baseBombs: [2, 3, 4, 4, 5], foodCount: 5, minBombDist: 4,
+   weights: { normal: 62, big: 12, poison: 14, lucky: 12 }, poisonCut: 2, minLen: 2,
+ };
+ const BOUNDS = { minX: 0, maxX: COLS - 1, minY: 0, maxY: ROWS - 1 };
+diff --git a/lib/roguelite/upgrades.js b/lib/roguelite/upgrades.js
+index 9481310..7fdff06 100644
+--- a/lib/roguelite/upgrades.js
++++ b/lib/roguelite/upgrades.js
+@@ -22,12 +22,12 @@ export const MAX_HARM_PROB = 0.8;
+ export const MAX_BOMBS = 10;
+ 
+ export const UPGRADES = [
+-  { id: 'compact', name: 'Tubuh ringkas', icon: 'compress', max: 2, benefit: 'Panjang awal −1 tiap tingkat (minimal 3).', cost: 'Nilai apel normal ×0,8 tiap tingkat.' },
++  { id: 'compact', name: 'Tubuh ringkas', icon: 'compress', max: 2, benefit: 'Panjang awal −1 tiap tingkat (minimal 3), termasuk saat masuk kebun.', cost: 'Nilai apel normal ×0,8 tiap tingkat.' },
+   { id: 'brave', name: 'Langkah berani', icon: 'bolt', max: 2, benefit: 'Skor semua apel ×1,25 tiap tingkat.', cost: 'Interval gerak ×0,9 tiap tingkat (batas minimum 70 ms).' },
+-  { id: 'thick', name: 'Kulit tebal', icon: 'shield', max: 2, benefit: 'Menahan 1 tabrakan per ronde tiap tingkat.', cost: 'Skor semua apel ×0,85 tiap tingkat.' },
+-  { id: 'antidote', name: 'Racikan penawar', icon: 'flask', max: 2, benefit: 'Meniadakan 1 racun pertama tiap ronde per tingkat.', cost: 'Nilai apel besar ×0,8 tiap tingkat.' },
+-  { id: 'sweet', name: 'Bekal manis', icon: 'gift', max: 2, benefit: 'Apel besar ×1,5 lebih sering tiap tingkat.', cost: 'Ranjau +2 per ronde dan efek merugikan +15% tiap tingkat.' },
+-  { id: 'breath', name: 'Napas panjang', icon: 'wind', max: 2, benefit: 'Efek menguntungkan ×1,4 lebih lama tiap tingkat.', cost: 'Efek merugikan juga ×1,4 lebih lama.' },
++  { id: 'thick', name: 'Kulit tebal', icon: 'shield', max: 2, benefit: 'Menahan 1 tabrakan per rute tiap tingkat. Bekal kebun: +2 hati/tingkat.', cost: 'Skor semua apel ×0,85 tiap tingkat.' },
++  { id: 'antidote', name: 'Racikan penawar', icon: 'flask', max: 2, benefit: 'Meniadakan 1 racun per rute tiap tingkat. Bekal kebun: +1 hati/tingkat.', cost: 'Nilai apel besar ×0,8 tiap tingkat.' },
++  { id: 'sweet', name: 'Bekal manis', icon: 'gift', max: 2, benefit: 'Apel besar ×1,5 lebih sering tiap tingkat. Bekal kebun: +2 energi/tingkat.', cost: 'Ranjau +2 per ronde dan efek merugikan +15% tiap tingkat.' },
++  { id: 'breath', name: 'Napas panjang', icon: 'wind', max: 2, benefit: 'Efek menguntungkan ×1,4 lebih lama tiap tingkat; durasi kebal di kebun juga ×1,4.', cost: 'Efek merugikan juga ×1,4 lebih lama.' },
+ ];
+ export const UPGRADE_IDS = UPGRADES.map(u => u.id);
+ export const getUpgrade = (id) => UPGRADES.find(u => u.id === id) || null;
+@@ -106,3 +106,12 @@ export function offerUpgrades(counts, rng, n) {
+   for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+   return pool.slice(0, n == null ? 3 : n);
+ }
++
++// Bekal permanen saat lima rute selesai; efek apel sementara tidak dibawa.
++export function expeditionSupplies(counts) {
++  const c = { ...emptyCounts(), ...counts };
++  return {
++    energy: c.sweet * 2,
++    config: { lives: 5 + c.thick * 2 + c.antidote, apples: 5, startLen: deriveStats(c).startLen, invulnMs: Math.round(2500 * Math.pow(1.4, c.breath)) },
++  };
++}
+diff --git a/lib/territory/controller.js b/lib/territory/controller.js
+index 459a046..f924f70 100644
+--- a/lib/territory/controller.js
++++ b/lib/territory/controller.js
+@@ -149,7 +149,7 @@ export function createTerritoryGame({ canvas, sounds, onUpdate, now: nowFn, raf:
+       if (e.type === 'claim') {
+         if (sounds.playChomp) sounds.playChomp();
+         message = `${pName(e.player)} merebut ${e.cells} petak.`;
+-        if (!reduceMotion && e.list.length) fx.push({ cells: e.list, until: realNow() + FX_MS, owner: e.player + 1 });
++        if (!reduceMotion && e.list.length) fx.push({ cells: e.list, until: clock.now() + FX_MS, owner: e.player + 1 });
+       } else if (e.type === 'death') {
+         if (sounds.playEits && e.lives > 0) sounds.playEits();
+         message = `${pName(e.player)} kehilangan 1 nyawa (${CAUSE[e.cause]}). Sisa ${Math.max(0, e.lives)}.`;
+@@ -192,9 +192,9 @@ export function createTerritoryGame({ canvas, sounds, onUpdate, now: nowFn, raf:
+     if (destroyed) return;
+     if (state === 'playing') stepWorld();
+     if (sim) {
+-      const tn = realNow();
++      const tn = clock.now();
+       fx = fx.filter(f => f.until > tn);
+-      const prog = state === 'playing' ? Math.min(1, (clock.now() - lastTick) / interval) : 1;
++      const prog = (state === 'playing' || state === 'paused') ? Math.min(1, (clock.now() - lastTick) / interval) : 1;
+       drawTerritory(ctx, canvas.width, canvas.height, sim, { prog, from: prevHeads, t: tn, fx, fxMs: FX_MS });
+     }
+     rafId = raf(loop);
+diff --git a/lib/territory/render.js b/lib/territory/render.js
+index 3a5b1a5..0fddff1 100644
+--- a/lib/territory/render.js
++++ b/lib/territory/render.js
+@@ -1,8 +1,9 @@
++import { drawFace } from '../render/face';
+ // Render Canvas 2D Territory. Pemain dibedakan oleh warna DAN pola: P1 = titik + kepala "1", P2 = garis diagonal + kepala "2".
+ 
+ const COL = { 1: '#7fcf34', 2: '#4aa3ff' };
+ const DARK = { 1: '#3f7d1a', 2: '#1f5f9f' };
+-const C = { tileA: '#2c3832', tileB: '#303d36', stone: '#6b7480', stoneTop: '#8a93a0', ink: '#0e1316', white: '#ffffff' };
++const C = { tileA: '#c7d6ac', tileB: '#d0ddb7', stone: '#6b7480', stoneTop: '#8a93a0', ink: '#0e1316', white: '#ffffff' };
+ 
+ function pattern(ctx, id, px, py, cell) {
+   ctx.save(); ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = Math.max(1.5, cell * 0.07);
+@@ -61,9 +62,9 @@ export function drawTerritory(ctx, W, H, s, view) {
+     const cx = ox + hx * cell + cell / 2, cy = oy + hy * cell + cell / 2;
+     ctx.fillStyle = COL[p.id]; ctx.strokeStyle = C.ink; ctx.lineWidth = 3;
+     ctx.beginPath(); ctx.arc(cx, cy, cell * 0.42, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+-    ctx.fillStyle = C.ink; ctx.beginPath(); ctx.arc(cx + p.dir.x * cell * 0.3, cy + p.dir.y * cell * 0.3, cell * 0.09, 0, Math.PI * 2); ctx.fill();
++    drawFace(ctx, { x: cx, y: cy }, p.dir, cell);
+     ctx.fillStyle = C.white; ctx.strokeStyle = C.ink; ctx.lineWidth = 3;
+-    ctx.font = `bold ${Math.round(cell * 0.46)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+-    ctx.strokeText(String(p.id), cx, cy + 1); ctx.fillText(String(p.id), cx, cy + 1);
++    ctx.font = `bold ${Math.round(cell * 0.25)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
++    ctx.strokeText(String(p.id), cx - p.dir.x * cell * 0.26, cy - p.dir.y * cell * 0.26); ctx.fillText(String(p.id), cx - p.dir.x * cell * 0.26, cy - p.dir.y * cell * 0.26);
+   });
+ }
+diff --git a/package.json b/package.json
+index 0b036d2..0534d72 100644
+--- a/package.json
++++ b/package.json
+@@ -7,7 +7,7 @@
+     "build": "next build",
+     "start": "next start",
+     "lint": "next lint",
+-    "test": "node --test \"tests/**/*.test.mjs\"",
++    "test": "node --test --test-concurrency=1 \"tests/**/*.test.mjs\"",
+     "build:campaign": "node scripts/build-campaign.mjs"
+   },
+   "dependencies": {
+diff --git a/tests/adventure-revision.test.mjs b/tests/adventure-revision.test.mjs
+new file mode 100644
+index 0000000..2421cef
+--- /dev/null
++++ b/tests/adventure-revision.test.mjs
+@@ -0,0 +1,99 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import { bossSim as B, rogueSim as S, rogueUp as U, createRng, makeBossWorld, makeRogueWorld, progressLib as P } from './helpers/env.mjs';
++const mk = () => {
++  const s = B.createState({ arena: B.parseArena(B.ARENA_MAP, B.START, B.WEAK_TILES), rng: createRng(98765), interval: 140, t: 0 });
++  s.round = 10; s.phase = 3; s.phaseHp = 10; s.hp = 10;
++  return s;
++};
++const open = s => { s.window = { open: true, hit: false, targets: [0], used: [] }; s.sched = { kind: 'window', endAt: s.t + 100000 }; s.attack = null; s.warn.fill(0); s.hazard.fill(0); };
++const hit = s => { open(s); s.energy = 3; s.snake = [{x:8,y:4},{x:7,y:4},{x:6,y:4}]; s.dir = B.DIRS.U; return B.stepSim(s, null, s.t + 1); };
++const finishAttack = s => { s.attack = { cells: new Set(), recMs: 100000 }; s.sched = { kind: 'active', endAt: s.t + 100 }; B.advance(s, s.sched.endAt); return s.t; };
++
++test('fase 3: satu serangan menghasilkan tepat tiga shield +10 pada detik 5/10/15; bukan sebelum atau setelahnya', () => {
++  const s = mk(), at = finishAttack(s);
++  assert.equal(s.damageOrbs.length, 1); assert.equal(s.heals.length, 1);
++  B.advance(s, at + 4999); assert.equal(s.shield, 0);
++  for (let i=1; i<=3; i++) { const ev = B.advance(s, at+i*5000); assert.equal(s.shield, i*10); assert.equal(ev.filter(e=>e.type==='shieldGain').length, 1); assert.deepEqual(B.advance(s, at+i*5000), []); }
++  B.advance(s, at+25000); assert.equal(s.shield, 30); assert.deepEqual(s.shieldBursts, []);
++});
++
++test('shield bertumpuk antar serangan tetapi tidak melewati 100; jadwal independen dari FPS', () => {
++  const a=mk(), b=mk(); finishAttack(a); finishAttack(b); a.shield=95; b.shield=95;
++  for(let t=101;t<=16000;t+=13) B.advance(a,t);
++  B.advance(a,16000); B.advance(b,16000);
++  assert.equal(a.shield,100); assert.equal(b.shield,100); assert.deepEqual(a.shieldBursts,b.shieldBursts);
++  const c=mk(); const t1=finishAttack(c); c.t+=1000; const t2=finishAttack(c);
++  B.advance(c,t2+15000); assert.equal(c.shield,60); assert.equal(c.shieldBursts.length,0); assert.ok(t2>t1);
++});
++
++test('damage ×2: stack orb dan tiap 5 shield, bonus shield hanya jika orb sudah dimiliki', () => {
++  const s=mk(); s.shield=100; assert.equal(B.playerDamage(s),1);
++  s.damageStacks=1;
++  for(const [shield, damage] of [[0,2],[4,2],[5,4],[9,4],[10,8],[100,2097152]]) {s.shield=shield;assert.equal(B.playerDamage(s),damage);}
++  s.shield=10;s.damageStacks=2;assert.equal(B.playerDamage(s),16);
++  const ev=hit(s);const e=ev.find(e=>e.type==='hit');
++  assert.deepEqual([e.absorbed,e.hpDamage,s.shield,s.phaseHp],[10,6,0,4]);
++  assert.equal(s.damageStacks,2,'orb tidak habis setelah serangan');
++});
++
++test('shield menyerap pukulan sebelum HP, base damage tanpa orb tidak mendapat bonus', () => {
++  const s=mk();s.shield=10;hit(s);
++  assert.equal(s.shield,9);assert.equal(s.phaseHp,10);assert.equal(s.damageDealt,0);
++});
++
++test('orb damage dan heal dapat ditumpuk, pickup tidak menambah panjang/energi dan tidak tumpang tindih', () => {
++  const s=mk(); finishAttack(s);
++  const occupied=[...s.apples,...s.heals,...s.damageOrbs,...s.snake,...s.arena.weak].map(p=>`${p.x},${p.y}`);
++  assert.equal(new Set(occupied).size, occupied.length);
++  s.damageOrbs=[{x:4,y:9,amount:2}];s.snake=[{x:3,y:9},{x:2,y:9},{x:1,y:9}];s.dir=B.DIRS.R;
++  B.stepSim(s,null,s.t+1);assert.equal(s.damageStacks,2);assert.equal(s.energy,0);assert.equal(s.snake.length,3);
++  s.heals=[{x:5,y:9,amount:4}];B.stepSim(s,null,s.t+1);assert.equal(s.lives,9);
++});
++
++test('pukulan besar tidak melompati fase; fase 2 diisi 5 HP, fase 3 diisi 10 HP dan orb', () => {
++  const s=mk();s.phase=1;s.phaseHp=3;s.hp=18;s.damageStacks=4;hit(s);
++  assert.equal(s.phase,1);assert.equal(s.phaseHp,0);assert.equal(s.hp,15);assert.equal(s.status,'playing');
++  B.advance(s,s.sched.endAt);assert.equal(s.phase,2);assert.equal(s.phaseHp,5);
++  hit(s);B.advance(s,s.sched.endAt);assert.equal(s.phase,3);assert.equal(s.phaseHp,10);assert.equal(s.hp,10);assert.equal(s.damageOrbs.length,1);
++  const ev=hit(s);assert.equal(s.status,'won');assert.equal(s.hp,0);assert.equal(s.damageDealt,18);assert.equal(ev.filter(e=>e.type==='win').length,1);
++});
++
++test('pause membekukan jadwal shield; retry/menu menghapus shield dan stack orb', () => {
++  const w=makeBossWorld();w.eng.startRun();const s=w.h.sim;s.round=10;s.phase=3;s.phaseHp=10;s.hp=10;
++  s.shieldBursts=[{nextAt:5000,left:3}];s.damageStacks=2;
++  w.eng.pauseRun('help');w.advance(20000);assert.equal(s.shield,0);assert.equal(s.shieldBursts[0].nextAt,5000);
++  w.eng.releasePause('help');w.eng.resumeRun();
++  // Simulasi waktu murni sudah diuji; lifecycle reset tidak membawa buff lama.
++  w.eng.returnToMenu();w.eng.startRun();assert.equal(w.h.sim.damageStacks,0);assert.equal(w.h.sim.shield,0);assert.deepEqual(w.h.sim.shieldBursts,[]);
++});
++
++test('lima apel Ekspedisi terpisah dari 2..9 bom, posisi unik, refill tidak mengurangi bom', () => {
++  for(let seed=1;seed<=30;seed++)for(let round=1;round<=5;round++) {
++    const stats=U.deriveStats({...U.emptyCounts(),sweet:2});const s=S.createRound({stats,round,rng:createRng(seed)});
++    assert.equal(s.foods.length,5);assert.equal(s.bombs.length,S.DEFAULT_CFG.baseBombs[round-1]+4);
++    const keys=[...s.foods,...s.bombs,...s.snake].map(p=>`${p.x},${p.y}`);assert.equal(new Set(keys).size,keys.length);
++    const before=s.bombs.length;s.foods[0]={x:9,y:7,kind:'normal'};S.stepRound(s,'R',140);
++    assert.equal(s.foods.length,5);assert.equal(s.bombs.length,before);
++  }
++});
++
++test('bekal upgrade terbawa ke kebun dan kekalahan kebun mengakhiri seluruh run sekali', () => {
++  const w=makeRogueWorld({config:{rounds:1,targets:[4],baseBombs:[2]}});w.eng.startRun();
++  w.x.run.upgrades={...U.emptyCounts(),thick:1,antidote:1,sweet:1,breath:1};w.x.run.stats=U.deriveStats(w.x.run.upgrades);
++  w.x.sim.bombs=[];w.x.sim.foods=[{x:9,y:7,kind:'normal'}];w.eng.setDir(1,0);w.advance(150);
++  const id=w.last('roguelite').offer[0].id;w.eng.chooseUpgrade(id);
++  const expected=U.expeditionSupplies(w.x.run.upgrades);assert.equal(w.x.battle.lives,expected.config.lives);assert.equal(w.x.battle.energy,expected.energy);assert.equal(w.x.battle.cfg.invulnMs,expected.config.invulnMs);
++  w.x.battle.lives=1;w.x.setSnake([[16,7],[15,7],[14,7]],'R');w.eng.setDir(1,0);w.advance(200);
++  assert.equal(w.eng.getState(),'lost');assert.equal(w.saves.length,1);w.advance(5000);assert.equal(w.saves.length,1);
++  w.eng.startRun();assert.equal(w.x.battle,null);assert.deepEqual(w.x.run.upgrades,U.emptyCounts());
++});
++
++test('revisi level: buka-kunci lama tetap, rekor baru tidak dibandingkan dengan peta lama', () => {
++  let p=P.parseProgress(JSON.stringify({v:1,puzzle:{levels:{'gen-38':{best:10}}}}));
++  const result=P.recordPuzzleResult(p,'gen-38',40,2);
++  assert.equal(result.newBest,true);assert.equal(result.firstClear,false);
++  assert.deepEqual(result.progress.puzzle.levels['gen-38'],{best:40,revision:2});
++  p=P.parseProgress(JSON.stringify(result.progress));assert.equal(p.puzzle.levels['gen-38'].revision,2);
++  assert.equal(P.recordPuzzleResult(p,'gen-38',45,2).progress.puzzle.levels['gen-38'].best,40);
++});
+diff --git a/tests/boss-campaign.test.mjs b/tests/boss-campaign.test.mjs
+index ab3f2df..636adb4 100644
+--- a/tests/boss-campaign.test.mjs
++++ b/tests/boss-campaign.test.mjs
+@@ -10,9 +10,9 @@ const open = (s, targets = [0]) => { s.window = { open: true, hit: false, target
+ const strike = (s, i = 0) => { const p = s.arena.weak[i]; put(s, p.x, p.y + 1); return B.stepSim(s, null, s.t + 1); };
+ const healValue = s => s.heals.reduce((n, h) => n + h.amount, s.pendingHeal);
+ 
+-test('default produksi: ronde 1, antek dahulu, boss 12 HP tersimpan, 5 hati, 3 apel, energi maks 9', () => {
++test('default produksi: ronde 1, antek dahulu, boss 18 HP tersimpan, 5 hati, 3 apel, energi maks 9', () => {
+   const s = mk();
+-  assert.deepEqual([s.round, s.minionsLeft, s.hp, s.phaseHp, s.lives, s.energy, s.apples.length, s.cfg.energyMax], [1, 1, 12, 3, 5, 0, 3, 9]);
++  assert.deepEqual([s.round, s.minionsLeft, s.hp, s.phaseHp, s.lives, s.energy, s.apples.length, s.cfg.energyMax], [1, 1, 18, 3, 5, 0, 3, 9]);
+   assert.equal(B.isBossRound(s), false); assert.equal(B.energyNeed(s), 1);
+ });
+ 
+@@ -25,7 +25,7 @@ test('9 gelombang berurutan: 18 antek, boss hanya di ronde 10; hadiah pasti tida
+       go(s, 'window'); s.energy = 1;
+       const target = s.window.targets[0], ev = strike(s, target);
+       assert.equal(ev.filter(e => e.type === 'minionHit').length, 1);
+-      assert.equal(s.minionsLeft, n - 1); assert.equal(s.hp, 12); assert.equal(s.energy, 0);
++      assert.equal(s.minionsLeft, n - 1); assert.equal(s.hp, 18); assert.equal(s.energy, 0);
+       assert.ok(!s.hazard.some(Boolean) && !s.warn.some(Boolean));
+     }
+     assert.equal(s.sched.kind, 'round'); assert.equal(healValue(s), round);
+@@ -39,14 +39,14 @@ test('9 gelombang berurutan: 18 antek, boss hanya di ronde 10; hadiah pasti tida
+   B.advance(s, s.t + 180000); assert.equal(s.round, 10); assert.equal(healValue(s), 9, 'menunggu bukan cara farming hati');
+ });
+ 
+-test('HP fase 3/4/5: pukulan biasa tidak mengganti fase, fase aktif sesudah transisi, final menang sekali', () => {
++test('HP fase 3/5/10: pukulan biasa tidak mengganti fase, fase aktif sesudah transisi, final menang sekali', () => {
+   const s = boss(); let hits = 0;
+   for (let phase = 1; phase <= 3; phase++) {
+-    assert.equal(s.phase, phase); const hp = [3, 4, 5][phase - 1];
++    assert.equal(s.phase, phase); const hp = [3, 5, 10][phase - 1];
+     assert.equal(s.phaseHp, hp);
+     for (let n = hp; n > 0; n--) {
+       open(s); s.energy = 3; const ev = strike(s); hits++;
+-      assert.equal(s.phaseHp, n - 1); assert.equal(s.hp, 12 - hits); assert.equal(s.damageDealt, hits);
++      assert.equal(s.phaseHp, n - 1); assert.equal(s.hp, 18 - hits); assert.equal(s.damageDealt, hits);
+       assert.equal(ev.filter(e => e.type === 'hit').length, 1);
+       assert.equal(s.phase, phase, 'fase belum berubah saat pukulan masuk');
+       if (n > 1) assert.equal(s.sched.kind, 'gap');
+@@ -55,7 +55,7 @@ test('HP fase 3/4/5: pukulan biasa tidak mengganti fase, fase aktif sesudah tran
+       assert.equal(s.sched.kind, 'transition'); const at = s.sched.endAt;
+       B.advance(s, at - 1); assert.equal(s.phase, phase);
+       B.advance(s, at); assert.equal(s.phase, phase + 1);
+-      assert.equal(healValue(s), phase * 2); assert.ok(!s.hazard.some(Boolean));
++      assert.equal(healValue(s), phase * 2 + (phase === 2 ? 1 : 0)); assert.ok(!s.hazard.some(Boolean));
+     }
+   }
+   assert.equal(s.status, 'won'); assert.equal(s.phase, 3); assert.equal(s.hp, 0);
+@@ -64,10 +64,10 @@ test('HP fase 3/4/5: pukulan biasa tidak mengganti fase, fase aktif sesudah tran
+ 
+ test('fase 3: tiga target berbeda bisa dipukul dalam satu jendela, target sama tidak bisa difarm', () => {
+   const s = boss(3); open(s, [0, 1, 2]); s.energy = 9;
+-  strike(s, 0); assert.equal(s.hp, 4); assert.equal(s.window.open, true);
+-  strike(s, 0); assert.equal(s.hp, 4); assert.equal(s.energy, 6);
+-  strike(s, 1); assert.equal(s.hp, 3); assert.equal(s.window.open, true);
+-  strike(s, 2); assert.equal(s.hp, 2); assert.equal(s.energy, 0); assert.equal(s.window.open, false);
++  strike(s, 0); assert.equal(s.hp, 9); assert.equal(s.window.open, true);
++  strike(s, 0); assert.equal(s.hp, 9); assert.equal(s.energy, 6);
++  strike(s, 1); assert.equal(s.hp, 8); assert.equal(s.window.open, true);
++  strike(s, 2); assert.equal(s.hp, 7); assert.equal(s.energy, 0); assert.equal(s.window.open, false);
+   assert.equal(s.phase, 3); assert.equal(s.sched.kind, 'gap');
+ });
+ 
+@@ -141,18 +141,18 @@ test('pause membekukan transisi fase; restart/menu membersihkan ronde, heal, HP
+   assert.equal(s.phase, 1); assert.equal(s.sched.endAt - w.h.simNow, left);
+   w.eng.resumeRun(); w.advance(left + 1); assert.equal(s.phase, 2);
+   w.eng.returnToMenu(); const fresh = w.h.sim;
+-  assert.equal(fresh.round, 1); assert.equal(fresh.hp, 12); assert.equal(fresh.lives, 5); assert.deepEqual(fresh.heals, []);
++  assert.equal(fresh.round, 1); assert.equal(fresh.hp, 18); assert.equal(fresh.lives, 5); assert.deepEqual(fresh.heals, []);
+   assert.equal(fresh.window.open, false); assert.equal(fresh.attack, null);
+ });
+ 
+-test('controller: kemenangan 12 HP tersimpan sekali; rekor v1 utuh dan terpisah', () => {
++test('controller: kemenangan 18 HP tersimpan sekali; rekor v1 utuh dan terpisah', () => {
+   const old = 'boss|hp:3|lives:3|speed:normal';
+   const records = R.recordBoss({ v: 1, records: {} }, old, { damage: 3, won: true, secs: 45 }).records;
+   const w = makeBossWorld({ records }); w.eng.startRun(); const s = w.h.sim;
+-  s.round = 10; s.phase = 3; s.phaseHp = 1; s.hp = 1; s.damageDealt = 11; s.energy = 3; open(s); const p = s.arena.weak[0]; put(s, p.x, p.y + 1);
++  s.round = 10; s.phase = 3; s.phaseHp = 1; s.hp = 1; s.damageDealt = 17; s.energy = 3; open(s); const p = s.arena.weak[0]; put(s, p.x, p.y + 1);
+   w.advance(150); assert.equal(w.eng.getState(), 'won'); assert.equal(w.saves.length, 1);
+   const rec = R.getBossRecord(w.saves[0], R.bossConfigKey('normal'));
+-  assert.equal(rec.best, 12); assert.equal(rec.bestRounds, 10); assert.equal(rec.wins, 1);
++  assert.equal(rec.best, 18); assert.equal(rec.bestRounds, 10); assert.equal(rec.wins, 1);
+   assert.deepEqual(w.saves[0].records[old], records.records[old]);
+   w.advance(5000); assert.equal(w.saves.length, 1);
+ });
+diff --git a/tests/boss.test.mjs b/tests/boss.test.mjs
+index 69b210c..00797f2 100644
+--- a/tests/boss.test.mjs
++++ b/tests/boss.test.mjs
+@@ -7,7 +7,7 @@ import { bossSim as B, createRng, makeBossWorld, recordsLib, registry, ICONS, ro
+ const D = B.DIRS;
+ const arena = () => B.parseArena(B.ARENA_MAP, B.START, B.WEAK_TILES);
+ // Fixture singkat untuk kontrak dasar: langsung boss, tiap fase 1 HP.
+-// Aturan produksi 10 ronde / 12 HP diuji terpisah di boss-campaign.test.mjs.
++// Aturan produksi 10 ronde / 18 HP diuji terpisah di boss-campaign.test.mjs.
+ const compact = { minionRounds: 0, lives: 3, energyMax: 6, apples: 2, phases: [{ hp: 1 }, { hp: 1 }, { hp: 1 }] };
+ const mk = (seed = 1, over = {}) => B.createState({ arena: arena(), config: { ...compact, ...over.config }, rng: createRng(seed), interval: over.interval || 140, t: 0 });
+ const at = (x, y) => y * B.W + x;
+@@ -110,7 +110,7 @@ test('transisi fase: ancaman dibersihkan, titik lemah terkunci, fase baru aktif
+ });
+ 
+ test('menang: hit final = menang sekali; hit final + bahaya pada tick yang sama = MENANG diprioritaskan; setelah itu tidak ada event', () => {
+-  const s = mk(); forceWindow(s, 0); s.hp = 1; s.energy = 3; const w = s.arena.weak[0];
++  const s = mk(); forceWindow(s, 0); s.hp = 1; s.phase = 3; s.phaseHp = 1; s.energy = 3; const w = s.arena.weak[0];
+   s.hazard[at(w.x, w.y)] = 1; // sel titik lemah juga bahaya aktif -> kerusakan pada tick yang sama
+   s.snake = [{ x: w.x, y: w.y + 1 }, { x: w.x - 1, y: w.y + 1 }, { x: w.x - 2, y: w.y + 1 }]; s.dir = D.U;
+   const ev = B.stepSim(s, null, 500);
+@@ -263,7 +263,7 @@ test('controller: PLAY sekali; hasil + rekor sekali; restart tidak membawa seran
+   w.advance(100000); assert.equal(w.saves.length, 1); assert.equal(w.overlays('gameover').length, 1);
+   w.eng.startRun();
+   const s2 = w.h.sim;
+-  assert.equal(s2.attack, null); assert.ok(!s2.hazard.some(v => v) && !s2.warn.some(v => v)); assert.equal(s2.lives, 1); assert.equal(s2.hp, 12); assert.equal(s2.round, 1);
++  assert.equal(s2.attack, null); assert.ok(!s2.hazard.some(v => v) && !s2.warn.some(v => v)); assert.equal(s2.lives, 1); assert.equal(s2.hp, 18); assert.equal(s2.round, 1);
+   w.eng.destroy(); const n = w.emits.length; w.advance(5000); assert.equal(w.emits.length, n);
+ });
+ 
+@@ -299,7 +299,7 @@ test('properti (80 permainan acak): invarian ular/apel/ancaman/energi/HP selalu
+ 
+ test('rekor: recordBoss (kerusakan terbesar, kemenangan tercepat), kompatibel dengan parse', () => {
+   const R = recordsLib, key = R.bossConfigKey('normal');
+-  assert.equal(key, 'boss|v:2|hp:12|lives:5|rounds:10|speed:normal');
++  assert.equal(key, 'boss|v:3|hp:18|lives:5|rounds:10|speed:normal');
+   let r = R.recordBoss({ v: 1, records: {} }, key, { damage: 1, won: false, secs: 40 }).records;
+   r = R.recordBoss(r, key, { damage: 3, won: true, secs: 120 }).records;
+   const x = R.recordBoss(r, key, { damage: 3, won: true, secs: 90 }); r = x.records;
+@@ -308,14 +308,14 @@ test('rekor: recordBoss (kerusakan terbesar, kemenangan tercepat), kompatibel de
+   const rec = R.getBossRecord(r, key);
+   assert.deepEqual([rec.best, rec.plays, rec.wins, rec.bestSecs], [3, 3, 2, 90]);
+   assert.deepEqual(R.parseRecords(JSON.stringify(r)), r);
+-  assert.equal(R.recordBoss(r, key, { damage: 13, won: false, secs: 1 }).records, r);
++  assert.equal(R.recordBoss(r, key, { damage: 19, won: false, secs: 1 }).records, r);
+   assert.deepEqual(R.parseRecords(JSON.stringify({ v: 1, records: { [key]: { best: 1, plays: 1, wins: 0, bestSecs: -3 } } })), { v: 1, records: {} });
+ });
+ 
+ test('registry/ikon/aset: boss 1 pemain bisa sentuh, ikon & latar ada, urutan petualangan', () => {
+   const m = registry.getMode('boss');
+   assert.equal(m.kind, 'boss'); assert.equal(m.players, 1); assert.equal(m.touch, true); assert.equal(registry.needsKeyboard('boss'), false);
+-  assert.deepEqual(registry.modesInGroup('adventure').map(x => x.id), ['puzzle', 'delivery', 'roguelite', 'boss', 'territory']);
++  assert.deepEqual(registry.modesInGroup('adventure').map(x => x.id), ['puzzle', 'delivery', 'roguelite', 'territory']);
+   registry.MODES.forEach(x => assert.ok(ICONS[x.id], `ikon ${x.id}`));
+   assert.ok(fs.existsSync(path.join(root, 'public/assets/game/bg-boss.webp')));
+   assert.match(fs.readFileSync(path.join(root, 'app/globals.css'), 'utf8'), /\.focus-scene/);
+diff --git a/tests/delivery.test.mjs b/tests/delivery.test.mjs
+index d16d31a..cd513fc 100644
+--- a/tests/delivery.test.mjs
++++ b/tests/delivery.test.mjs
+@@ -140,21 +140,16 @@ test('antar: tipe tidak cocok tidak diterima; tanpa bonus bila sisa umur < 50%',
+   assert.equal(s2.score, DEFAULT_CONFIG.points, 'sisa 40% -> tanpa bonus');
+ });
+ 
+-test('antar: dua paket identik — tertua dulu, satu per kunjungan; kiriman kedua perlu keluar-masuk lagi', () => {
+-  const s = mk(); setup(s, [[3, 2], [4, 2], [5, 2], [6, 2], [7, 2]], 'L', [{ type: 'A', pickedAt: 100 }, { type: 'A', pickedAt: 200 }]);
+-  const oldestId = s.cargo[0].id, newestId = s.cargo[1].id;
+-  let ev = stepSim(s, 'L', 1000); // masuk (2,2)
+-  assert.equal(ev.filter(e => e.type === 'deliver').length, 1, 'satu paket per kunjungan');
+-  assert.equal(ev.find(e => e.type === 'deliver').cargo.id, oldestId, 'paket tertua dulu');
+-  assert.equal(types(s), 'A'); assert.equal(s.cargo[0].id, newestId);
+-  assert.deepEqual(s.snake[0], cell(2, 2));
+-  // keluar dan masuk lagi dari atas: L, U, R, D (ekor yang dilepas boleh dimasuki)
+-  stepSim(s, 'L', 1140); stepSim(s, 'U', 1280); stepSim(s, 'R', 1420);
+-  assert.equal(s.delivered, 1, 'belum ada kiriman tambahan saat belum masuk lagi');
+-  ev = stepSim(s, 'D', 1560);
+-  assert.equal(s.status, 'playing');
+-  assert.equal(ev.filter(e => e.type === 'deliver').length, 1);
+-  assert.equal(s.delivered, 2); assert.equal(s.cargo.length, 0); assert.equal(s.snake.length, s.baseLen);
++test('antar: semua paket identik terkirim dalam satu kunjungan, bonus per paket dan panjang kargo tetap benar', () => {
++  const s = mk(); setup(s, [[3, 2], [4, 2], [5, 2], [6, 2], [7, 2], [8, 2]], 'L', [
++    { type: 'A', lifeMs: 10000, deadline: 9000 }, { type: 'B' }, { type: 'A', lifeMs: 10000, deadline: 4000 },
++  ]);
++  const ev = stepSim(s, 'L', 1000);
++  const sent = ev.filter(e => e.type === 'deliver');
++  assert.equal(sent.length, 2); assert.deepEqual(sent.map(e => e.quick), [true, false]);
++  assert.equal(s.delivered, 2); assert.equal(s.score, DEFAULT_CONFIG.points * 2 + DEFAULT_CONFIG.quickBonus);
++  assert.equal(types(s), 'B'); assert.equal(s.snake.length, s.baseLen + 1);
++  assert.ok(s.orders.every(o => o.type === 'B'));
+ });
+ 
+ test('ekor: setelah kargo dihapus, ekor maju dua sel pada langkah itu (satu gerak + satu pemendekan); kepala/tubuh dasar tidak terpotong', () => {
+diff --git a/tests/puzzle9a.test.mjs b/tests/puzzle9a.test.mjs
+index 2ef6f64..ee5d0de 100644
+--- a/tests/puzzle9a.test.mjs
++++ b/tests/puzzle9a.test.mjs
+@@ -88,7 +88,8 @@ test('penjaga diam: tidak bergerak selama ular di luar pandangan; area pandang 3
+ test('pandangan terhalang tembok: ular di balik tembok tidak terlihat', () => {
+   const lv = guardLevel({ '7,1': '#', '7,2': '#', '7,3': '#' });
+   const st = initialState(lv);
+-  assert.deepEqual(visionCells(lv, st, st.guards[0], 1), []);
++  assert.notDeepEqual(st.guards[0].dir, { x: -1, y: 0 }, 'berpaling dari tembok');
++  assert.ok(visionCells(lv, st, st.guards[0], 1).every(c => c.x >= 8), 'tidak melihat tembus tembok');
+ });
+ 
+ test('penjaga melihat ular -> kejar; kontak = kalah (status lost, kejadian stung)', () => {
+diff --git a/tests/registry.test.mjs b/tests/registry.test.mjs
+index 8235a6d..937c30c 100644
+--- a/tests/registry.test.mjs
++++ b/tests/registry.test.mjs
+@@ -13,17 +13,17 @@ test('registry: id unik dan stabil; sepuluh mode lama tetap dengan urutan & grup
+   assert.deepEqual(modesInGroup('mayhem').map(m => m.id), ['mayhem', 'mayhemplus', 'mayhemhard', 'impossible']);
+   assert.deepEqual(modesInGroup('mp').map(m => m.id), ['multiplayer', 'mayhemduo']);
+   assert.deepEqual(arcadeModes().map(m => m.id).sort(), ['classic', 'classicnight', 'impossible', 'mayhem', 'mayhemduo', 'mayhemhard', 'mayhemplus', 'multiplayer', 'portal', 'timeattack']);
+-  assert.deepEqual(modesInGroup('adventure').map(m => m.id), ['puzzle', 'delivery', 'roguelite', 'boss', 'territory']);
++  assert.deepEqual(modesInGroup('adventure').map(m => m.id), ['puzzle', 'delivery', 'roguelite', 'territory']);
+ });
+ 
+-test('registry: teks menu sepuluh mode lama tidak berubah diam-diam (deskripsi & label singkat)', () => {
++test('registry: teks menu arkade tetap; label Time Attack ditulis lengkap', () => {
+   const D = {
+     classic: 'Makan apel, tumbuh panjang, hindari tembok.', classicnight: 'Arena malam dengan kepala ular menyala.', portal: 'Tembus tepi arena dan muncul di sisi lainnya.',
+     timeattack: 'Kejar skor sebelum waktu habis.', mayhem: 'Apel spesial, efek acak, dan ranjau menanti.', mayhemplus: 'Kekacauan Mayhem yang lebih intens.',
+     mayhemhard: 'Waspadai racun tersamar dan kontrol terbalik.', impossible: 'Tantangan ekstrem dengan kecepatan Ngebut.',
+     multiplayer: 'Berebut apel berdua dengan satu keyboard.', mayhemduo: 'Duel berdua dengan efek acak dan ranjau.',
+   };
+-  const S = { classic: 'Classic', classicnight: 'Malam', portal: 'Portal', timeattack: 'Time', mayhem: 'Mayhem', mayhemplus: 'Mayhem+', mayhemhard: 'Hard', impossible: 'Impossible', multiplayer: '2P Lokal', mayhemduo: 'Mayhem Duo' };
++  const S = { classic: 'Classic', classicnight: 'Malam', portal: 'Portal', timeattack: 'Time Attack', mayhem: 'Mayhem', mayhemplus: 'Mayhem+', mayhemhard: 'Hard', impossible: 'Impossible', multiplayer: '2P Lokal', mayhemduo: 'Mayhem Duo' };
+   for (const id of Object.keys(D)) { assert.equal(getMode(id).description, D[id], id); assert.equal(getMode(id).short, S[id], id); }
+ });
+ 
+diff --git a/tests/roguelite.test.mjs b/tests/roguelite.test.mjs
+index 72e78c3..d54af78 100644
+--- a/tests/roguelite.test.mjs
++++ b/tests/roguelite.test.mjs
+@@ -257,21 +257,30 @@ test('pilih upgrade: dua klik cepat hanya mengambil satu; ronde 2 reset arena/pa
+   assert.equal(w.x.sim.target, 40);
+ });
+ 
+-test('run lengkap: lima ronde diselesaikan tanpa boss, upgrade terkumpul, hasil MENANG sekali, rekor tersimpan sekali', () => {
++test('lima rute dan upgrade masuk kebun; kemenangan hanya setelah boss, tercatat sekali', () => {
+   const w = makeRogueWorld({ seed: 11 }); w.eng.startRun();
+-  const picked = [];
+   for (let r = 1; r <= 5; r++) {
+-    assert.equal(w.x.run.round, r);
+-    clearRound(w);
+-    if (r < 5) { assert.equal(w.eng.getState(), 'choosingUpgrade'); const id = w.last('roguelite').offer[0].id; picked.push(id); assert.equal(w.eng.chooseUpgrade(id), true); }
++    assert.equal(w.x.run.round, r); clearRound(w);
++    assert.equal(w.eng.getState(), 'choosingUpgrade');
++    assert.equal(w.eng.chooseUpgrade(w.last('roguelite').offer[0].id), true);
+   }
+-  assert.equal(w.eng.getState(), 'won'); assert.equal(w.overlays('gameover').length, 1); assert.equal(w.saves.length, 1);
++  assert.equal(w.eng.getState(), 'playing'); assert.ok(w.x.battle);
++  assert.equal(w.x.battle.apples.length, 5); assert.equal(w.saves.length, 0);
++  assert.equal(w.x.awaiting, true); const time = w.x.simNow;
++  w.advance(5000); assert.equal(w.x.simNow, time, 'kebun menunggu arah pertama');
++  assert.equal(w.last('mode'), 'roguelite'); assert.equal(w.last('roguelite'), null); assert.ok(w.last('boss'));
++  w.eng.setDir(1, 0); w.eng.pauseRun('help'); const frozen = w.x.simNow;
++  w.advance(2000); assert.equal(w.x.simNow, frozen); assert.equal(w.eng.resumeRun(), false);
++  w.eng.releasePause('help'); w.eng.resumeRun();
++  // Simulasi boss sudah diuji end-to-end di boss-campaign; hook ini menguji routing hasil.
++  w.x.battle.status = 'won'; w.advance(16);
++  assert.equal(w.eng.getState(), 'won'); assert.equal(w.saves.length, 1);
+   assert.equal(w.overlays('gameover')[0].overlay.title, 'Ekspedisi Selesai!');
+-  const key = recordsLib.rogueConfigKey(S.DEFAULT_CFG, 'normal');
+-  const rec = recordsLib.getRecord(w.records, key);
+-  assert.deepEqual([rec.bestRounds, rec.plays, rec.wins], [5, 1, 1]); assert.ok(rec.best > 28);
+-  assert.equal(picked.length, 4);
+-  w.advance(5000); assert.equal(w.saves.length, 1); assert.equal(w.overlays('gameover').length, 1);
++  const rec = recordsLib.getRecord(w.records, recordsLib.rogueConfigKey(S.DEFAULT_CFG, 'normal'));
++  assert.deepEqual([rec.bestRounds, rec.plays, rec.wins], [5, 1, 1]);
++  w.advance(5000); assert.equal(w.saves.length, 1);
++  w.eng.returnToMenu(); assert.equal(w.x.battle, null);
++  w.eng.startRun(); assert.equal(w.x.battle, null); assert.deepEqual(w.x.run.upgrades, U.emptyCounts());
+ });
+ 
+ test('mati: run berakhir sekali; upgrade TIDAK terbawa ke run baru; skor dan ronde tertinggi tercatat', () => {
+@@ -319,7 +328,7 @@ test('fuzz controller: input acak, upgrade otomatis, 12 seed — invarian dan ha
+       const s = w.x.sim;
+       if (s && w.eng.getState() === 'playing') {
+         s.snake.forEach(p => assert.ok(p.x >= 0 && p.x < 17 && p.y >= 0 && p.y < 15));
+-        assert.ok(s.snake.length >= 2); assert.ok(s.foods.length <= 3); assert.ok(s.roundScore >= 0);
++        assert.ok(s.snake.length >= 2); assert.ok(s.foods.length <= S.DEFAULT_CFG.foodCount); assert.ok(s.roundScore >= 0);
+         assert.ok(w.x.interval >= U.MIN_INTERVAL && w.x.interval <= U.MAX_INTERVAL);
+       }
+     }

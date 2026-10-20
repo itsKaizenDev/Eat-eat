@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0b1b2b"/><stop offset="1" stop-color="#1f4a3a"/></linearGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#sky)"/>
+  <circle cx="1240" cy="190" r="86" fill="#f4f1d0" opacity=".95"/><circle cx="1210" cy="170" r="86" fill="#0b1b2b" opacity=".35"/>
+  <circle cx="1240" cy="190" r="190" fill="#f4f1d0" opacity=".05"/><circle cx="1240" cy="190" r="130" fill="#f4f1d0" opacity=".06"/>
+  <g fill="#fff" opacity=".7"><circle cx="160" cy="90" r="3"/><circle cx="420" cy="150" r="2"/><circle cx="700" cy="70" r="3"/><circle cx="930" cy="130" r="2"/><circle cx="1480" cy="90" r="3"/><circle cx="330" cy="260" r="2"/></g>
+  <!-- bukit & hutan berlapis -->
+  <path d="M0 560C220 470 380 520 560 470S900 430 1100 490 1450 520 1600 450V900H0Z" fill="#12352c"/>
+  <path d="M0 640C260 560 420 620 640 570S1000 540 1200 600 1480 640 1600 580V900H0Z" fill="#0e2a22"/>
+  <g fill="#0a1f19"><path d="M80 640l40-150 40 150Z"/><path d="M150 650l50-190 50 190Z"/><path d="M1300 620l46-170 46 170Z"/><path d="M1380 640l36-130 36 130Z"/><path d="M1480 650l50-200 50 200Z"/></g>
+  <!-- sulur menggantung -->
+  <g fill="none" stroke="#2f7a46" stroke-width="10" stroke-linecap="round"><path d="M300 0C300 120 270 180 290 300"/><path d="M370 0C380 90 410 150 390 250"/><path d="M1000 0C990 100 1030 170 1010 280"/><path d="M1480 0C1470 120 1500 190 1480 310"/></g>
+  <g fill="#3fa05a"><ellipse cx="290" cy="300" rx="22" ry="10"/><ellipse cx="392" cy="252" rx="22" ry="10"/><ellipse cx="1010" cy="282" rx="22" ry="10"/><ellipse cx="1480" cy="312" rx="22" ry="10"/></g>
+  <!-- papan petunjuk 5 ronde -->
+  <g><rect x="238" y="520" width="14" height="150" fill="#5b4126"/><rect x="160" y="470" width="170" height="74" rx="8" fill="#8a5a2c" stroke="#3a210f" stroke-width="5"/>
+  <g font-family="sans-serif" font-weight="800" font-size="34" text-anchor="middle" fill="#fff"><text x="245" y="518">1 → 5</text></g></g>
+  <!-- peti harta bercahaya dengan tiga kartu upgrade -->
+  <g transform="translate(980 640)">
+    <ellipse cx="0" cy="40" rx="190" ry="30" fill="#000" opacity=".25"/>
+    <circle cx="0" cy="-40" r="170" fill="#ffd84a" opacity=".07"/><circle cx="0" cy="-40" r="115" fill="#ffd84a" opacity=".1"/>
+    <rect x="-100" y="-30" width="200" height="82" rx="10" fill="#7a4a1e" stroke="#2a1609" stroke-width="6"/>
+    <path d="M-100 -30a100 56 0 0 1 200 0Z" fill="#9a6226" stroke="#2a1609" stroke-width="6"/>
+    <rect x="-14" y="-24" width="28" height="40" rx="5" fill="#f5c542" stroke="#2a1609" stroke-width="4"/><circle cx="0" cy="-2" r="5" fill="#2a1609"/>
+    <g stroke="#2a1609" stroke-width="5">
+      <g transform="translate(-130 -150) rotate(-10)"><rect width="80" height="110" rx="10" fill="#c58bff"/><path d="M40 28l9 20 22 3-16 15 4 22-19-11-19 11 4-22-16-15 22-3Z" fill="#fff" stroke="none"/></g>
+      <g transform="translate(-40 -190)"><rect width="80" height="110" rx="10" fill="#6ed3ff"/><path d="M40 24l22 12v24c0 18-12 28-22 33-10-5-22-15-22-33V36Z" fill="#fff" stroke="none"/></g>
+      <g transform="translate(50 -150) rotate(10)"><rect width="80" height="110" rx="10" fill="#ffb347"/><path d="M44 22l-24 40h20l-6 30 28-42H42Z" fill="#fff" stroke="none"/></g>
+    </g>
+  </g>
+  <!-- tanah: apel & ranjau -->
+  <rect y="760" width="1600" height="140" fill="#0a1f19"/><rect y="756" width="1600" height="8" fill="#12352c"/>
+  <g stroke="#0e1316" stroke-width="4">
+    <circle cx="520" cy="800" r="28" fill="#e0453a"/><path d="M522 772c8-12 22-12 24-4" stroke="#6fbf3a" fill="none" stroke-width="6"/>
+    <circle cx="640" cy="812" r="38" fill="#e0453a"/><circle cx="640" cy="812" r="48" fill="none" stroke="#f2b84b" stroke-width="7"/>
+    <circle cx="760" cy="800" r="28" fill="#9a4fd6"/><path d="M746 788l28 24M774 788l-28 24" stroke="#fff" stroke-width="6"/>
+    <circle cx="1280" cy="812" r="32" fill="#1b1b22" stroke="#ff5d4a"/><path d="M1294 786q18-18 30-6" stroke="#c8b27a" fill="none" stroke-width="5"/><circle cx="1326" cy="778" r="8" fill="#ff8a1f" stroke="none"/>
+    <text x="1280" y="824" text-anchor="middle" font-family="sans-serif" font-weight="800" font-size="34" fill="#ff5d4a" stroke="none">!</text>
+  </g>
+  <!-- ular petualang di depan -->
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M70 850H380C440 850 450 800 530 810" stroke="#3f7d1a" stroke-width="64"/><path d="M70 850H380C440 850 450 800 530 810" stroke="#7fcf34" stroke-width="42"/></g>
+  <circle cx="540" cy="798" r="9" fill="#fff"/><circle cx="542" cy="822" r="9" fill="#fff"/><circle cx="543" cy="798" r="4" fill="#0e1316"/><circle cx="545" cy="822" r="4" fill="#0e1316"/>
+  <rect x="250" y="808" width="64" height="58" rx="12" fill="#8a5a2c" stroke="#2a1609" stroke-width="5"/><rect x="262" y="828" width="40" height="20" rx="5" fill="#5b3b1a"/>
+  <rect width="1600" height="900" fill="#000" opacity=".12"/>
+</svg>

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#16251c"/><stop offset="1" stop-color="#0c1511"/></linearGradient>
+    <pattern id="grid" width="80" height="80" patternUnits="userSpaceOnUse"><path d="M80 0H0V80" fill="none" stroke="#ffffff" stroke-opacity=".05" stroke-width="2"/></pattern>
+  </defs>
+  <rect width="1600" height="900" fill="url(#g)"/>
+  <rect width="1600" height="900" fill="url(#grid)"/>
+  <!-- wilayah P1 (hijau, titik) dan P2 (biru, garis) -->
+  <g opacity=".55"><rect x="160" y="320" width="480" height="400" fill="#7fcf34"/><rect x="960" y="240" width="480" height="400" fill="#4aa3ff"/></g>
+  <g fill="#000" opacity=".3"><circle cx="400" cy="520" r="14"/><circle cx="320" cy="440" r="14"/><circle cx="480" cy="600" r="14"/></g>
+  <g stroke="#000" stroke-opacity=".3" stroke-width="10"><path d="M1160 340l60-60M1260 440l60-60M1100 500l60-60"/></g>
+  <!-- jejak putus-putus -->
+  <path d="M640 520H800V300H960" fill="none" stroke="#7fcf34" stroke-width="22" stroke-dasharray="26 16" opacity=".9"/>
+  <path d="M960 560H820V700H640" fill="none" stroke="#4aa3ff" stroke-width="22" stroke-dasharray="26 16" opacity=".9"/>
+</svg>

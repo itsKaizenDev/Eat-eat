@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0d1a21"/><stop offset=".6" stop-color="#1b3340"/><stop offset="1" stop-color="#223f4d"/></linearGradient>
+    <linearGradient id="floor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a2b35"/><stop offset="1" stop-color="#0b141a"/></linearGradient>
+    <radialGradient id="torchGlow"><stop offset="0" stop-color="#ffb347" stop-opacity=".55"/><stop offset="1" stop-color="#ffb347" stop-opacity="0"/></radialGradient>
+    
+    <radialGradient id="portalGlow"><stop offset="0" stop-color="#c58bff" stop-opacity=".5"/><stop offset="1" stop-color="#c58bff" stop-opacity="0"/></radialGradient>
+    <pattern id="bricks" width="120" height="60" patternUnits="userSpaceOnUse">
+      <rect width="120" height="60" fill="none"/>
+      <path d="M0 0H120M0 30H120M0 60H120M60 0V30M0 30V60M120 30V60" stroke="#0a1319" stroke-opacity=".55" stroke-width="3" fill="none"/>
+      <path d="M6 6H54M66 6H114M6 36H24M36 36H114" stroke="#2d4b5a" stroke-opacity=".35" stroke-width="2" fill="none"/>
+    </pattern>
+    <pattern id="tiles" width="100" height="100" patternUnits="userSpaceOnUse"><rect width="100" height="100" fill="#14232c"/><rect width="50" height="50" fill="#1b303b"/><rect x="50" y="50" width="50" height="50" fill="#1b303b"/></pattern>
+    
+  </defs>
+  <rect width="1600" height="900" fill="url(#wall)"/>
+  <rect width="1600" height="640" fill="url(#bricks)"/>
+  <!-- lantai -->
+  <rect y="640" width="1600" height="260" fill="url(#tiles)"/>
+  <rect y="640" width="1600" height="260" fill="url(#floor)" opacity=".7"/>
+  <rect y="636" width="1600" height="8" fill="#0a1319"/>
+  <!-- pintu keluar berlengkung -->
+  <g><ellipse cx="1060" cy="430" rx="340" ry="310" fill="#ffc857" fill-opacity="0.05"/><ellipse cx="1060" cy="430" rx="290" ry="265" fill="#ffc857" fill-opacity="0.06"/><ellipse cx="1060" cy="430" rx="240" ry="220" fill="#ffc857" fill-opacity="0.07"/><ellipse cx="1060" cy="430" rx="190" ry="175" fill="#ffc857" fill-opacity="0.09"/><ellipse cx="1060" cy="430" rx="145" ry="135" fill="#ffc857" fill-opacity="0.12"/></g>
+  <path d="M900 640V360a160 160 0 0 1 320 0V640Z" fill="#0a1319"/>
+  <path d="M920 640V362a140 140 0 0 1 280 0V640Z" fill="#7a4a2c"/>
+  <path d="M1060 222V640M990 240V640M1130 240V640" stroke="#4a2a16" stroke-width="5"/>
+  <path d="M928 470H1192M928 560H1192" stroke="#3a210f" stroke-width="12"/>
+  <circle cx="1060" cy="470" r="38" fill="#2a1609"/>
+  <circle cx="1060" cy="462" r="20" fill="#f5c542"/><path d="M1052 470h16l8 44h-32Z" fill="#f5c542"/><circle cx="1060" cy="462" r="8" fill="#2a1609"/>
+  <path d="M880 650H1240" stroke="#2d4b5a" stroke-width="6"/>
+  <!-- obor kiri & kanan pintu -->
+  <g><circle cx="780" cy="300" r="150" fill="url(#torchGlow)"/><rect x="772" y="320" width="16" height="90" rx="4" fill="#3a2a1a"/><path d="M752 330H808L798 362H762Z" fill="#5b4126"/><g transform="translate(780 314)"><path d="M0 8C-24 8-28-18-12-34-8-22-4-26 0-44 4-30 8-36 10-30 24-16 22 8 0 8Z" fill="#ff8a1f"/><path d="M0 4C-12 4-14-10-6-20-3-12 0-14 2-26 6-14 12-8 8-2 6 2 4 4 0 4Z" fill="#ffd66b"/></g></g>
+  <g><circle cx="1340" cy="300" r="150" fill="url(#torchGlow)"/><rect x="1332" y="320" width="16" height="90" rx="4" fill="#3a2a1a"/><path d="M1312 330H1368L1358 362H1322Z" fill="#5b4126"/><g transform="translate(1340 314)"><path d="M0 8C-24 8-28-18-12-34-8-22-4-26 0-44 4-30 8-36 10-30 24-16 22 8 0 8Z" fill="#ff8a1f"/><path d="M0 4C-12 4-14-10-6-20-3-12 0-14 2-26 6-14 12-8 8-2 6 2 4 4 0 4Z" fill="#ffd66b"/></g></g>
+  <!-- portal ungu di kiri -->
+  <g transform="translate(300 470)"><circle r="170" fill="url(#portalGlow)"/><circle r="92" fill="#150d25" stroke="#c58bff" stroke-width="8"/><circle r="64" fill="none" stroke="#c58bff" stroke-opacity=".8" stroke-width="5"/><circle r="36" fill="none" stroke="#e5ccff" stroke-width="4"/><text y="14" text-anchor="middle" font-family="sans-serif" font-weight="700" font-size="44" fill="#fff">1</text></g>
+  <!-- kunci menggantung -->
+  <g transform="translate(560 130)" stroke="#f5c542" stroke-width="10" fill="none" stroke-linecap="round"><path d="M0 -130V-20" stroke="#6b7c86" stroke-width="4"/><circle cx="0" cy="12" r="26"/><path d="M0 38V120M0 90H26M0 112H20"/></g>
+  <g transform="translate(1420 150) rotate(18)" stroke="#f5c542" stroke-width="8" fill="none" stroke-linecap="round" opacity=".85"><circle r="20"/><path d="M20 0H92M70 0V22M88 0V16"/></g>
+  <!-- plate tekan di lantai -->
+  <g font-family="sans-serif" font-weight="700" font-size="40" text-anchor="middle">
+    <g transform="translate(520 780)"><rect x="-56" y="-40" width="112" height="80" rx="8" fill="#0e2a36" stroke="#6ed3ff" stroke-width="6" stroke-dasharray="14 10"/><text y="14" fill="#fff">A</text></g>
+    <g transform="translate(720 800)"><rect x="-56" y="-40" width="112" height="80" rx="8" fill="#6ed3ff" fill-opacity=".28" stroke="#6ed3ff" stroke-width="8"/><text y="14" fill="#fff">B</text><path d="M20 -22l10 12 18-24" stroke="#6ed3ff" stroke-width="6" fill="none" stroke-linecap="round"/></g>
+  </g>
+  <!-- ular melingkar di kiri bawah -->
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M110 800C230 840 330 760 250 710C170 660 70 730 150 790" stroke="#3f7d1a" stroke-width="64"/><path d="M110 800C230 840 330 760 250 710C170 660 70 730 150 790" stroke="#7fcf34" stroke-width="42"/></g>
+  <circle cx="156" cy="778" r="9" fill="#fff"/><circle cx="178" cy="792" r="9" fill="#fff"/><circle cx="159" cy="780" r="4" fill="#0e1316"/><circle cx="180" cy="794" r="4" fill="#0e1316"/>
+  <!-- vinyet -->
+  <rect width="1600" height="900" fill="#000" opacity=".18"/>
+</svg>

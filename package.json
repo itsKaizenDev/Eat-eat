@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "node --test --test-concurrency=1 \"tests/**/*.test.mjs\"",
+    "build:campaign": "node scripts/build-campaign.mjs"
   },
   "dependencies": {
     "gsap": "^3.12.5",

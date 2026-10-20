@@ -29,9 +29,164 @@ function Hearts({ count }) {
   );
 }
 
-export default function Hud({ mode, modeLabel, timerText, effects, score, best, mpHud, onHelp, side, lefty, onSwap }) {
+const GUARD_TEXT = { idle: 'patroli', alert: 'terlihat! Kabur sekarang', chase: 'MENGEJAR!', return: 'mencari jalan pulang', stunned: 'pingsan', windup: 'serangan siap! Hindari petak !', recover: 'celah menyerang' };
+
+// Statistik Puzzle: ikon + teks (status tidak bergantung warna) dan pesan langsung (live region).
+function PuzzleStats({ p }) {
+  const StepsI = ICONS.steps, KeyI = ICONS.key, PlateI = ICONS.plate;
+  return (
+    <div className="puzzle-hud">
+      <div className="puzzle-stats">
+        <span><StepsI size={14} />Langkah {p.steps} · acuan {p.par}</span>
+        {p.keys.need > 0 && <span><KeyI size={14} />Kunci {p.keys.have}/{p.keys.need}</span>}
+        {p.plates.need > 0 && <span><PlateI size={14} />Sakelar {p.plates.active}/{p.plates.need}</span>}
+        <span className="apple-counter"><ICONS.normal size={14} />Apel {p.apples}/{p.applesTotal} <small>bonus</small></span>
+        {p.hammer > 0 && <span><ICONS.hammer size={14} />Palu {p.hammer}</span>}
+        {p.shield > 0 && <span><ICONS.shield size={14} />Perisai {p.shield}</span>}
+        {p.enemies?.total > 0 && <><span className="dungeon-hearts"><ICONS.heart size={14} fill="currentColor" />{p.hearts}/3 hati</span><span><ICONS.eye size={14} />Musuh {p.enemies.left}/{p.enemies.total}</span></>}
+        {p.levers?.total > 0 && <span><ICONS.lock size={14} />Jeruji {p.levers.active}/{p.levers.total} terbuka</span>}
+        {p.guard && <span data-guard={p.guard}><ICONS.eye size={14} />Penjaga: {GUARD_TEXT[p.guard]}</span>}
+      </div>
+      {!!p.legend?.length && <div className="puzzle-legend">{p.legend.map(l => { const I = ICONS[l.icon]; return <span key={l.icon}><I size={13} />{l.text}</span>; })}</div>}
+      <div className="puzzle-msg" role="status" aria-live="polite" aria-atomic="true">{p.message}</div>
+    </div>
+  );
+}
+
+function PuzzleActions({ p, onUndo, onRestart, onWait }) {
+  return (
+    <div className="puzzle-actions flex items-center gap-1.5">
+      <button onClick={onWait} disabled={p.status !== 'playing'} aria-label="Tunggu satu giliran (Spasi)"><ICONS.timeattack size={14} />Tunggu</button>
+      <button onClick={onUndo} disabled={!p.canUndo} aria-label="Undo langkah (Z)"><ICONS.undo size={14} />Undo</button>
+      <button onClick={onRestart} disabled={p.status !== 'playing'} aria-label="Ulang level (R)"><ICONS.restart size={14} />Ulang</button>
+    </div>
+  );
+}
+
+// Statistik Delivery: waktu shift, terkirim/target, tiga slot kargo (ikon + huruf + sisa umur), dan pesanan aktif.
+// Warna paket selalu didampingi ikon dan huruf, jadi status terbaca tanpa warna.
+const TYPE_ICON = { A: 'normal', B: 'mail', C: 'delivery' };
+function DeliveryStats({ d, cols }) {
+  const TimerI = ICONS.timeattack, PkgI = ICONS.delivery;
+  return (
+    <div className={`deliv-hud ${cols ? 'hud-cols' : ''}`}>
+      <div className="hud-col">
+      <div className="puzzle-stats">
+        <span><TimerI size={14} />Shift {d.timeText}</span>
+        <span><PkgI size={14} />Terkirim {d.delivered}/{d.target}</span>
+        {d.stale > 0 && <span><ICONS.poison size={14} />Basi {d.stale}</span>}
+      </div>
+      <div className="deliv-slots" role="list" aria-label="Kargo">
+        {d.cargo.map((c, i) => {
+          if (!c) return <div key={i} role="listitem" className="deliv-slot" data-filled="false" aria-label={`Slot ${i + 1}: kosong`}><span>—</span><span>kosong</span></div>;
+          const I = ICONS[TYPE_ICON[c.type]];
+          return (
+            <div key={i} role="listitem" className="deliv-slot" data-filled="true" data-low={c.secs <= 3} aria-label={`Slot ${i + 1}: paket ${c.type} ${c.label}, sisa ${c.secs} detik`}>
+              <span className="inline-flex items-center gap-1"><I size={13} />{c.type}</span><span>{c.secs}s</span>
+            </div>
+          );
+        })}
+      </div>
+      </div>
+      <div className="hud-col">
+      <div className="deliv-orders">
+        {d.orders.map(o => <span key={o.id}>{o.type} {o.label}: {o.picked ? `antar ke rumah ${o.type}` : 'ambil di titik pickup'}</span>)}
+      </div>
+      <div className="puzzle-msg" role="status" aria-live="polite" aria-atomic="true">{d.message}</div>
+      </div>
+    </div>
+  );
+}
+
+// Statistik Ekspedisi Mayhem: ronde, progres target (bilah + angka), total skor, perisai/penawar tersisa, daftar upgrade.
+function RogueStats({ r, cols }) {
+  const RI = ICONS.roguelite, TI = ICONS.trophy;
+  const pct = Math.min(100, Math.round((r.roundScore / r.target) * 100));
+  return (
+    <div className={`rogue-hud ${cols ? 'hud-cols' : ''}`}>
+      <div className="hud-col">
+      <div className="puzzle-stats">
+        <span><RI size={14} />Ronde {r.round}/{r.rounds}</span>
+        <span><TI size={14} />Target {r.roundScore}/{r.target}</span>
+        <span>Total {r.total}</span>
+        {r.reviveSecs > 0 && <span><ICONS.shield size={14} />Perlindungan {r.reviveSecs} dtk</span>}
+        {r.shield > 0 && <span><ICONS.shield size={14} />Perisai {r.shield}</span>}
+        {r.neutral > 0 && <span><ICONS.flask size={14} />Penawar {r.neutral}</span>}
+      </div>
+      <div className="rogue-bar" role="progressbar" aria-label="Progres target ronde" aria-valuemin={0} aria-valuemax={r.target} aria-valuenow={Math.min(r.roundScore, r.target)}><i style={{ width: pct + '%' }} /></div>
+      </div>
+      <div className="hud-col">
+      {r.upgrades.length > 0 && (
+        <ul className="rogue-ups" aria-label="Upgrade aktif">
+          {r.upgrades.map(u => { const I = ICONS[u.icon] || ICONS.help; return <li key={u.id}><I size={12} />{u.name} ×{u.stacks}</li>; })}
+        </ul>
+      )}
+      <div className="puzzle-msg" role="status" aria-live="polite" aria-atomic="true">{r.message}</div>
+      </div>
+    </div>
+  );
+}
+
+// Statistik Penjaga Kebun: HP boss, fase, nyawa, energi, status titik lemah (ikon + teks, bukan hanya warna), kebal, tahap serangan.
+function BossStats({ b, cols }) {
+  const BossI = ICONS.boss, BoltI = ICONS.bolt, LockI = ICONS.lock, KeyI = ICONS.key || ICONS.bolt;
+  const weakTxt = b.weak.status === 'open' ? (b.weak.ready ? `TERBUKA ${b.weak.secs} dtk: masuk sekarang!` : `TERBUKA ${b.weak.secs} dtk, butuh ${b.need} energi`) : b.weak.status === 'done' ? 'Sudah kena, menunggu' : 'TERKUNCI';
+  return (
+    <div className={`boss-hud ${cols ? 'hud-cols' : ''}`}>
+      <div className="hud-col">
+        <div className="puzzle-stats">
+          <span><BossI size={14} />Ronde {b.round}/{b.rounds}</span>
+          <span className="boss-heart-count" aria-label={`${b.lives} hati tersimpan`}><ICONS.heart size={16} fill="currentColor" /> × {b.lives}</span>
+          <span>{b.isBoss ? `Fase ${b.phase}/${b.phases} · ${b.phaseHp}/${b.phaseMaxHp} HP` : `${b.minionsLeft}/${b.minionsTotal} antek tersisa`}</span>
+        </div>
+        <div className="rogue-bar" role="progressbar" aria-label="Energi" aria-valuemin={0} aria-valuemax={b.need} aria-valuenow={Math.min(b.energy, b.need)}><i style={{ width: Math.min(100, Math.round((b.energy / b.need) * 100)) + '%' }} /></div>
+        <div className="puzzle-stats"><span><BoltI size={14} />Energi {b.energy}/{b.need}{b.energy > b.need ? ` (+${b.energy - b.need})` : ''}</span>{b.invulnSecs > 0 && <span><ICONS.shield size={14} />Kebal {b.invulnSecs} dtk</span>}</div>
+      </div>
+      <div className="hud-col">
+        <div className="puzzle-stats"><span>{b.weak.status === 'open' ? <KeyI size={14} /> : <LockI size={14} />}Titik lemah: {weakTxt}</span></div>
+        {b.isBoss && b.phase === 3 && <div className="puzzle-stats boss-power">
+          <span><ICONS.shield size={14} />Shield {b.shield}/{b.shieldMax}{b.shieldSecs > 0 ? ` · +10 dalam ${b.shieldSecs}s` : ''}</span>
+          <span><BoltI size={14} />Orb ×2: {b.damageStacks} · Damage {b.playerDamage.toLocaleString('id-ID')}</span>
+        </div>}
+        <div className="puzzle-stats"><span><b>{b.enemy}</b> · {b.isBoss ? `${b.hp}/${b.maxHp} HP · ${b.openings} celah` : '1 energi per pukulan'}</span><span>{b.stage}</span></div>
+        <div className="puzzle-msg" role="status" aria-live="polite" aria-atomic="true">{b.message}</div>
+      </div>
+    </div>
+  );
+}
+
+// Statistik Rebut Arena: waktu + target di atas, lalu satu kartu per pemain (nama + tombol, persen + bilah, nyawa).
+// Pemain dibedakan oleh label "P1/P2" dan tombolnya, bukan hanya warna.
+function TerritoryStats({ t }) {
+  const TimerI = ICONS.timeattack, FlagI = ICONS.territory;
+  return (
+    <div className="terr-hud">
+      <div className="puzzle-stats">
+        <span><TimerI size={14} />Waktu {t.timeText}</span>
+        <span><FlagI size={14} />Target {t.targetPct}% wilayah</span>
+      </div>
+      <div className="terr-players">
+        {t.players.map(p => (
+          <div key={p.id} className="terr-player" data-p={p.id}>
+            <div className="terr-row"><b>{p.name} <small>({p.keys})</small></b><span className="terr-pct">{p.pct}%</span></div>
+            <div className="rogue-bar terr-bar" role="progressbar" aria-label={`Wilayah ${p.name}`} aria-valuemin={0} aria-valuemax={t.targetPct} aria-valuenow={Math.min(p.pct, t.targetPct)}><i style={{ width: Math.min(100, Math.round((p.pct / t.targetPct) * 100)) + '%' }} /></div>
+            <div className="terr-row"><span aria-label={`Nyawa ${p.lives} dari ${p.maxLives}`}><Hearts count={p.lives} /></span><small>{p.lives}/{p.maxLives} nyawa</small></div>
+          </div>
+        ))}
+      </div>
+      <div className="puzzle-msg" role="status" aria-live="polite" aria-atomic="true">{t.message}</div>
+    </div>
+  );
+}
+
+export default function Hud({ mode, modeLabel, timerText, effects, score, best, mpHud, onHelp, side, lefty, onSwap, canPause, onPause, puzzle, onUndo, onRestart, onWait, delivery, roguelite, territory, boss, hideStats }) {
   const HelpIcon = ICONS.help;
   const TimerIcon = ICONS.timeattack;
+  const isPuzzle = mode === 'puzzle' && !!puzzle;
+  const isDelivery = mode === 'delivery' && !!delivery;
+  const isRogue = mode === 'roguelite' && !!roguelite;
+  const isTerritory = mode === 'territory' && !!territory;
+  const isBoss = (mode === 'boss' || mode === 'roguelite') && !!boss;
 
   // Mode landscape di HP: kartu kecil & ringkas di panel samping kanvas.
   if (side) {
@@ -40,10 +195,17 @@ export default function Hud({ mode, modeLabel, timerText, effects, score, best, 
     return (
       <div className="side-hud bg-white text-[#202124] rounded-xl shadow-lg px-2.5 py-2 flex flex-col gap-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
+          {isPuzzle ? (
+            <div className="flex items-center gap-1.5 min-w-0">
+              <ICONS.puzzle size={20} className="text-[#3b8fb5] shrink-0" />
+              <span className="text-2xl font-bold leading-none tabular-nums">Ruang {puzzle.levelNo}/{puzzle.levelCount}</span>
+            </div>
+          ) : (
           <div className="flex items-center gap-1.5 min-w-0">
             <ICONS.trophy size={20} className="text-[#f5b942] shrink-0" />
             <span className="text-3xl font-bold leading-none tabular-nums">{score}</span>
           </div>
+          )}
           <div className="flex items-center gap-1 shrink-0">
             <button
               onClick={onSwap}
@@ -53,15 +215,30 @@ export default function Hud({ mode, modeLabel, timerText, effects, score, best, 
             >
               <ICONS.swap size={15} />
             </button>
+            {canPause && (
+              <button onClick={onPause} aria-label="Jeda" className="w-8 h-8 rounded-full bg-[#232323] text-white flex items-center justify-center active:scale-95 transition-transform">
+                <ICONS.pause size={15} />
+              </button>
+            )}
             <button onClick={onHelp} aria-label="Bantuan" className="w-8 h-8 rounded-full bg-[#232323] text-white flex items-center justify-center active:scale-95 transition-transform">
               <HelpIcon size={15} />
             </button>
           </div>
         </div>
         <div className="flex items-center justify-between gap-2 text-[11px] text-[#5f6368] leading-none">
-          <span className="truncate font-semibold">{short}</span>
-          <span className="shrink-0">Terbaik <b className="text-[#202124]">{best}</b></span>
+          <span className="truncate font-semibold">{isPuzzle ? puzzle.name : short}</span>
+          <span className="shrink-0">{isPuzzle ? 'Rekor' : 'Terbaik'} <b className="text-[#202124]">{isPuzzle ? (puzzle.best || '-') : best}</b></span>
         </div>
+        {isPuzzle && (
+          <>
+            <PuzzleStats p={puzzle} />
+            <PuzzleActions p={puzzle} onUndo={onUndo} onRestart={onRestart} onWait={onWait} />
+          </>
+        )}
+        {isDelivery && <DeliveryStats d={delivery} />}
+        {isRogue && <RogueStats r={roguelite} />}
+        {isTerritory && <TerritoryStats t={territory} />}
+        {isBoss && <BossStats b={boss} />}
         {(showTimer || effects.length > 0) && (
           <div className="flex items-center gap-1.5 flex-wrap">
             {showTimer && (
@@ -86,7 +263,8 @@ export default function Hud({ mode, modeLabel, timerText, effects, score, best, 
       <div className="game-w bg-white text-[#202124] rounded-lg flex items-center justify-between gap-2 px-3 sm:px-4 py-2 sm:py-2.5 mb-2 sm:mb-2.5 shadow-lg">
         <div className="flex items-center gap-1.5 sm:gap-2.5 flex-wrap min-w-0">
           <ICONS.gamepad size={18} className="text-[#5f6368]" />
-          <b className="text-[15px] sm:text-[17px] tracking-wide">{modeLabel}</b>
+          <b className="text-[15px] sm:text-[17px] tracking-wide">{String(modeLabel || '').replace(/^Snake/, 'K-Snake')}</b>
+          {isPuzzle && <span className="text-[13px] font-semibold text-[#3c4043]">Ruang {puzzle.levelNo}/{puzzle.levelCount} · {puzzle.name}</span>}
           {mode === 'timeattack' && timerText && (
             <span className="flex items-center gap-1 text-[13px] font-bold text-[#c9432f]">
               <TimerIcon size={14} />{timerText}
@@ -97,10 +275,11 @@ export default function Hud({ mode, modeLabel, timerText, effects, score, best, 
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {canPause && <button onClick={onPause} aria-label="Jeda" className="icon-button"><ICONS.pause size={18} /></button>}
           <button onClick={onHelp} aria-label="Bantuan" className="w-7 h-7 rounded-full bg-[#232323] text-white flex items-center justify-center">
             <HelpIcon size={15} />
           </button>
-          {mode !== 'multiplayer' && mode !== 'mayhemduo' && (
+          {mode !== 'multiplayer' && mode !== 'mayhemduo' && mode !== 'territory' && mode !== 'boss' && !isPuzzle && (
             <div className="flex items-center gap-1.5 font-bold">
               <ICONS.trophy size={15} className="text-[#f5b942]" />
               <span>{score}</span>
@@ -108,6 +287,35 @@ export default function Hud({ mode, modeLabel, timerText, effects, score, best, 
           )}
         </div>
       </div>
+      {isRogue && !hideStats && (
+        <div className="game-w bg-white text-[#202124] rounded-lg px-3 sm:px-4 py-2 mb-2 sm:mb-2.5 shadow-lg">
+          <RogueStats r={roguelite} cols />
+        </div>
+      )}
+      {isDelivery && !hideStats && (
+        <div className="game-w bg-white text-[#202124] rounded-lg px-3 sm:px-4 py-2 mb-2 sm:mb-2.5 shadow-lg">
+          <DeliveryStats d={delivery} cols />
+        </div>
+      )}
+      {isBoss && !hideStats && (
+        <div className="game-w bg-white text-[#202124] rounded-lg px-3 sm:px-4 py-2 mb-2 sm:mb-2.5 shadow-lg">
+          <BossStats b={boss} cols />
+        </div>
+      )}
+      {isTerritory && !hideStats && (
+        <div className="game-w bg-white text-[#202124] rounded-lg px-3 sm:px-4 py-2 mb-2 sm:mb-2.5 shadow-lg">
+          <TerritoryStats t={territory} />
+        </div>
+      )}
+      {isPuzzle && !hideStats && (
+        <div className="game-w bg-white text-[#202124] rounded-lg flex flex-wrap items-center justify-between gap-2 px-3 sm:px-4 py-2 mb-2 sm:mb-2.5 shadow-lg">
+          <PuzzleStats p={puzzle} />
+          <div className="flex items-center gap-3">
+            <span className="text-[12px] text-[#5f6368]">Rekor <b className="text-[#202124]">{puzzle.best || '-'}</b></span>
+            <PuzzleActions p={puzzle} onUndo={onUndo} onRestart={onRestart} onWait={onWait} />
+          </div>
+        </div>
+      )}
     </>
   );
 }

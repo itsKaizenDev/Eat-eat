@@ -7,7 +7,7 @@ import { ICONS } from '@/lib/icons';
 // ikut jempol kayak analog, balik ke tengah pas dilepas.
 const DEAD = 0.32; // proporsi radius yang jadi zona mati
 
-export default function DPad({ onMove }) {
+export default function DPad({ onMove, onRelease }) {
   const padRef = useRef(null);
   const knobRef = useRef(null);
   const st = useRef({ pid: null, dir: null });
@@ -28,13 +28,19 @@ export default function DPad({ onMove }) {
     const ang = Math.atan2(dy, dx);
     placeKnob(Math.cos(ang) * clamped, Math.sin(ang) * clamped);
 
-    if (dist < max * DEAD) { st.current.dir = null; return; }
+    if (dist < max * DEAD) { if (st.current.dir) onRelease?.(); st.current.dir = null; return; }
 
     let dir;
     if (ang > -Math.PI / 4 && ang <= Math.PI / 4) dir = 'r';
     else if (ang > Math.PI / 4 && ang <= (3 * Math.PI) / 4) dir = 'd';
     else if (ang > (3 * Math.PI) / 4 || ang <= -(3 * Math.PI) / 4) dir = 'l';
     else dir = 'u';
+
+    const axes = { r: 0, d: Math.PI / 2, l: Math.PI, u: -Math.PI / 2 };
+    if (st.current.dir) {
+      const delta = Math.atan2(Math.sin(ang - axes[st.current.dir]), Math.cos(ang - axes[st.current.dir]));
+      if (Math.abs(delta) < Math.PI * .3) dir = st.current.dir;
+    }
 
     if (dir !== st.current.dir) {
       st.current.dir = dir;
@@ -43,9 +49,10 @@ export default function DPad({ onMove }) {
       else if (dir === 'l') onMove(-1, 0);
       else onMove(1, 0);
     }
-  }, [onMove]);
+  }, [onMove, onRelease]);
 
   const onDown = (e) => {
+    if (st.current.pid !== null || !e.isPrimary) return;
     e.preventDefault();
     st.current.pid = e.pointerId;
     padRef.current && padRef.current.setPointerCapture(e.pointerId);
@@ -61,6 +68,7 @@ export default function DPad({ onMove }) {
     if (e.pointerId !== st.current.pid) return;
     st.current.pid = null;
     st.current.dir = null;
+    onRelease?.();
     if (knobRef.current) {
       knobRef.current.style.transition = 'transform 150ms ease';
       placeKnob(0, 0);
@@ -78,6 +86,7 @@ export default function DPad({ onMove }) {
       onPointerMove={onMovePtr}
       onPointerUp={onUp}
       onPointerCancel={onUp}
+      onLostPointerCapture={onUp}
     >
       <ICONS.up className={arrow} style={{ top: '9%', left: '50%', transform: 'translateX(-50%)' }} size={24} strokeWidth={2.6} />
       <ICONS.down className={arrow} style={{ bottom: '9%', left: '50%', transform: 'translateX(-50%)' }} size={24} strokeWidth={2.6} />

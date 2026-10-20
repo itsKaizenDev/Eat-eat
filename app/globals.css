@@ -2,210 +2,312 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ---------- Responsif ----------
-   --gw = lebar area game (HUD + kanvas). Dibatasi lebar layar DAN tinggi layar,
-   supaya di HP (portrait/landscape), tablet, sampai desktop semuanya muat tanpa scroll.
-   --dpad = diameter pad arah bulat. */
-:root {
-  --dpad: clamp(150px, 44vw, 190px);
-  --gw: min(100vw - 16px, 640px, max(260px, calc((100dvh - 270px) * 1.13)));
+:root { --dpad:clamp(150px,44vw,190px); --gw:min(100vw - 32px,640px,max(260px,calc((100dvh - 270px) * 1.13))); }
+html,body { min-height:100%; margin:0; -webkit-tap-highlight-color:transparent; }
+body { min-height:100dvh; }
+.game-w { width:var(--gw); }
+canvas { display:block; width:100%; height:auto; border-radius:2px; touch-action:none; }
+#dpad { touch-action:none; background:#e5eadc; border-color:#cbd6c0; box-shadow:0 3px 0 #cbd6c0; }
+#dpad > div { background:#fffef8; border-color:#b8c8ad; box-shadow:0 4px 8px #253e3120; }
+#dpad svg { color:#456b47; }
+.stage { width:100%; display:flex; flex-direction:column; align-items:center; }
+.stage-side { --side-w:clamp(210px,32vw,280px); --gh:calc(100dvh - 24px); --gw:min(calc(100vw - var(--side-w) - 48px),calc((var(--gh) - 8px) * 1.1333)); --dpad:clamp(110px,40vh,180px); display:grid; grid-template-columns:var(--gw) var(--side-w); grid-template-rows:auto 1fr; grid-template-areas:'game hud' 'game pad'; gap:8px 16px; height:var(--gh); max-width:1100px; justify-content:center; align-items:start; }
+.stage-lefty { grid-template-columns:var(--side-w) var(--gw); grid-template-areas:'hud game' 'pad game'; }
+.stage-side #wrap { grid-area:game; align-self:center; border-width:4px; }
+.stage-side .side-hud { grid-area:hud; width:100%; max-height:55dvh; overflow:auto; }
+.stage-side #dpad { grid-area:pad; align-self:end; justify-self:center; margin-top:0; }
+.stage-side .side-menu { grid-column:2; grid-row:1 / 3; align-self:center; width:100%; min-height:0; max-height:100%; overflow-y:auto; touch-action:pan-y; }
+.stage-lefty .side-menu { grid-column:1; }
+.stage-side:not(.menu-open) .side-menu { display:none; }
+.stage-side.menu-open .side-hud,.stage-side.menu-open #dpad { display:none; }
+@media (hover:hover) and (pointer:fine) { #dpad { display:none!important; } :root { --gw:min(100vw - 32px,640px,max(260px,calc((100dvh - 200px) * 1.13))); } }
+@media (max-width:360px) { :root { --dpad:136px; } }
+@keyframes rotate-phone { 0%,20% { transform:rotate(0); } 60%,100% { transform:rotate(-90deg); } }
+.rotate-phone { animation:rotate-phone 2s ease-in-out infinite; }
+
+.puzzle-hud { display: flex; flex-direction: column; gap: 4px; }
+.puzzle-stats { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; font-weight: 600; color: #202124; }
+.puzzle-stats span { display: inline-flex; align-items: center; gap: 4px; }
+.puzzle-msg { min-height: 16px; font-size: 11px; color: #5f6368; }
+.puzzle-actions button { display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 4px 10px; border-radius: 999px; background: #232323; color: #fff; font-size: 12px; font-weight: 600; }
+.puzzle-actions button:disabled { opacity: .4; cursor: not-allowed; }
+.deliv-hud { display: flex; flex-direction: column; gap: 5px; }
+.deliv-slots { display: flex; gap: 6px; }
+.deliv-slot { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 46px; padding: 3px 6px; border: 2px dashed #b9c2b0; border-radius: 8px; font-size: 10.5px; font-weight: 700; color: #3c4043; background: #f4f7f0; }
+.deliv-slot[data-filled="true"] { border-style: solid; border-color: #202124; background: #fff; }
+.deliv-slot[data-low="true"] { border-color: #d93025; color: #d93025; }
+.deliv-orders { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 11.5px; font-weight: 600; color: #3c4043; }
+.rogue-hud { display: flex; flex-direction: column; gap: 5px; }
+.rogue-bar { height: 8px; border-radius: 999px; background: #dfe5d6; overflow: hidden; border: 1px solid #b9c2b0; }
+.rogue-bar > i { display: block; height: 100%; background: #3f9b52; transition: width .2s linear; }
+.rogue-ups { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 8px; font-size: 11.5px; font-weight: 600; color: #3c4043; }
+.rogue-ups li { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px 1px 6px; border: 1px solid #b9c2b0; border-radius: 999px; background: #f4f7f0; }
+.hud-col { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.terr-hud { display: flex; flex-direction: column; gap: 6px; }
+.terr-players { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.terr-player { display: flex; flex-direction: column; gap: 4px; padding: 6px 8px; border: 2px solid #b9c2b0; border-radius: 10px; background: #f4f7f0; font-size: 12px; font-weight: 600; color: #202124; }
+.terr-player[data-p="1"] { border-style: solid; }
+.terr-player[data-p="2"] { border-style: dashed; }
+.terr-player small { font-size: 11px; font-weight: 500; color: #5f6368; }
+.terr-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.terr-pct { font-size: 15px; font-weight: 700; }
+.terr-bar > i { background: #3f9b52; }
+.terr-player[data-p="2"] .terr-bar > i { background: #2f7fd0; }
+@media (min-width: 640px) { .hud-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 16px; align-items: start; } }
+@media (min-width: 640px) { .hud-cols .hud-col + .hud-col { padding-left: 14px; border-left: 1px solid #dfe5d6; } }
+@media (max-width: 480px) { .terr-players { gap: 6px; } }
+.puzzle-stats [data-guard="chase"] { color: #b3261e; font-weight: 700; }
+/* Fokus: satu bahasa visual untuk menu, dialog, dan panel permainan. */
+:root { --paper:#f7f6ee; --surface:#fffef8; --ink:#253e31; --muted:#667367; --line:#dce2d4; --green:#315f42; }
+html,body { background:var(--paper); color:var(--ink); font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; touch-action:pan-y; }
+body { padding: max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left)); }
+button,a,summary { -webkit-tap-highlight-color:transparent; }
+button { cursor:pointer; }
+button:disabled { cursor:not-allowed; opacity:.5; }
+button:focus-visible,a:focus-visible,summary:focus-visible { outline:3px solid #487b54; outline-offset:4px; }
+button { transition:background .18s,color .18s,transform .18s; }
+button:active:not(:disabled) { transform:translateY(1px); }
+.focus-stage { max-width:1000px; margin:auto; }
+.focus-stage #wrap { width:100%; border:0; border-radius:0; overflow:visible; box-shadow:none; }
+.canvas-sleep { display:none; }
+.focus-menu { width:100%; text-align:left; }
+.focus-header { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:12px 0 24px; }
+.brand { display:flex; align-items:center; font-family:'Fredoka',ui-rounded,system-ui,sans-serif; font-size:29px; font-weight:600; letter-spacing:-1px; text-decoration:none; white-space:nowrap; }
+.brand img { width:38px; height:38px; object-fit:contain; margin-right:7px; }
+.brand span,.focus-loading b span { color:#88a75e; }
+.menu-tabs { display:flex; border:1px solid var(--line); border-radius:999px; background:#eeefe6; padding:4px; }
+.menu-tabs button { min-height:44px; padding:0 20px; border-radius:999px; font-size:13px; font-weight:650; color:var(--muted); }
+.menu-tabs button[aria-pressed=true] { color:var(--ink); background:var(--surface); box-shadow:0 1px 4px #253e3110; }
+.icon-button { display:inline-flex; align-items:center; justify-content:center; min-width:44px; min-height:44px; border:1px solid var(--line); border-radius:50%; color:var(--ink); background:var(--surface); flex-shrink:0; }
+.menu-hero { position:relative; height:300px; overflow:hidden; isolation:isolate; border-radius:24px; background:#254c3a; }
+.focus-scene { position:absolute; inset:0; pointer-events:none; }
+.focus-scene picture { display:block; height:100%; animation:scene-in .35s ease-out; }
+.focus-scene img { height:100%; width:100%; object-fit:contain; object-position:right center; mask-image:linear-gradient(90deg,transparent,black 24%); animation:scene-drift 18s ease-in-out infinite alternate; }
+.hero-copy { position:absolute; inset:0; padding:40px; display:flex; flex-direction:column; justify-content:center; align-items:flex-start; color:#fffef5; max-width:55%; }
+.eyebrow { text-transform:uppercase; letter-spacing:.13em; font-size:10px; font-weight:750; }
+.hero-copy h1 { font-family:'Fredoka',ui-rounded,system-ui,sans-serif; font-weight:600; font-size:clamp(30px,4.5vw,54px); line-height:1.06; letter-spacing:-1px; margin:12px 0 20px; text-wrap:balance; }
+.hero-tag { display:inline-flex; border:1px solid #ffffff42; padding:6px 10px; border-radius:999px; font-size:11px; background:#173d2a45; }
+.menu-fieldset { min-width:0; margin:0; padding:0; border:0; }
+.focus-stage .start-menu { width:100%; max-width:none; padding:28px 0 0; background:none; border:0; box-shadow:none; border-radius:0; color:var(--ink); text-align:left; }
+.focus-stage .arc-cols,.focus-stage .adv-cols { display:grid; grid-template-columns:minmax(0,1.15fr) minmax(0,1fr); gap:36px; }
+.focus-stage .arc-set { display:flex; flex-direction:column; padding-left:32px; border-left:1px solid var(--line); }
+.start-menu-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; font-size:13px; font-weight:700; margin:0 0 12px; color:var(--ink); }
+.start-menu-heading > :last-child:not(:first-child) { font-size:11px; font-weight:500; color:var(--muted); }
+.focus-stage .start-groups { display:flex; gap:4px; padding:4px; margin:0 0 12px; border-radius:14px; background:#e9ede3; }
+.focus-stage .mode-group { display:flex; flex:1; flex-direction:row; justify-content:center; align-items:center; gap:6px; min-height:44px; border:0; padding:8px 6px; border-radius:10px; font-size:13px; font-weight:650; color:var(--muted); background:none; box-shadow:none; }
+.focus-stage .mode-group.active { color:var(--ink); background:var(--surface); box-shadow:0 1px 4px #253e3112; }
+.focus-stage .start-modes { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin:0 0 14px; }
+.focus-stage .mode-btn { display:flex; flex-direction:row; align-items:center; justify-content:flex-start; gap:10px; min-height:56px; padding:12px 14px; border:1px solid var(--line); border-radius:13px; font-size:14px; font-weight:600; color:var(--ink); background:var(--surface); box-shadow:none; line-height:1.25; }
+.focus-stage .mode-btn.active { border-color:var(--accent); background:color-mix(in srgb,var(--accent) 12%,var(--surface)); box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 20%,transparent); }
+.focus-stage .mode-btn.active::after { content:''; width:6px; height:6px; border-radius:50%; background:var(--ink); margin-left:auto; flex-shrink:0; }
+.mode-btn svg { flex-shrink:0; }
+.focus-stage .start-description { color:var(--muted); font-size:13px; line-height:1.65; min-height:0; margin:10px 0; }
+.focus-stage .start-settings { margin:0; padding:0; border:0; }
+.focus-stage .start-chips { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; }
+.focus-stage .start-chips button { min-height:44px; padding:6px 3px; border-radius:10px; border:1px solid var(--line); background:var(--surface); color:var(--muted); font-size:12px; font-weight:600; white-space:nowrap; }
+.focus-stage .start-chips button[aria-pressed=true] { background:var(--green); color:#fff; border-color:var(--green); }
+.focus-stage .start-duration { margin-top:18px; }
+.start-play { display:flex; align-items:center; justify-content:space-between; width:100%; min-height:52px; margin-top:22px; padding:14px 20px; border-radius:14px; border:1px solid var(--green); background:var(--green); color:#fff; font-size:15px; font-weight:700; box-shadow:0 3px 0 #244a32; letter-spacing:0; }
+.focus-stage .arc-set .start-play { margin-top:auto; }
+.focus-stage .start-touch-note { display:flex; align-items:flex-start; gap:8px; color:var(--muted); font-size:11px; line-height:1.6; margin:14px 0; }
+.start-touch-note svg { flex-shrink:0; margin-top:2px; }
+.focus-stage .start-locked { display:flex; gap:8px; align-items:center; color:#803d36; background:#f4e6df; padding:12px; border-radius:12px; font-size:13px; }
+.menu-footer { display:flex; justify-content:center; align-items:center; gap:8px; margin:25px 0 8px; color:var(--muted); font-size:11px; }
+.focus-stage .adv-modes[data-n] { grid-template-columns:repeat(5,minmax(0,1fr)); }
+.focus-stage .adv-modes .mode-btn { justify-content:center; flex-direction:column; font-size:12px; padding:12px 6px; min-height:76px; }
+.focus-stage .adv-modes .mode-btn.active::after { display:none; }
+.focus-stage .adv-cols { margin-top:20px; }
+.focus-stage .start-preview { color:var(--muted); font-size:13px; line-height:1.5; padding-top:12px; gap:10px; }
+.mode-details { border-top:1px solid var(--line); margin-top:16px; padding-top:12px; font-size:13px; }
+.mode-details summary { min-height:32px; cursor:pointer; font-weight:650; }
+.focus-stage .level-btn { border:1px solid var(--line); border-radius:10px; color:var(--ink); background:var(--surface); min-height:52px; }
+.focus-stage .level-btn[aria-pressed=true] { background:var(--green); border-color:var(--green); color:white; }
+.focus-stage .level-btn small { color:inherit; opacity:.75; }
+.focus-stage .level-pager { color:var(--muted); font-size:12px; margin:0 0 10px; }
+.focus-stage .level-pager button { color:var(--ink); border-color:var(--line); background:var(--surface); width:44px; min-height:44px; }
+.focus-stage .level-intro { color:var(--ink); background:#e9efdf; border:0; padding:12px; font-size:13px; }
+.secondary-button { display:flex; align-items:center; justify-content:center; width:100%; min-height:46px; padding:10px 20px; border:1px solid var(--line); border-radius:12px; color:var(--ink); background:var(--surface); font-size:13px; font-weight:600; }
+.playing-stage { margin:auto; }
+.playing-stage #wrap { border-radius:18px; box-shadow:0 8px 24px #253e3118; }
+.playing-stage .game-w:not(#wrap),.side-hud { box-shadow:none; border:1px solid var(--line); border-radius:16px; background:var(--surface); }
+.playing-stage button[aria-label="Bantuan"],.side-hud button { min-width:44px; min-height:44px; }
+.result-overlay { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding:20px; overflow:auto; z-index:40; }
+.result-card { position:relative; width:min(100%,360px); margin:auto; padding:24px; background:var(--surface); color:var(--ink); border-radius:24px; text-align:center; }
+.result-card h2 { font-family:'Fredoka',system-ui,sans-serif; font-size:30px; font-weight:600; line-height:1.2; margin:8px 0; }
+.result-card p { font-size:13px; line-height:1.6; color:var(--muted); white-space:pre-line; }
+.result-mascot { margin:0 auto 10px; width:120px; height:120px; object-fit:contain; }
+.result-actions { display:grid; gap:12px; }
+.revive-info { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 12px; border:1px solid #d9dfcb; border-radius:12px; background:#f0f4e7; color:#35583d; font-size:12px; }
+.revive-info > span { display:inline-flex; align-items:center; gap:5px; flex-shrink:0; }
+.revive-info small { max-width:190px; text-align:right; line-height:1.4; }
+.revive-button { display:flex; align-items:center; justify-content:center; gap:8px; min-height:46px; border-radius:14px; background:#d9ecb9; color:#29452e; border:2px solid #819e60; font-weight:700; margin-top:12px; }
+.revive-button:hover:not(:disabled) { background:#cce4a4; }
+.revive-button:disabled { opacity:.5; cursor:not-allowed; }
+.result-actions .revive-detail { margin:0; font-size:11px; }
+.result-actions .revive-info { text-align:left; }
+.result-card:has(.revive-button) .result-mascot { width:64px; height:64px; }
+.result-actions:has(.revive-button) { gap:8px; }
+.result-actions:has(.revive-button) .start-play { margin-top:8px; }
+.puzzle-legend { display:flex; flex-wrap:wrap; gap:3px 12px; color:#59654b; font-size:11px; margin-top:5px; }
+.puzzle-legend span { display:inline-flex; align-items:center; gap:4px; }
+.puzzle-legend svg { flex-shrink:0; }
+.puzzle-stats [data-guard="alert"] { color:#965517; }
+.puzzle-stats .apple-counter { color:#886216; }
+.apple-counter small { font-weight:400; }
+.coin-wallet { display:flex; flex-wrap:wrap; align-items:center; gap:7px; margin:12px 0; padding:10px 12px; border:1px solid #e2d8ab; border-radius:12px; background:#f8f0d9; color:#79601f; font-size:12px; }
+.coin-wallet span { flex-basis:100%; padding-left:25px; color:#7e7864; font-size:11px; }
+.result-actions .start-play { margin-top:20px; }
+.confetti { position:absolute; inset:0; pointer-events:none; }
+.focus-dialog { background:var(--surface)!important; color:var(--ink)!important; border:1px solid var(--line); border-radius:24px; padding:24px; }
+.focus-dialog p,.focus-dialog dl,.focus-dialog dt,.focus-dialog span { color:inherit; }
+.focus-dialog h3 { font-size:20px; margin-bottom:14px; }
+.focus-dialog > div { border-color:var(--line); }
+.focus-dialog button:not(.upgrade-card) { min-height:48px; background:var(--green); border-radius:12px; }
+.upgrade-card { border:1px solid var(--line); background:#f0f3e8; color:var(--ink); padding:16px; border-radius:16px; }
+.upgrade-card:hover:not(:disabled),.upgrade-card:focus-visible { background:#e3edd9; border-color:var(--green); }
+.upgrade-key { border-color:var(--green); }
+.rotate-dialog { background:var(--paper); color:var(--ink); }
+.rotate-dialog p { color:var(--muted); }
+.rotate-dialog h2 { text-shadow:none!important; }
+.rotate-dialog svg { stroke:var(--green); }
+.rotate-dialog .secondary-button { max-width:280px; }
+.focus-loading { position:fixed; inset:0; z-index:100; display:flex; flex-direction:column; align-items:center; justify-content:center; background:var(--paper); gap:14px; }
+.focus-loading b { font-family:'Fredoka',system-ui,sans-serif; font-size:36px; }
+.focus-loading p { font-size:13px; color:var(--muted); }
+.focus-loading i { width:100px; height:4px; border-radius:8px; background:var(--green); animation:loading-pulse 1s ease-in-out infinite alternate; }
+@keyframes loading-pulse { to { opacity:.25; transform:scaleX(.65); } }
+@keyframes scene-in { from { opacity:0; } to { opacity:1; } }
+@keyframes scene-drift { to { transform:translateX(-2px); } }
+@media (max-width:639px) {
+ body { padding:12px 16px max(20px,env(safe-area-inset-bottom)); }
+ .focus-header { flex-wrap:wrap; gap:14px; padding:4px 0 18px; }
+ .brand { font-size:26px; }
+ .menu-tabs { order:3; width:100%; }
+ .menu-tabs button { flex:1; min-height:44px; }
+ .menu-hero { height:auto; aspect-ratio:1672/941; border-radius:18px; }
+ .focus-scene img { mask-image:none; }
+ .hero-copy { padding:18px; max-width:51%; }
+ .hero-copy h1 { font-size:30px; margin:10px 0 12px; }
+ .hero-copy .eyebrow { font-size:8px; letter-spacing:.08em; }
+ .hero-tag { font-size:9px; padding:4px 6px; }
+ .focus-stage .start-menu { padding-top:22px; }
+ .focus-stage .arc-cols,.focus-stage .adv-cols { grid-template-columns:1fr; gap:18px; }
+ .focus-stage .arc-set { padding:0; border:0; }
+ .focus-stage .mode-btn { min-height:54px; font-size:13px; }
+ .focus-stage .arc-set .start-play { margin-top:10px; }
+ .focus-stage .adv-modes[data-n] { grid-template-columns:repeat(2,minmax(0,1fr)); }
+ .focus-stage .adv-modes .mode-btn { min-height:54px; flex-direction:row; justify-content:flex-start; padding:10px; }
+ .focus-stage .adv-cols { margin-top:0; }
+ .result-overlay { position:fixed!important; inset:0!important; border-radius:0; }
+}
+.stage-side.focus-stage { display:grid; grid-template-columns:minmax(0,1fr) minmax(300px,1fr); grid-template-rows:1fr; gap:24px; height:auto; min-height:calc(100dvh - 24px); align-items:center; }
+.stage-side.focus-stage #wrap { grid-column:1; grid-row:1; border:0; }
+.stage-side.focus-stage .side-menu { grid-column:2; grid-row:1; max-height:calc(100dvh - 24px); padding:8px 4px; }
+.stage-side.focus-stage .focus-header { flex-wrap:wrap; gap:8px; padding:0 0 14px; }
+.stage-side.focus-stage .menu-tabs { order:3; width:100%; }
+.stage-side.focus-stage .menu-tabs button { flex:1; padding:0 12px; }
+.stage-side.focus-stage .menu-hero { height:auto; aspect-ratio:1672/941; }
+.stage-side.focus-stage .hero-copy { padding:18px; max-width:55%; }
+.stage-side.focus-stage .hero-copy h1 { font-size:30px; }
+.stage-side.focus-stage .focus-scene img { mask-image:none; }
+.stage-side.focus-stage .arc-cols,.stage-side.focus-stage .adv-cols { display:block; }
+.stage-side.focus-stage .arc-set { padding:0; border:0; }
+.stage-side.focus-stage .start-menu { padding:0; }
+.stage-side.focus-stage .start-play { margin-top:16px; }
+.stage-side.focus-stage .adv-modes[data-n] { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.stage-side.focus-stage .mode-btn { min-height:44px; padding:8px; font-size:12px; }
+.stage-side.focus-stage .adv-modes .mode-btn { flex-direction:row; }
+.stage-side .result-overlay { position:absolute!important; padding:12px!important; }
+.stage-side .result-card { padding:16px; }
+.stage-side .result-mascot { width:64px; height:64px; }
+.stage-side .result-overlay:has(.revive-button) { position:fixed!important; inset:0!important; }
+.stage-side .result-card:has(.revive-button) { width:min(100%,640px); display:grid; grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr); grid-template-rows:1fr auto auto 1fr; column-gap:24px; }
+.stage-side .result-card:has(.revive-button) > :not(.result-actions) { grid-column:1; }
+.stage-side .result-card:has(.revive-button) .result-mascot { align-self:end; }
+.stage-side .result-card:has(.revive-button) h2 { font-size:26px; }
+.stage-side .result-actions:has(.revive-button) { grid-column:2; grid-row:1 / 5; gap:6px; }
+.stage-side .result-actions .revive-button,.stage-side .result-actions:has(.revive-button) .start-play { margin-top:0; min-height:44px; padding:10px 12px; }
+.stage-side .result-actions:has(.revive-button) .secondary-button { min-height:44px; padding:10px 12px; }
+.stage-side.menu-open:not(.focus-stage) .side-menu { display:none; }
+@media (pointer:coarse) { .focus-scene img { animation:none; } }
+@media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation:none!important; transition:none!important; scroll-behavior:auto!important; } }
+
+.focus-stage .mode-btn.active { color:var(--ink); }
+.focus-stage .mode-btn:hover,.focus-stage .mode-group:hover { background:#e9efdf; color:var(--ink); }
+.focus-stage .mode-btn.active:hover { background:color-mix(in srgb,var(--accent) 18%,var(--surface)); }
+.focus-stage button:focus-visible { outline:3px solid var(--green); outline-offset:3px; }
+.level-list { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:6px; }
+.level-btn { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; }
+.level-btn small { font-size:10px; }
+.level-pager { display:flex; align-items:center; justify-content:space-between; }
+.level-pager button { display:flex; align-items:center; justify-content:center; }
+.start-preview { list-style:disc; padding-left:18px!important; }
+.upgrade-card { display:flex; flex-direction:column; gap:10px; text-align:left; }
+.upgrade-card dt { font-size:11px; font-weight:650; margin-top:8px; }
+.upgrade-card dd { font-size:13px; line-height:1.5; }
+.upgrade-key { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border:1px solid; border-radius:6px; }
+
+/* Batas gambar mengikuti rasio aset, sehingga transisi tepi juga tepat. */
+.focus-scene picture { width:auto; aspect-ratio:1672/941; margin-left:auto; mask-image:linear-gradient(90deg,transparent,black 25%); }
+.focus-scene img { mask-image:none; }
+.stage-side.focus-stage .side-menu { overflow:visible; }
+.stage-side.focus-stage .menu-fieldset { display:flex; flex-direction:column; max-height:calc(100dvh - 48px); }
+.side-scroll { overflow-y:auto; min-height:0; overscroll-behavior:contain; padding:3px; }
+.side-scroll .start-play { display:none; }
+.stage-side.focus-stage .menu-fieldset > .start-play { flex-shrink:0; margin-top:12px; }
+.stage-side.focus-stage .focus-scene picture { mask-image:none; }
+@media (max-width:639px) { .focus-scene picture { mask-image:none; width:100%; } }
+
+/* Penjaga Kebun: satu ikon untuk simpanan hati, tetap ringkas di panel HP. */
+.boss-heart-count { color: #ab4142; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+/* Aset cutout: bagian kiri benar-benar transparan, judul memakai outline. */
+.menu-hero:has(.scene-cutout) { background:transparent; border-radius:0; }
+.scene-cutout picture { width:100%; mask-image:none; }
+.scene-cutout img { object-fit:contain; object-position:right center; }
+.menu-hero:has(.scene-cutout) .hero-copy h1 { color:#fffbed; -webkit-text-stroke:3px #304831; paint-order:stroke fill; text-shadow:0 2px 0 #304831; }
+.menu-hero:has(.scene-cutout) .hero-copy .eyebrow { color:#304831; text-shadow:0 1px 0 #fffbed; }
+.menu-hero:has(.scene-cutout) .hero-tag { background:transparent; border:0; color:#304831; padding-left:0; text-shadow:1px 0 #fffbed,-1px 0 #fffbed,0 1px #fffbed,0 -1px #fffbed; }
+.help-dialog { max-width:780px; padding:24px; border-radius:24px; }
+.help-dialog h3 { font-family:'Fredoka',ui-rounded,system-ui,sans-serif; font-size:25px; margin-bottom:16px; }
+.help-controls { display:flex; flex-wrap:wrap; gap:8px 20px; padding-bottom:16px; color:#41533b; font-size:13px; }
+.help-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; border-top:1px solid #d5ddca; padding-top:16px; }
+.help-rule { display:flex; align-items:flex-start; gap:9px; padding:14px; border:1px solid #dae2ce; border-radius:14px; background:#f0f3e7; color:#34442f; margin:0; line-height:1.55; }
+.help-rule-icon { color:#507139; margin-top:3px; }
+@media (max-width:480px) {
+ .help-dialog { padding:16px; }
+ .help-dialog h3 { font-size:22px; }
+ .help-grid { gap:8px; }
+ .help-rule { flex-direction:column; padding:10px; gap:6px; font-size:12px; }
+ .help-controls { font-size:12px; }
+ .menu-hero:has(.scene-cutout) .hero-copy { padding:12px; max-width:50%; }
+ .menu-hero:has(.scene-cutout) .hero-copy h1 { font-size:28px; -webkit-text-stroke:2.5px #304831; }
 }
 
-html, body {
-  min-height: 100%;
-  margin: 0;
-  background: #1e1e1e;
-  font-family: 'Fredoka', ui-rounded, system-ui, sans-serif;
-  -webkit-tap-highlight-color: transparent;
-  overscroll-behavior: none;
+.focus-stage .adv-modes[data-n="4"] { grid-template-columns:repeat(4,minmax(0,1fr)); }
+@media (max-width:639px) { .focus-stage .adv-modes[data-n="4"] { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+.stage-side.focus-stage .adv-modes[data-n="4"] { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.boss-power { padding:7px 9px; border:1px solid #a8c5c3; border-radius:9px; background:#e7efe2; }
+
+/* Status dungeon dan kegagalan simpan tetap terbaca pada layar kecil. */
+.dungeon-hearts { color:#a04444; font-weight:750; }
+.puzzle-stats [data-guard="windup"] { color:#a03c31; font-weight:750; }
+.puzzle-stats [data-guard="recover"] { color:#487043; }
+.save-notice { margin:10px 0; padding:12px; border:1px solid #c69a53; border-radius:12px; background:#fff1d6; color:#765221; font-size:12px; line-height:1.5; }
+.save-notice p { margin:0 0 8px; color:inherit; }
+.save-notice button { min-height:44px; padding:8px 12px; border:1px solid #a78240; border-radius:9px; font-weight:700; background:#fffaf0; }
+@media (min-width:640px) and (max-height:850px) {
+ .focus-header { padding-bottom:18px; }
+ .menu-hero { height:240px; }
+ .focus-stage .start-menu { padding-top:20px; }
+ .menu-footer { margin-top:16px; }
 }
 
-body {
-  min-height: 100dvh;
-  padding:
-    max(8px, env(safe-area-inset-top))
-    max(8px, env(safe-area-inset-right))
-    max(8px, env(safe-area-inset-bottom))
-    max(8px, env(safe-area-inset-left));
+/* HUD dungeon lebih tinggi; papan menyesuaikan tinggi laptop dan panel HP. */
+@media (hover:hover) and (pointer:fine) {
+ .playing-stage[data-mode="puzzle"] { --gw:min(calc(100vw - 32px),640px,max(260px,calc((100dvh - 320px) * 1.13))); }
 }
-
-.game-w { width: var(--gw); }
-
-canvas {
-  display: block;
-  width: 100%;
-  height: auto;
-  border-radius: 2px;
-  touch-action: none; /* swipe di kanvas tidak ikut scroll halaman */
-}
-
-.mode-btn.active,
-.mode-group.active {
-  border-color: var(--accent, #5f9c22) !important;
-  background: rgba(20, 20, 20, .92);
-  box-shadow: 0 0 12px 1px var(--accent, #5f9c22);
-}
-
-/* ---------- Scene menu (BackgroundLayer) ---------- */
-.kb { animation: kb-drift 18s ease-in-out infinite alternate; }
-@keyframes kb-drift {
-  from { transform: scale(1.07) translate3d(0, 0, 0); }
-  to   { transform: scale(1.13) translate3d(-1.4%, -1%, 0); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .kb { animation: none !important; }
-}
-
-/* Gambar scene per mode. HP (layar sentuh) pakai varian -m.webp yang lebih kecil. */
-.bgimg-classic { background-image: url('/assets/game/bg-classic.webp'); }
-.bgimg-classicnight { background-image: url('/assets/game/bg-classicnight.webp'); }
-.bgimg-portal { background-image: url('/assets/game/bg-portal.webp'); }
-.bgimg-timeattack { background-image: url('/assets/game/bg-timeattack.webp'); }
-.bgimg-mayhem { background-image: url('/assets/game/bg-mayhem.webp'); }
-.bgimg-mayhemplus { background-image: url('/assets/game/bg-mayhemplus.webp'); }
-.bgimg-mayhemhard { background-image: url('/assets/game/bg-mayhemhard.webp'); }
-.bgimg-impossible { background-image: url('/assets/game/bg-impossible.webp'); }
-.bgimg-multiplayer { background-image: url('/assets/game/bg-multiplayer.webp'); }
-.bgimg-mayhemduo { background-image: url('/assets/game/bg-mayhemduo.webp'); }
-@media (hover: none) and (pointer: coarse) {
-  .bgimg-classic { background-image: url('/assets/game/bg-classic-m.webp'); }
-  .bgimg-classicnight { background-image: url('/assets/game/bg-classicnight-m.webp'); }
-  .bgimg-portal { background-image: url('/assets/game/bg-portal-m.webp'); }
-  .bgimg-timeattack { background-image: url('/assets/game/bg-timeattack-m.webp'); }
-  .bgimg-mayhem { background-image: url('/assets/game/bg-mayhem-m.webp'); }
-  .bgimg-mayhemplus { background-image: url('/assets/game/bg-mayhemplus-m.webp'); }
-  .bgimg-mayhemhard { background-image: url('/assets/game/bg-mayhemhard-m.webp'); }
-  .bgimg-impossible { background-image: url('/assets/game/bg-impossible-m.webp'); }
-  .bgimg-multiplayer { background-image: url('/assets/game/bg-multiplayer-m.webp'); }
-  .bgimg-mayhemduo { background-image: url('/assets/game/bg-mayhemduo-m.webp'); }
-  /* HP: tanpa gerak ken burns terus-menerus (hemat baterai & mulus saat transisi) */
-  .kb { animation: none; will-change: auto; transform: scale(1.08); }
-}
-.bg-scene.lite .kb { animation: none; will-change: auto; transform: scale(1.08); }
-
-#dpad { touch-action: none; }
-
-/* Desktop (mouse): tombol panah disembunyikan, tinggi yang dipesan lebih kecil */
-@media (hover: hover) and (pointer: fine) {
-  #dpad { display: none !important; }
-  html, body { touch-action: auto; }
-  :root { --gw: min(100vw - 16px, 640px, max(260px, calc((100dvh - 130px) * 1.13))); }
-}
-
-/* Layar sangat sempit (HP kecil) */
-@media (max-width: 360px) {
-  :root { --dpad: 136px; }
-}
-
-/* HP / layar sentuh: menu (mulai, game over, jeda) jadi layar penuh supaya
-   semua tombol muat tanpa perlu scroll. Di desktop tetap di dalam kanvas. */
-@media (hover: none) and (pointer: coarse), (max-width: 480px) {
-  .bg-scene {
-    position: fixed !important;
-    inset: 0 !important;
-    z-index: 39;
-  }
-  .overlay-root {
-    position: fixed !important;
-    inset: 0 !important;
-    z-index: 40;
-    border-radius: 0 !important;
-    padding-top: max(16px, env(safe-area-inset-top));
-    padding-bottom: max(16px, env(safe-area-inset-bottom));
-    padding-left: max(16px, env(safe-area-inset-left));
-    padding-right: max(16px, env(safe-area-inset-right));
-  }
-}
-
-/* Saat main di layar sentuh, gesekan jari tidak boleh menggeser/zoom halaman */
-@media (hover: none) and (pointer: coarse) {
-  html, body { touch-action: none; }
-  .overlay-root { touch-action: pan-y; }
-}
-
-/* ---------- Layout ---------- */
-.stage {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-/* HP landscape: 2 kolom -> [ kanvas game ] [ info + tombol panah ]
-   Kolom samping sengaja ramping (--side-w); sisa tinggi layar dipakai habis buat kanvas.
-   Saat menu terbuka, kolom samping berisi kontrol menu (mode, kecepatan, PLAY), dan bg scene
-   pas di kotak game (rasio sama dengan gambarnya, jadi nggak ke-crop). */
-.stage-side {
-  --side-w: clamp(176px, 30vw, 250px);
-  --gh: calc(100dvh - max(4px, env(safe-area-inset-top)) - max(4px, env(safe-area-inset-bottom)));
-  --gw: min(calc(100vw - var(--side-w) - 40px), calc((var(--gh) - 8px) * 1.1333 + 8px));
-  --dpad: clamp(120px, 44vh, 210px);
-  display: grid;
-  grid-template-columns: var(--gw) var(--side-w);
-  grid-template-rows: auto 1fr;
-  grid-template-areas: "game hud" "game pad";
-  column-gap: 12px;
-  row-gap: 8px;
-  height: var(--gh);
-  max-width: 1100px;
-  justify-content: center;
-  align-items: start;
-}
-.stage-lefty {
-  grid-template-columns: var(--side-w) var(--gw);
-  grid-template-areas: "hud game" "pad game";
-}
-.stage-side #wrap { grid-area: game; align-self: center; border-width: 4px; }
-.stage-side .side-hud { grid-area: hud; width: 100%; }
-.stage-side #dpad { grid-area: pad; align-self: end; justify-self: center; margin-top: 0; }
-
-.stage-side .side-menu {
-  grid-column: 2; grid-row: 1 / 3;
-  align-self: center; width: 100%; min-height: 0; max-height: 100%;
-  overflow-y: auto; touch-action: pan-y;
-}
-.stage-lefty .side-menu { grid-column: 1; }
-.stage-side:not(.menu-open) .side-menu { display: none; }
-.stage-side.menu-open .side-hud,
-.stage-side.menu-open #dpad { display: none; }
-
-.side-card {
-  width: 100%;
-  background: rgba(27, 27, 27, .96);
-  border: 1px solid rgba(255, 255, 255, .08);
-  border-radius: 14px;
-  padding: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
-}
-
-/* Di HP landscape bg + menu ada DI DALAM kotak game (bukan layar penuh) */
-.stage-side .bg-scene {
-  position: absolute !important; inset: 0 !important; z-index: auto !important;
-}
-.stage-side .overlay-root {
-  position: absolute !important; inset: 0 !important; z-index: auto !important;
-  border-radius: 2px !important; padding: 10px !important;
-}
-
-/* Menu di layar pendek (desktop/tablet kecil, bukan mode 2 kolom): 2 kolom di dalam kanvas */
-@media (orientation: landscape) and (max-height: 560px) {
-  .overlay-inner:not(.ov-split) { flex-direction: row !important; align-items: center; justify-content: center; gap: 28px; }
-  .overlay-inner:not(.ov-split) > .ov-head,
-  .overlay-inner:not(.ov-split) > .ov-body { flex: 1 1 0; min-width: 0; }
-  .ov-mascot { width: clamp(72px, 26vh, 120px) !important; }
-}
-
-/* HP landscape: margin atas-bawah dipangkas biar kanvas bisa lebih besar */
-@media (hover: none) and (pointer: coarse) and (orientation: landscape) {
-  body {
-    padding-top: max(4px, env(safe-area-inset-top));
-    padding-bottom: max(4px, env(safe-area-inset-bottom));
-  }
-}
-
-/* Animasi ikon "putar HP" */
-@keyframes rotate-phone {
-  0%, 20% { transform: rotate(0deg); }
-  60%, 100% { transform: rotate(-90deg); }
-}
-.rotate-phone { animation: rotate-phone 2s ease-in-out infinite; }
+.stage-side[data-mode="puzzle"] .puzzle-legend { display:none; }
+.stage-side[data-mode="puzzle"] .puzzle-stats { font-size:11px; gap:3px 8px; }
+.stage-side[data-mode="puzzle"] { --dpad:clamp(100px,30vh,138px); }
+.stage-side[data-mode="puzzle"] .puzzle-actions button { min-height:40px; padding:5px 8px; }

@@ -8,8 +8,10 @@ import Hud from '@/components/Hud';
 import Overlay from '@/components/Overlay';
 import HelpModal from '@/components/HelpModal';
 import DPad from '@/components/DPad';
-import BackgroundLayer from '@/components/BackgroundLayer';
 import LoadingScreen from '@/components/LoadingScreen';
+import UpgradeDialog from '@/components/UpgradeDialog';
+import { isTwoPlayer, needsKeyboard } from '@/lib/modes/registry';
+import { loadSpeed, saveSpeed, loadDuration, saveDuration } from '@/lib/storage';
 
 export default function Page() {
   const [loading, setLoading] = useState(true);
@@ -18,26 +20,53 @@ export default function Page() {
   const isTouch = useIsTouch();
   const isLandscape = useMediaQuery('(orientation: landscape)');
   const side = isTouch && isLandscape;               // HP landscape: 2 kolom (game | info + tombol)
-  const askRotate = isTouch && !isLandscape; // portrait di HP = wajib diputar, tanpa pilihan lain
+  const [pendingPlay, setPendingPlay] = useState(false);
   const [lefty, setLefty] = useState(false);  // mode kidal: panel & tombol pindah ke kiri
   useEffect(() => { try { setLefty(localStorage.getItem('snake-lefty') === '1'); } catch (e) {} }, []);
   function toggleLefty() {
     setLefty(v => { const n = !v; try { localStorage.setItem('snake-lefty', n ? '1' : '0'); } catch (e) {} return n; });
   }
   // Kalau ternyata perangkat sentuh tapi mode-nya multiplayer, balik ke Classic.
-  useEffect(() => { if (isTouch && (mode === 'multiplayer' || mode === 'mayhemduo')) setMode('classic'); }, [isTouch, mode]);
+  useEffect(() => { if (isTouch && needsKeyboard(mode)) setMode('classic'); }, [isTouch, mode]);
   const [speed, setSpeed] = useState('normal');
   const [taSecs, setTaSecs] = useState(90);
-  useEffect(() => { try { const s = localStorage.getItem('snake-speed'); if (s) setSpeed(s); const t = parseInt(localStorage.getItem('snake-ta') || '90'); if (t) setTaSecs(t); } catch (e) {} }, []);
-  useEffect(() => { gameRef.current && gameRef.current.setSpeedPref(speed); try { localStorage.setItem('snake-speed', speed); } catch (e) {} }, [speed]);
-  useEffect(() => { gameRef.current && gameRef.current.setTaDuration(taSecs); try { localStorage.setItem('snake-ta', String(taSecs)); } catch (e) {} }, [taSecs]);
+  // Preferensi dibaca lewat storage tervalidasi (allowlist), dan hanya ditulis saat pemain mengubahnya.
+  useEffect(() => { setSpeed(loadSpeed()); setTaSecs(loadDuration()); }, []);
+  useEffect(() => { gameRef.current && gameRef.current.setSpeedPref(speed); }, [speed]);
+  useEffect(() => { gameRef.current && gameRef.current.setTaDuration(taSecs); }, [taSecs]);
+  function changeSpeed(v) { if (saveSpeed(v)) setSpeed(v); }
+  function changeDuration(v) { if (saveDuration(v)) setTaSecs(v); }
   const [helpOpen, setHelpOpen] = useState(false);
+  // Penghalang pause: membuka bantuan / layar RotatePrompt menjeda ronde, dan menutupnya TIDAK melanjutkan otomatis.
+  useEffect(() => {
+    const g = gameRef.current; if (!g) return;
+    if (helpOpen) g.pauseRun('help'); else g.releasePause('help');
+  }, [helpOpen]);
   const [sideEl, setSideEl] = useState(null); // kolom samping (HP landscape): tempat kontrol menu
   const [hud, setHud] = useState({
     score: 0, best: 0, modeLabel: 'Snake · Classic', effects: [], mpHud: null, timerText: null,
-    running: false, paused: false,
+    running: false, paused: false, puzzle: null, puzzleMenu: null, delivery: null, deliveryMenu: null, roguelite: null, rogueMenu: null, territory: null, territoryMenu: null, boss: null, bossMenu: null,
   });
   const [overlay, setOverlay] = useState({ visible: true, phase: 'start', mood: 'idle', title: 'Snake', sub: 'Pilih mode, lalu tekan Main', btnText: 'PLAY' });
+
+  const menuOpen = overlay.visible && overlay.phase === 'start';
+  const askRotate = isTouch && !isLandscape && (pendingPlay || (!menuOpen && hud.running));
+  useEffect(() => {
+    const g = gameRef.current; if (!g) return;
+    if (askRotate) g.pauseRun('orientation'); else g.releasePause('orientation');
+  }, [askRotate]);
+  useEffect(() => {
+    if (pendingPlay && isLandscape) {
+      setPendingPlay(false);
+      if (gameRef.current) gameRef.current.startRun();
+    }
+  }, [pendingPlay, isLandscape]);
+  const finishLoading = useCallback(() => setLoading(false), []);
+  const closeHelp = useCallback(() => setHelpOpen(false), []);
+  function returnToMenu() {
+    setPendingPlay(false);
+    if (gameRef.current) gameRef.current.returnToMenu();
+  }
 
   const onUpdate = useCallback((patch) => {
     if ('overlay' in patch) {
@@ -56,25 +85,25 @@ export default function Page() {
   }
 
   function handlePlay() {
-    gameRef.current && gameRef.current.start();
+    const g = gameRef.current; if (!g) return;
+    if (isTouch && !isLandscape) { setPendingPlay(true); return; }
+    if (overlay.phase === 'pause') g.resumeRun(); else g.startRun();
   }
 
   function handleDpad(x, y) {
-    if (mode === 'multiplayer' || mode === 'mayhemduo') {
-      if (!hud.running) gameRef.current && gameRef.current.start();
-      else gameRef.current && gameRef.current.setDirMP(0, x, y);
-    } else {
-      gameRef.current && gameRef.current.setDir(x, y);
-    }
+    const g = gameRef.current; if (!g) return;
+    if (isTwoPlayer(mode)) g.setDirMP(0, x, y);
+    else g.setHeldDir(x, y);
   }
 
   return (
     <>
-      {loading && <LoadingScreen onDone={() => setLoading(false)} />}
-      {askRotate && <RotatePrompt />}
-      <HelpModal open={helpOpen} mode={mode} onClose={() => setHelpOpen(false)} />
-      <main className={`stage ${side ? 'stage-side' : ''} ${side && lefty ? 'stage-lefty' : ''} ${side && overlay.visible ? 'menu-open' : ''}`}>
-      <Hud
+      {loading && <LoadingScreen onDone={finishLoading} />}
+      {askRotate && <RotatePrompt onMenu={returnToMenu} />}
+      <UpgradeDialog data={hud.roguelite} onChoose={(id) => gameRef.current && gameRef.current.chooseUpgrade(id)} />
+      <HelpModal open={helpOpen} mode={mode} onClose={closeHelp} />
+      <main data-mode={mode} inert={helpOpen || askRotate || hud.roguelite?.offer?.length ? '' : undefined} aria-hidden={helpOpen || askRotate || !!hud.roguelite?.offer?.length || undefined} className={`stage ${menuOpen ? 'focus-stage' : 'playing-stage'} ${side ? 'stage-side' : ''} ${side && lefty ? 'stage-lefty' : ''} ${side && overlay.visible ? 'menu-open' : ''}`}>
+      {!menuOpen && <Hud
         side={side}
         lefty={lefty}
         onSwap={toggleLefty}
@@ -86,12 +115,23 @@ export default function Page() {
         score={hud.score}
         mpHud={hud.mpHud}
         onHelp={() => setHelpOpen(true)}
-      />
+        canPause={hud.running && !hud.paused && !overlay.visible}
+        onPause={() => gameRef.current && gameRef.current.pauseRun('user')}
+        puzzle={hud.puzzle}
+        delivery={hud.delivery}
+        roguelite={hud.roguelite}
+        territory={hud.territory}
+        boss={hud.boss}
+        hideStats={overlay.visible && overlay.phase === 'start'}
+        onUndo={() => gameRef.current && gameRef.current.undo()}
+        onRestart={() => gameRef.current && gameRef.current.restartLevel()}
+        onWait={() => gameRef.current && gameRef.current.setDir(0, 0)}
+      />}
 
       <div id="wrap" className="game-w relative overflow-hidden border-[7px] rounded-md shadow-2xl" style={{ borderColor: mode === 'classicnight' ? '#2b4763' : '#4a752c' }}>
-        <GameCanvas ref={gameRef} mode={mode} onUpdate={onUpdate} />
-        {overlay.visible && <BackgroundLayer mode={mode} />}
+        <div className={menuOpen ? 'canvas-sleep' : 'canvas-frame'}><GameCanvas ref={gameRef} mode={mode} onUpdate={onUpdate} speedPref={speed} taDuration={taSecs} /></div>
         <Overlay
+          onHelp={() => setHelpOpen(true)}
           side={side}
           host={side ? sideEl : null}
           visible={overlay.visible}
@@ -103,16 +143,31 @@ export default function Page() {
           mode={mode}
           onModeChange={handleModeChange}
           speed={speed}
-          onSpeedChange={setSpeed}
+          onSpeedChange={changeSpeed}
           taSecs={taSecs}
-          onTaChange={setTaSecs}
+          onTaChange={changeDuration}
           onPlay={handlePlay}
+          onRevive={() => gameRef.current && gameRef.current.reviveRun()}
+          onRetrySave={() => gameRef.current?.retrySave()}
+          onMenu={returnToMenu}
+          puzzleMenu={hud.puzzleMenu}
+          deliveryMenu={hud.deliveryMenu}
+          rogueMenu={hud.rogueMenu}
+          territoryMenu={hud.territoryMenu}
+          bossMenu={hud.bossMenu}
+          onSelectLevel={(i) => gameRef.current && gameRef.current.setLevel(i)}
         />
       </div>
 
       {side && <div ref={setSideEl} className="side-menu" />}
-      <DPad onMove={handleDpad} />
-      {!side && <div className="text-[11px] sm:text-xs text-[#8a988a] mt-2.5 text-center">Panah / WASD gerak • Esc jeda • Terbaik: <b>{hud.best}</b></div>}
+      {!overlay.visible && <DPad onMove={handleDpad} onRelease={() => gameRef.current?.releaseHeldDir()} />}
+      {!menuOpen && !side && (mode === 'puzzle'
+        ? <div className="text-[11px] sm:text-xs text-[#8a988a] mt-2.5 text-center">Panah / WASD melangkah • Spasi tunggu • Z undo • R ulang • Esc jeda</div>
+        : mode === 'boss'
+        ? <div className="text-[11px] sm:text-xs text-[#8a988a] mt-2.5 text-center">Panah / WASD gerak • geser layar • Esc jeda</div>
+        : mode === 'territory'
+        ? <div className="text-[11px] sm:text-xs text-[#8a988a] mt-2.5 text-center">P1 Panah • P2 WASD • Esc jeda</div>
+        : <div className="text-[11px] sm:text-xs text-[#8a988a] mt-2.5 text-center">Panah / WASD gerak • Esc jeda • Terbaik: <b>{hud.best}</b></div>)}
       </main>
     </>
   );
