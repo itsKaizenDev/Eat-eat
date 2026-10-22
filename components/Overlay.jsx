@@ -1,6 +1,5 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import gsap from 'gsap';
 import { ICONS } from '@/lib/icons';
 import { useIsTouch } from '@/hooks/useIsTouch';
@@ -67,11 +66,12 @@ function ReviveInfo({ data }) {
   return <div className="revive-info"><span><ICONS.heart size={15} />Revive <b>{data.left}/3</b></span><small>{data.resetAt ? `Pulih penuh dalam ${days ? days + ' hari ' : ''}${hours ? hours + ' jam ' : ''}${mins} menit` : 'Pulih penuh 72 jam setelah revive pertama'}</small></div>;
 }
 
-export default function Overlay({ side, host, visible, phase, mood, title, sub, btnText, mode, onModeChange, onPlay, onRevive, onRetrySave, onMenu, speed, onSpeedChange, taSecs, onTaChange, puzzleMenu, onSelectLevel, deliveryMenu, rogueMenu, territoryMenu, bossMenu, onHelp }) {
+export default function Overlay({ keyboardAvailable, onInfo, onSettings, onRestart, visible, phase, mood, title, sub, btnText, mode, onModeChange, onPlay, onRevive, onRetrySave, onMenu, speed, onSpeedChange, taSecs, onTaChange, puzzleMenu, onSelectLevel, deliveryMenu, rogueMenu, territoryMenu, bossMenu, onHelp }) {
   const [busy, setBusy] = useState(false);
   const isTouch = useIsTouch();
-  const groups = isTouch ? GROUPS.filter(g => g.key !== 'mp') : GROUPS; // 2P Lokal disembunyikan di HP
-  const ADVENTURE_MODES = isTouch ? ADVENTURE_ALL.filter(m => m.touch) : ADVENTURE_ALL; // mode 2 pemain butuh keyboard, tidak ditampilkan di layar sentuh
+  const touchOnly = isTouch && !keyboardAvailable;
+  const groups = touchOnly ? GROUPS.filter(g => g.key !== 'mp') : GROUPS; // 2P Lokal disembunyikan di HP
+  const ADVENTURE_MODES = touchOnly ? ADVENTURE_ALL.filter(m => m.touch) : ADVENTURE_ALL; // mode 2 pemain butuh keyboard, tidak ditampilkan di layar sentuh
   const adv = isAdventure(mode);
   const speedMode = (getMode(mode) || {}).speedMode || 'pref';
   const lastArcade = useRef('classic');
@@ -122,7 +122,7 @@ export default function Overlay({ side, host, visible, phase, mood, title, sub, 
   // Layar Jeda / Hasil: fokus keyboard pindah ke tombol utama supaya Enter/Spasi langsung bekerja.
   useEffect(() => {
     if (visible && (phase === 'pause' || phase === 'gameover') && primaryRef.current) primaryRef.current.focus();
-  }, [visible, phase, host]);
+  }, [visible, phase]);
 
   // PLAY dari menu awal: scene zoom-in + flash sebentar, baru game mulai.
   function handlePlay() {
@@ -140,7 +140,7 @@ export default function Overlay({ side, host, visible, phase, mood, title, sub, 
 
   if (!visible) return null;
 
-  const arcadeCount = arcadeModes().filter(m => !isTouch || m.touch).length;
+  const arcadeCount = arcadeModes().filter(m => !touchOnly || m.touch).length;
   const lv = puzzleMenu && puzzleMenu.levels && puzzleMenu.levels.length ? puzzleMenu : null;
   const selLevel = lv ? lv.levels[lv.selected] : null;
 
@@ -159,7 +159,7 @@ export default function Overlay({ side, host, visible, phase, mood, title, sub, 
 
   // Layar Petualangan: tiap mode menampilkan deskripsi, tujuan, pratinjau aturan, kontrol, dan hanya pengaturan yang BENAR-BENAR didukung.
   const adventureBody = (
-    <div className={`ov-body start-menu start-menu-adv no-swipe ${host ? 'start-menu-side' : ''}`} style={{ '--accent': ACCENT[mode] || '#6ed3ff' }}>
+    <div className={`ov-body start-menu start-menu-adv no-swipe `} style={{ '--accent': ACCENT[mode] || '#6ed3ff' }}>
       <div className="start-menu-heading"><span>Pilih petualangan</span><span>{ADVENTURE_MODES.length} pilihan</span></div>
       <div className="start-modes adv-modes" data-n={ADVENTURE_MODES.length} role="group" aria-label="Pilihan mode petualangan">
         {ADVENTURE_MODES.map(m => {
@@ -262,7 +262,7 @@ export default function Overlay({ side, host, visible, phase, mood, title, sub, 
   );
 
   const body = start && adv ? adventureBody : start ? (
-    <div className={`ov-body start-menu start-menu-arc no-swipe ${host ? 'start-menu-side' : ''}`} style={{ '--accent': ACCENT[mode] || '#9be04a' }}>
+    <div className={`ov-body start-menu start-menu-arc no-swipe `} style={{ '--accent': ACCENT[mode] || '#9be04a' }}>
       <div className="arc-cols">
       <div className="arc-pick">
       <div className="start-menu-heading"><span>Pilih mode</span><span>{arcadeCount} pilihan</span></div>
@@ -320,6 +320,7 @@ export default function Overlay({ side, host, visible, phase, mood, title, sub, 
         {rm.revive.error && <p role="alert">{rm.revive.error}</p>}
       </>}
       <button ref={phase === 'gameover' && rm?.revive?.eligible && rm.revive.left ? null : primaryRef} disabled={rm?.revive?.busy} onClick={handlePlay} className="start-play">{phase === 'pause' ? 'Lanjut main' : btnText === 'PLAY' ? 'Main lagi' : btnText}<ICONS.right size={20} /></button>
+      {phase === 'pause' && <div className="pause-links"><button onClick={onInfo}><ICONS.info size={18} />Info misi</button><button onClick={onSettings}><ICONS.settings size={18} />Pengaturan</button><button onClick={onHelp}><ICONS.help size={18} />Cara main</button><button onClick={onRestart}><ICONS.restart size={18} />Ulang</button></div>}
       <button disabled={rm?.revive?.busy} onClick={onMenu} className="secondary-button">Kembali ke menu</button>
     </div>
   );
@@ -338,8 +339,8 @@ export default function Overlay({ side, host, visible, phase, mood, title, sub, 
         <BackgroundLayer mode={mode} />
         <div className="hero-copy"><span className="eyebrow">{adv ? 'Petualangan kecil' : 'Satu ronde lagi?'}</span><h1 ref={slamRef}>{am.label}</h1><span className="hero-tag">{am.players === 2 ? 'Dua pemain' : 'Satu pemain'} · {adv ? 'Misi baru' : 'Arkade'}</span></div>
       </div>
-      {side && !host ? null : host ? createPortal(<fieldset disabled={busy} className="menu-fieldset"><div className="side-scroll">{body}</div><button disabled={!ready} onClick={handlePlay} className="start-play">{busy ? 'Bersiap…' : 'Mulai main'}<ICONS.right size={20} /></button></fieldset>, host) : <fieldset disabled={busy} className="menu-fieldset">{body}</fieldset>}
-      {!side && <footer className="menu-footer"><ICONS.leaf size={14} /> {isTouch ? 'Pilih dulu. Putar HP saat siap main.' : 'Panah atau WASD untuk bergerak · Esc untuk jeda'}</footer>}
+      <fieldset disabled={busy} className="menu-fieldset">{body}</fieldset>
+      <footer className="menu-footer"><ICONS.leaf size={14} />{isTouch ? 'Joystick dan tombol tersedia di dalam arena.' : 'Panah / WASD bergerak · Esc menjeda'}</footer>
     </section>
   );
 

@@ -61,6 +61,7 @@ const GameCanvas = forwardRef(function GameCanvas({ mode, onUpdate, speedPref, t
     chooseUpgrade: (id) => !!(engineRef.current && engineRef.current.chooseUpgrade && engineRef.current.chooseUpgrade(id)),
     reviveRun: () => engineRef.current && engineRef.current.reviveRun ? engineRef.current.reviveRun() : false,
     undo: () => { inputRef.current?.clear(); return !!(engineRef.current && engineRef.current.undo && engineRef.current.undo()); },
+    restartRun: () => { inputRef.current?.clear(); const e = engineRef.current; if (!e) return false; if (kindRef.current === 'puzzle') return e.restartLevel(); e.returnToMenu(); return e.startRun(); },
     restartLevel: () => { inputRef.current?.clear(); return !!(engineRef.current && engineRef.current.restartLevel && engineRef.current.restartLevel()); },
     retrySave: () => engineRef.current?.retrySave?.(),
     setLevel: (i) => !!(engineRef.current && engineRef.current.setLevel && engineRef.current.setLevel(i)),
@@ -176,17 +177,18 @@ const GameCanvas = forwardRef(function GameCanvas({ mode, onUpdate, speedPref, t
   }, []);
 
   useEffect(() => {
-    if (kind !== 'puzzle') return;
     const canvas = canvasRef.current;
     const resize = () => {
       const width = canvas.getBoundingClientRect().width;
       if (width < 1) return;
       const ratio = Math.min(2, window.devicePixelRatio || 1);
-      canvas.width = Math.round(width * ratio); canvas.height = Math.round(width * 600 / 680 * ratio);
+      const w = Math.max(17, Math.round(width * ratio / 17) * 17), h = w * 15 / 17;
+      if (canvas.width === w && canvas.height === h) return;
+      canvas.width = w; canvas.height = h;
       engineRef.current?.resize?.();
     };
     const observer = new ResizeObserver(resize); observer.observe(canvas); resize();
-    return () => { observer.disconnect(); canvas.width = 680; canvas.height = 600; };
+    return () => observer.disconnect();
   }, [kind]);
 
   return <canvas ref={canvasRef} id="c" width="680" height="600" aria-label={kind === 'puzzle' ? 'Dungeon Shadow Heist. WASD bergerak, Shift mengendap, E berinteraksi.' : 'Arena K-Snake'} style={{ background: kind === 'puzzle' ? '#152c33' : '#a2d149', aspectRatio: '680 / 600' }} />;

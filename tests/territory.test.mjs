@@ -409,9 +409,10 @@ test('registry: Rebut Arena 2 pemain, tanpa sentuh, durasi tetap 90 dtk, kecepat
   assert.equal(registry.isTwoPlayer('multiplayer'), true); assert.equal(registry.isTwoPlayer('delivery'), false);
 });
 
-test('CSS: tata letak info dua kolom untuk laptop tidak mengenai panel samping HP', () => {
+test('CSS: menu dan detail laptop tetap dua kolom tanpa sidebar gameplay lama', () => {
   const css = fs.readFileSync(path.join(root, 'app/globals.css'), 'utf8');
-  assert.match(css, /\.stage-side\.focus-stage \.adv-cols/);
+  assert.doesNotMatch(css, /\.stage-side/);
+  assert.match(css, /\.focus-stage \.arc-cols,\.focus-stage \.adv-cols \{ display:grid/);
   assert.match(css, /\.hud-cols \{ display: grid/);
   assert.match(css, /\.focus-scene/);
   assert.ok(fs.existsSync(path.join(root, 'public/assets/game/bg-territory.webp')));

@@ -4,6 +4,8 @@ import { useIsTouch } from '@/hooks/useIsTouch';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import RotatePrompt from '@/components/RotatePrompt';
 import GameCanvas from '@/components/GameCanvas';
+import GameViewport from '@/components/GameViewport';
+import GameSheet from '@/components/GameSheet';
 import Hud from '@/components/Hud';
 import Overlay from '@/components/Overlay';
 import HelpModal from '@/components/HelpModal';
@@ -11,168 +13,122 @@ import DPad from '@/components/DPad';
 import DungeonControls from '@/components/DungeonControls';
 import LoadingScreen from '@/components/LoadingScreen';
 import UpgradeDialog from '@/components/UpgradeDialog';
-import { isTwoPlayer, needsKeyboard } from '@/lib/modes/registry';
+import { ICONS } from '@/lib/icons';
+import { getMode, kindOf, needsKeyboard } from '@/lib/modes/registry';
 import { loadSpeed, saveSpeed, loadDuration, saveDuration } from '@/lib/storage';
 
 export default function Page() {
   const [loading, setLoading] = useState(true);
   const gameRef = useRef(null);
   const [mode, setMode] = useState('classic');
-  const isTouch = useIsTouch();
-  const isLandscape = useMediaQuery('(orientation: landscape)');
-  const side = isTouch && isLandscape;               // HP landscape: 2 kolom (game | info + tombol)
+  const primaryTouch = useIsTouch();
+  const touch = useMediaQuery('(any-pointer: coarse)');
+  const finePointer = useMediaQuery('(any-pointer: fine)');
+  const landscape = useMediaQuery('(orientation: landscape)');
+  const [keyboardUsed, setKeyboardUsed] = useState(false);
   const [pendingPlay, setPendingPlay] = useState(false);
-  const [lefty, setLefty] = useState(false);  // mode kidal: panel & tombol pindah ke kiri
-  useEffect(() => { try { setLefty(localStorage.getItem('snake-lefty') === '1'); } catch (e) {} }, []);
-  function toggleLefty() {
-    setLefty(v => { const n = !v; try { localStorage.setItem('snake-lefty', n ? '1' : '0'); } catch (e) {} return n; });
-  }
-  // Kalau ternyata perangkat sentuh tapi mode-nya multiplayer, balik ke Classic.
-  useEffect(() => { if (isTouch && needsKeyboard(mode)) setMode('classic'); }, [isTouch, mode]);
+  const [lefty, setLefty] = useState(false);
+  const [hint, setHint] = useState(false);
   const [speed, setSpeed] = useState('normal');
   const [taSecs, setTaSecs] = useState(90);
-  // Preferensi dibaca lewat storage tervalidasi (allowlist), dan hanya ditulis saat pemain mengubahnya.
-  useEffect(() => { setSpeed(loadSpeed()); setTaSecs(loadDuration()); }, []);
-  useEffect(() => { gameRef.current && gameRef.current.setSpeedPref(speed); }, [speed]);
-  useEffect(() => { gameRef.current && gameRef.current.setTaDuration(taSecs); }, [taSecs]);
-  function changeSpeed(v) { if (saveSpeed(v)) setSpeed(v); }
-  function changeDuration(v) { if (saveDuration(v)) setTaSecs(v); }
   const [helpOpen, setHelpOpen] = useState(false);
-  // Penghalang pause: membuka bantuan / layar RotatePrompt menjeda ronde, dan menutupnya TIDAK melanjutkan otomatis.
-  useEffect(() => {
-    const g = gameRef.current; if (!g) return;
-    if (helpOpen) g.pauseRun('help'); else g.releasePause('help');
-  }, [helpOpen]);
-  const [sideEl, setSideEl] = useState(null); // kolom samping (HP landscape): tempat kontrol menu
-  const [hud, setHud] = useState({
-    score: 0, best: 0, modeLabel: 'Snake · Classic', effects: [], mpHud: null, timerText: null,
-    running: false, paused: false, puzzle: null, puzzleMenu: null, delivery: null, deliveryMenu: null, roguelite: null, rogueMenu: null, territory: null, territoryMenu: null, boss: null, bossMenu: null,
-  });
-  const [overlay, setOverlay] = useState({ visible: true, phase: 'start', mood: 'idle', title: 'Snake', sub: 'Pilih mode, lalu tekan Main', btnText: 'PLAY' });
-
+  const [panel, setPanel] = useState(null);
+  const [fullscreen, setFullscreen] = useState(false);
+  const [canFullscreen, setCanFullscreen] = useState(false);
+  const [fullscreenMessage, setFullscreenMessage] = useState('');
+  const [hud, setHud] = useState({ score: 0, best: 0, effects: [], running: false, paused: false });
+  const [overlay, setOverlay] = useState({ visible: true, phase: 'start', mood: 'idle', title: 'K-Snake', sub: 'Pilih mode, lalu tekan Main', btnText: 'PLAY' });
   const menuOpen = overlay.visible && overlay.phase === 'start';
-  const askRotate = isTouch && !isLandscape && (pendingPlay || (!menuOpen && hud.running));
+  const upgrade = !!hud.roguelite?.offer?.length;
+  const active = !menuOpen && (hud.running || hud.paused || upgrade);
+  // Dungeon retains its proven landscape safeguard; arcade also works in portrait.
+  const askRotate = primaryTouch && !landscape && mode === 'puzzle' && (pendingPlay || active);
+  const externalModal = askRotate || helpOpen || !!panel || upgrade;
+  const controls = active && !overlay.visible && !externalModal;
+  const keyboardAvailable = finePointer || keyboardUsed;
+  const kind = kindOf(mode);
+
   useEffect(() => {
-    const g = gameRef.current; if (!g) return;
-    if (askRotate) g.pauseRun('orientation'); else g.releasePause('orientation');
+    try { setLefty(localStorage.getItem('snake-lefty') === '1'); } catch {}
+    setSpeed(loadSpeed()); setTaSecs(loadDuration());
+    setCanFullscreen(!!document.documentElement.requestFullscreen);
+    const change = () => setFullscreen(!!document.fullscreenElement);
+    const key = () => setKeyboardUsed(true);
+    document.addEventListener('fullscreenchange', change);
+    window.addEventListener('keydown', key, { once: true });
+    return () => { document.removeEventListener('fullscreenchange', change); window.removeEventListener('keydown', key); };
+  }, []);
+  useEffect(() => { gameRef.current?.setSpeedPref(speed); }, [speed]);
+  useEffect(() => { gameRef.current?.setTaDuration(taSecs); }, [taSecs]);
+  useEffect(() => {
+    if (helpOpen || panel) gameRef.current?.pauseRun('help');
+    else gameRef.current?.releasePause('help');
+  }, [helpOpen, panel]);
+  useEffect(() => {
+    if (askRotate) gameRef.current?.pauseRun('orientation');
+    else gameRef.current?.releasePause('orientation');
   }, [askRotate]);
   useEffect(() => {
-    if (pendingPlay && isLandscape) {
-      setPendingPlay(false);
-      if (gameRef.current) gameRef.current.startRun();
-    }
-  }, [pendingPlay, isLandscape]);
+    if (pendingPlay && landscape) { setPendingPlay(false); gameRef.current?.startRun(); }
+  }, [pendingPlay, landscape]);
+  useEffect(() => {
+    if (active || askRotate) document.body.dataset.playing = 'true'; else delete document.body.dataset.playing;
+    return () => { delete document.body.dataset.playing; };
+  }, [active, askRotate]);
+  useEffect(() => {
+    if (!controls) { setHint(false); return; }
+    try { setHint(localStorage.getItem(`snake-controls-hint-${kind}`) !== '1'); } catch { setHint(true); }
+  }, [controls, kind]);
+
   const finishLoading = useCallback(() => setLoading(false), []);
   const closeHelp = useCallback(() => setHelpOpen(false), []);
-  function returnToMenu() {
-    setPendingPlay(false);
-    if (gameRef.current) gameRef.current.returnToMenu();
-  }
-
-  const onUpdate = useCallback((patch) => {
-    if ('overlay' in patch) {
-      const o = patch.overlay;
-      if (o.phase === 'none') setOverlay(prev => ({ ...prev, visible: false }));
-      else setOverlay({ visible: true, ...o });
-      const { overlay: _drop, ...rest } = patch;
-      if (Object.keys(rest).length) setHud(prev => ({ ...prev, ...rest }));
-      return;
-    }
-    setHud(prev => ({ ...prev, ...patch }));
+  const closePanel = useCallback(() => setPanel(null), []);
+  const onUpdate = useCallback(patch => {
+    const { overlay: o, ...rest } = patch;
+    if (o) setOverlay(prev => o.phase === 'none' ? { ...prev, visible: false } : { visible: true, ...o });
+    if (Object.keys(rest).length) setHud(prev => ({ ...prev, ...rest }));
   }, []);
-
-  function handleModeChange(m) {
-    setMode(m);
+  function swap() {
+    setLefty(v => { const n = !v; try { localStorage.setItem('snake-lefty', n ? '1' : '0'); } catch {} return n; });
   }
-
+  function dismissHint() { setHint(false); try { localStorage.setItem(`snake-controls-hint-${kind}`, '1'); } catch {} }
+  function openPanel(value) { gameRef.current?.pauseRun('help'); setPanel(value); }
+  function openHelp() { gameRef.current?.pauseRun('help'); setPanel(null); setHelpOpen(true); }
+  function returnToMenu() { setPendingPlay(false); setPanel(null); setHelpOpen(false); gameRef.current?.returnToMenu(); }
   function handlePlay() {
     const g = gameRef.current; if (!g) return;
-    if (isTouch && !isLandscape) { setPendingPlay(true); return; }
+    if (primaryTouch && needsKeyboard(mode) && !keyboardAvailable) { openPanel('keyboard'); return; }
+    if (primaryTouch && !landscape && mode === 'puzzle') { setPendingPlay(true); return; }
     if (overlay.phase === 'pause') g.resumeRun(); else g.startRun();
     window.scrollTo({ top: 0, behavior: 'instant' });
   }
-
-  function handleDpad(x, y) {
-    const g = gameRef.current; if (!g) return;
-    if (isTwoPlayer(mode)) g.setDirMP(0, x, y);
-    else g.setHeldDir(x, y);
+  function restart() {
+    gameRef.current?.releasePause('help'); setPanel(null); gameRef.current?.restartRun();
+  }
+  async function toggleFullscreen() {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await document.documentElement.requestFullscreen();
+      setFullscreenMessage('');
+    } catch { setFullscreenMessage('Browser belum mengizinkan layar penuh. Kamu tetap bisa bermain.'); }
   }
 
-  return (
-    <>
-      {loading && <LoadingScreen onDone={finishLoading} />}
-      {askRotate && <RotatePrompt onMenu={returnToMenu} />}
-      <UpgradeDialog data={hud.roguelite} onChoose={(id) => gameRef.current && gameRef.current.chooseUpgrade(id)} />
-      <HelpModal open={helpOpen} mode={mode} onClose={closeHelp} />
-      <main data-mode={mode} inert={helpOpen || askRotate || hud.roguelite?.offer?.length ? '' : undefined} aria-hidden={helpOpen || askRotate || !!hud.roguelite?.offer?.length || undefined} className={`stage ${menuOpen ? 'focus-stage' : 'playing-stage'} ${side ? 'stage-side' : ''} ${side && lefty ? 'stage-lefty' : ''} ${side && overlay.visible ? 'menu-open' : ''}`}>
-      {!menuOpen && <Hud
-        side={side}
-        lefty={lefty}
-        onSwap={toggleLefty}
-        best={hud.best}
-        mode={mode}
-        modeLabel={hud.modeLabel}
-        timerText={hud.timerText}
-        effects={hud.effects}
-        score={hud.score}
-        mpHud={hud.mpHud}
-        onHelp={() => setHelpOpen(true)}
-        canPause={hud.running && !hud.paused && !overlay.visible}
-        onPause={() => gameRef.current && gameRef.current.pauseRun('user')}
-        puzzle={hud.puzzle}
-        delivery={hud.delivery}
-        roguelite={hud.roguelite}
-        territory={hud.territory}
-        boss={hud.boss}
-        hideStats={overlay.visible && overlay.phase === 'start'}
-        onUndo={() => gameRef.current && gameRef.current.undo()}
-        onRestart={() => gameRef.current && gameRef.current.restartLevel()}
-        onWait={() => gameRef.current && gameRef.current.setDir(0, 0)}
-      />}
-
-      <div id="wrap" className="game-w relative overflow-hidden border-[7px] rounded-md shadow-2xl" style={{ borderColor: mode === 'puzzle' ? '#263f43' : mode === 'classicnight' ? '#2b4763' : '#4a752c' }}>
-        <div className={menuOpen ? 'canvas-sleep' : 'canvas-frame'}><GameCanvas ref={gameRef} mode={mode} onUpdate={onUpdate} speedPref={speed} taDuration={taSecs} /></div>
-        <Overlay
-          onHelp={() => setHelpOpen(true)}
-          side={side}
-          host={side ? sideEl : null}
-          visible={overlay.visible}
-          phase={overlay.phase}
-          mood={overlay.mood}
-          title={overlay.title}
-          sub={overlay.sub}
-          btnText={overlay.btnText}
-          mode={mode}
-          onModeChange={handleModeChange}
-          speed={speed}
-          onSpeedChange={changeSpeed}
-          taSecs={taSecs}
-          onTaChange={changeDuration}
-          onPlay={handlePlay}
-          onRevive={() => gameRef.current && gameRef.current.reviveRun()}
-          onRetrySave={() => gameRef.current?.retrySave()}
-          onMenu={returnToMenu}
-          puzzleMenu={hud.puzzleMenu}
-          deliveryMenu={hud.deliveryMenu}
-          rogueMenu={hud.rogueMenu}
-          territoryMenu={hud.territoryMenu}
-          bossMenu={hud.bossMenu}
-          onSelectLevel={(i) => gameRef.current && gameRef.current.setLevel(i)}
-        />
-      </div>
-
-      {side && <div ref={setSideEl} className="side-menu" />}
-      {!overlay.visible && (mode === 'puzzle'
-        ? <DungeonControls data={hud.puzzle} onMove={handleDpad} onRelease={() => gameRef.current?.releaseHeldDir()} onAction={type => gameRef.current?.action(type)} onGait={g => gameRef.current?.setGait(g)} onRestart={() => gameRef.current?.restartLevel()} />
-        : <DPad onMove={handleDpad} onRelease={() => gameRef.current?.releaseHeldDir()} />)}
-      {!menuOpen && !side && (mode === 'puzzle'
-        ? <div className="heist-keyhint text-[11px] sm:text-xs text-[#8a988a] mt-2.5 text-center">WASD / panah gerak · Shift mengendap · Spasi lari · E interaksi · F sembunyi · Q alat · X ganti · R ulang · Esc jeda</div>
-        : mode === 'boss'
-        ? <div className="text-[11px] sm:text-xs text-[#8a988a] mt-2.5 text-center">Panah / WASD gerak • geser layar • Esc jeda</div>
-        : mode === 'territory'
-        ? <div className="text-[11px] sm:text-xs text-[#8a988a] mt-2.5 text-center">P1 Panah • P2 WASD • Esc jeda</div>
-        : <div className="text-[11px] sm:text-xs text-[#8a988a] mt-2.5 text-center">Panah / WASD gerak • Esc jeda • Terbaik: <b>{hud.best}</b></div>)}
-      </main>
-    </>
-  );
+  return <>
+    {loading && <LoadingScreen onDone={finishLoading} />}
+    {askRotate ? <RotatePrompt onMenu={returnToMenu} /> : <>
+      {upgrade ? <UpgradeDialog data={hud.roguelite} onChoose={id => gameRef.current?.chooseUpgrade(id)} /> : <>
+        <HelpModal open={helpOpen} mode={mode} onClose={closeHelp} />
+        {!helpOpen && <GameSheet panel={panel} mode={mode} hud={hud} onClose={closePanel} onPanel={setPanel} lefty={lefty} onSwap={swap} fullscreen={fullscreen} canFullscreen={canFullscreen} onFullscreen={toggleFullscreen} fullscreenMessage={fullscreenMessage} onHelp={openHelp} onRestart={restart} />}
+      </>}
+    </>}
+    <main data-mode={mode} inert={externalModal ? '' : undefined} aria-hidden={externalModal || undefined} className={`stage ${menuOpen ? 'focus-stage' : 'playing-stage'} ${active ? 'game-active' : ''}`}>
+      <GameViewport active={active} sleeping={menuOpen} mode={mode} touch={touch} lefty={lefty} world={<GameCanvas ref={gameRef} mode={mode} onUpdate={onUpdate} speedPref={speed} taDuration={taSecs} />}>
+        {!menuOpen && <Hud mode={mode} hud={hud} onInfo={() => openPanel('info')} canPause={controls} onPause={() => gameRef.current?.pauseRun('user')} />}
+        {controls && touch && getMode(mode)?.touch && <div className="joystick-anchor"><DPad analog={kind === 'puzzle'} onMove={(x, y) => gameRef.current?.setHeldDir(x, y)} onRelease={() => gameRef.current?.releaseHeldDir()} /></div>}
+        {controls && kind === 'puzzle' && <DungeonControls data={hud.puzzle} onAction={type => gameRef.current?.action(type)} onGait={g => gameRef.current?.setGait(g)} />}
+        {hint && controls && <div className="controls-hint no-swipe"><p>{kind === 'puzzle' ? 'Joystick: 8 arah. Bulan: sembunyi. Kunci: interaksi. Alat pulih 10 detik.' : touch ? 'Geser joystick atau layar untuk berbelok. Info menyimpan aturan dan pengaturan.' : 'Panah / WASD untuk bergerak. Esc menjeda. Info menyimpan aturan dan pengaturan.'}</p><button aria-label="Tutup petunjuk" onClick={dismissHint}><ICONS.close size={16} /></button></div>}
+        <Overlay {...overlay} visible={overlay.visible && !externalModal} mode={mode} keyboardAvailable={keyboardAvailable} onModeChange={setMode} speed={speed} onSpeedChange={v => { if (saveSpeed(v)) setSpeed(v); }} taSecs={taSecs} onTaChange={v => { if (saveDuration(v)) setTaSecs(v); }} onPlay={handlePlay} onHelp={openHelp} onInfo={() => openPanel('info')} onSettings={() => openPanel('settings')} onRestart={() => openPanel('restart')} onRevive={() => gameRef.current?.reviveRun()} onRetrySave={() => gameRef.current?.retrySave()} onMenu={returnToMenu} puzzleMenu={hud.puzzleMenu} deliveryMenu={hud.deliveryMenu} rogueMenu={hud.rogueMenu} territoryMenu={hud.territoryMenu} bossMenu={hud.bossMenu} onSelectLevel={i => gameRef.current?.setLevel(i)} />
+      </GameViewport>
+    </main>
+  </>;
 }

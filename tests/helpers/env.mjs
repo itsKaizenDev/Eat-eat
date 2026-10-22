@@ -35,6 +35,7 @@ export const rounds = await load('puzzle/rounds.mjs');
 export const campaign = await load('puzzle/campaign.mjs');
 export const progressLib = await load('progress.mjs');
 export const registry = await load('modes/registry.mjs');
+export const gameView = await load('gameView.mjs');
 export const constants = await load('constants.mjs');
 export const sceneTheme = await load('sceneTheme.mjs');
 export { root };
@@ -69,6 +70,7 @@ export function makeWorld(mode, { seed = 1, store = {}, speed } = {}) {
   const noop = () => {};
   const ctx = new Proxy({}, { get: (t, p) => (p === 'createRadialGradient' ? () => ({ addColorStop: noop }) : (p in t ? t[p] : noop)), set: (t, p, v) => { t[p] = v; return true; } });
   const canvas = { width: 680, height: 600, x: 0, getContext: () => ctx };
+  w.canvas = canvas;
   const sounds = { playDeath: () => w.calls.death++, playEits: () => w.calls.eits++, playChomp: () => w.calls.chomp++, playMove: () => w.calls.move++ };
   let hook;
   w.eng = createSnakeGame({ canvas, sounds, onUpdate: p => w.emits.push(p), rng: createRng(seed), now: () => w.t, inspect: h => { hook = h; } });

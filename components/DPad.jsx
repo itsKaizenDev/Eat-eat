@@ -61,6 +61,7 @@ export default function DPad({ onMove, onRelease, analog = false }) {
   const onDown = (e) => {
     if (st.current.pid !== null) return;
     e.preventDefault();
+    padRef.current.dataset.held = 'true';
     st.current.pid = e.pointerId;
     padRef.current && padRef.current.setPointerCapture(e.pointerId);
     if (knobRef.current) knobRef.current.style.transition = 'none';
@@ -73,6 +74,7 @@ export default function DPad({ onMove, onRelease, analog = false }) {
   };
   const onUp = (e) => {
     if (e.pointerId !== st.current.pid) return;
+    padRef.current.dataset.held = 'false';
     st.current.pid = null;
     st.current.dir = null;
     onRelease?.();
@@ -84,9 +86,14 @@ export default function DPad({ onMove, onRelease, analog = false }) {
 
   const releaseRef = useRef(onRelease); releaseRef.current = onRelease;
   useEffect(() => {
-    const reset = () => { st.current = { pid: null, dir: null }; placeKnob(0, 0); releaseRef.current?.(); };
+    const el = padRef.current;
+    const reset = () => { const pid = st.current.pid; st.current = { pid: null, dir: null }; if (pid !== null && el?.hasPointerCapture(pid)) el.releasePointerCapture(pid); if (el) el.dataset.held = 'false'; placeKnob(0, 0); releaseRef.current?.(); };
+    const hidden = () => { if (document.hidden) reset(); };
+    document.addEventListener('visibilitychange', hidden);
     window.addEventListener('blur', reset);
-    return () => { window.removeEventListener('blur', reset); reset(); };
+    window.addEventListener('resize', reset);
+    window.addEventListener('orientationchange', reset);
+    return () => { window.removeEventListener('blur', reset); window.removeEventListener('resize', reset); window.removeEventListener('orientationchange', reset); document.removeEventListener('visibilitychange', hidden); reset(); };
   }, []);
 
   const arrow = "absolute text-[#8a988a]";
@@ -94,7 +101,8 @@ export default function DPad({ onMove, onRelease, analog = false }) {
     <div
       id="dpad"
       ref={padRef}
-      className="no-swipe relative rounded-full bg-[#232323] border border-[#3a3a3a] shadow-md touch-none select-none mx-auto mt-3.5"
+      className="no-swipe floating-pad relative rounded-full touch-none select-none"
+      role="group" aria-label={analog ? 'Joystick, delapan arah' : 'Joystick, empat arah'} tabIndex={0}
       style={{ width: 'var(--dpad)', height: 'var(--dpad)' }}
       onPointerDown={onDown}
       onPointerMove={onMovePtr}
@@ -102,14 +110,14 @@ export default function DPad({ onMove, onRelease, analog = false }) {
       onPointerCancel={onUp}
       onLostPointerCapture={onUp}
     >
-      <ICONS.up className={arrow} style={{ top: '9%', left: '50%', transform: 'translateX(-50%)' }} size={24} strokeWidth={2.6} />
-      <ICONS.down className={arrow} style={{ bottom: '9%', left: '50%', transform: 'translateX(-50%)' }} size={24} strokeWidth={2.6} />
-      <ICONS.left className={arrow} style={{ left: '9%', top: '50%', transform: 'translateY(-50%)' }} size={24} strokeWidth={2.6} />
-      <ICONS.right className={arrow} style={{ right: '9%', top: '50%', transform: 'translateY(-50%)' }} size={24} strokeWidth={2.6} />
+      <ICONS.up className={arrow} style={{ top: '9%', left: '50%', transform: 'translateX(-50%)' }} size={20} strokeWidth={2.6} />
+      <ICONS.down className={arrow} style={{ bottom: '9%', left: '50%', transform: 'translateX(-50%)' }} size={20} strokeWidth={2.6} />
+      <ICONS.left className={arrow} style={{ left: '9%', top: '50%', transform: 'translateY(-50%)' }} size={20} strokeWidth={2.6} />
+      <ICONS.right className={arrow} style={{ right: '9%', top: '50%', transform: 'translateY(-50%)' }} size={20} strokeWidth={2.6} />
       <div
         ref={knobRef}
         className="absolute rounded-full bg-[#3f3f3f] border border-[#5a5a5a] shadow-inner pointer-events-none"
-        style={{ width: '36%', height: '36%', top: '32%', left: '32%' }}
+        style={{ width: '52%', height: '52%', top: '24%', left: '24%' }}
       />
     </div>
   );
