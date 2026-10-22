@@ -1,30 +1,41 @@
-// Membuat lib/puzzle/campaignData.js (level 6..50) dari generator dengan seed kampanye tetap.
-// Jalankan: node scripts/build-campaign.mjs   (test `kampanye: data ... identik dengan keluaran generator` menjaga agar data tidak basi)
+// Generate a finite bank of random rounds, admitting only executable three-star routes.
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-// Catatan: bila campaignData.js belum ada, buat dulu berisi `export const CAMPAIGN_SPECS = [];` lalu jalankan skrip ini.
-import { generator, campaign } from '../tests/helpers/env.mjs';
-
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const { getLevel, TIERS, tierOf, MAX_LEVEL, TUTORIAL_COUNT } = generator;
-const INTRO = {
-  portal: 'Baru: Portal. Masuk satu ujung, kepalamu muncul di ujung pasangannya (angka dan jumlah cincin sama).',
-  duri: 'Baru: Duri dan tembok retak. Duri hanya bisa dilewati dengan Perisai (S), tembok retak dengan Palu (P). Keduanya sekali pakai.',
-  gerbang: 'Baru: Tuas. Injak tuas kuningan untuk membuka gerbang permanen. Tidak ada hitungan genap/ganjil.',
-  penjaga: 'Baru: Dungeon dijaga musuh. Tiga hati; tekan arah ke musuh untuk menyerang. Hindari petak serangan yang ditandai. Slime 1 HP, penjaga 2 HP.',
-};
-const specs = [];
-for (let n = TUTORIAL_COUNT + 1; n <= MAX_LEVEL; n++) {
-  const g = getLevel(n, campaign.CAMPAIGN_SEED);
-  if (g.fallback) throw new Error(`level ${n} jatuh ke cadangan; ubah seed/generator`);
-  const t = tierOf(n);
-  const s = g.spec;
-  specs.push({
-    id: `gen-${n}`, name: s.name, tier: t.name, intro: n === t.from && t.intro ? INTRO[t.intro] : null,
-    goal: s.goal, par: g.par, map: s.map, snake: s.snake, dir: s.dir, exit: s.exit, guards: s.guards || [], links: s.links || [],
-  });
+import { createHash } from 'node:crypto';
+import { root, generator, rounds, validation as V } from '../tests/helpers/env.mjs';
+// Persist only fully verified missions so an interrupted long build can resume.
+// Any generation/simulation change invalidates the cached proof bank.
+const sources=['scripts/build-campaign.mjs','lib/sim/rng.js',...['generator','rounds','sim','navigation','threats','geometry','validation'].map(n=>`lib/puzzle/${n}.js`)];
+const hash=createHash('sha256');sources.forEach(f=>hash.update(fs.readFileSync(path.join(root,f))));
+const signature=hash.digest('hex'),checkpoint=path.join(root,'node_modules/.cache/dungeon-campaign.json');
+let bank=[];
+if(fs.existsSync(checkpoint)) {
+  try { const saved=JSON.parse(fs.readFileSync(checkpoint,'utf8'));if(saved.signature===signature&&Array.isArray(saved.bank)&&saved.bank.length<=50)bank=saved.bank; } catch {}
 }
-const body = `// DIBUAT OTOMATIS oleh scripts/build-campaign.mjs dari generator (seed kampanye tetap). Jangan diedit tangan.\n// Level 6..50 "Jejak Kunci". Generator dijalankan di luar runtime karena butuh sampai ~1,5 dtk per level.\nexport const CAMPAIGN_SPECS = ${JSON.stringify(specs, null, 1).replace(/\n\s+/g, ' ').replace(/\[ /g, '[').replace(/ \]/g, ']')};\n`;
-fs.writeFileSync(path.join(root, 'lib/puzzle/campaignData.js'), body);
-console.log('ditulis', specs.length, 'level,', body.length, 'byte');
+if(bank.length)console.log(`Melanjutkan setelah ${bank.length} misi tervalidasi.`);
+for(let n=bank.length+1;n<=50;n++) {
+  const base=generator.missionSpec(n), variants=[];
+  for(let index=0;index<rounds.ROUND_VARIANT_SHAPES.length;index++) {
+    const shape=rounds.ROUND_VARIANT_SHAPES[index];
+    let accepted=null;
+    for(let attempt=0;attempt<160;attempt++) {
+      const seed=n*100000+index*1000+attempt;
+      const level=rounds.generateRound(base,seed,shape);
+      if(!level)continue;
+      const proof=V.verifyMission(level,{maxNodes:650});
+      if(!proof.ok)continue;
+      if([2,16,20,27,30,35,37,50].includes(n)&&!V.verifyMission(level,{maxNodes:900,wait:3}).ok)continue;
+      accepted=level;break;
+    }
+    if(!accepted)throw new Error(`Tidak ada varian aman untuk ${base.id}, bentuk ${shape}, slot ${index}`);
+    variants.push(accepted);
+  }
+  bank.push(variants);
+  fs.mkdirSync(path.dirname(checkpoint),{recursive:true});
+  fs.writeFileSync(checkpoint+'.tmp',JSON.stringify({signature,bank}));fs.renameSync(checkpoint+'.tmp',checkpoint);
+  console.log(`Misi ${n}/50: 8 varian lolos geometri dan replay tiga bintang.`);
+}
+const body='// Verified random-round bank. Regenerate with npm run build:campaign.\nexport const CAMPAIGN_VARIANTS = [\n'+bank.map(variants=>'  '+JSON.stringify(variants)).join(',\n')+'\n];\nexport const CAMPAIGN_SPECS = CAMPAIGN_VARIANTS.slice(5).map(variants => variants[0]);\n';
+const destination=path.join(root,'lib/puzzle/campaignData.js');
+fs.writeFileSync(destination+'.tmp',body);fs.renameSync(destination+'.tmp',destination);
+console.log('50 misi, 400 varian tervalidasi. Enam bentuk termasuk dua abstrak, posisi acak, dan ID lama dipertahankan.');

@@ -24,7 +24,7 @@ const GameCanvas = forwardRef(function GameCanvas({ mode, onUpdate, speedPref, t
   const inputRef = useRef(null);
   const sounds = useSounds();
 
-  const kind = kindOf(mode); // 'arcade' (engine lama), 'puzzle' (berbasis langkah), atau 'delivery' (kurir)
+  const kind = kindOf(mode); // 'arcade' (engine lama), 'puzzle' (stealth real-time), atau 'delivery' (kurir)
   prefsRef.current = { speedPref, taDuration };
   kindRef.current = kind;
   useEffect(() => { inputRef.current?.clear(); modeRef.current = mode; if (engineRef.current) engineRef.current.setMode(mode); }, [mode]);
@@ -52,8 +52,10 @@ const GameCanvas = forwardRef(function GameCanvas({ mode, onUpdate, speedPref, t
     returnToMenu: () => { inputRef.current?.clear(); return engineRef.current && engineRef.current.returnToMenu(); },
     setDir: (x, y) => engineRef.current && engineRef.current.setDir(x, y),
     setDirMP: (which, x, y) => engineRef.current && engineRef.current.setDirMP(which, x, y),
-    setHeldDir: (x, y) => inputRef.current?.press('pad', 0, x, y),
-    releaseHeldDir: () => inputRef.current?.release('pad'),
+    setHeldDir: (x, y) => kindRef.current === 'puzzle' ? engineRef.current?.setDir(x, y, { source: 'pad' }) : inputRef.current?.press('pad', 0, x, y),
+    releaseHeldDir: () => { inputRef.current?.release('pad'); engineRef.current?.cancelHeldInput?.('pad'); },
+    action: (type) => engineRef.current?.action?.(type),
+    setGait: (gait) => engineRef.current?.setGait?.(gait),
     setSpeedPref: (v) => engineRef.current && engineRef.current.setSpeedPref(v),
     setTaDuration: (s) => engineRef.current && engineRef.current.setTaDuration(s),
     chooseUpgrade: (id) => !!(engineRef.current && engineRef.current.chooseUpgrade && engineRef.current.chooseUpgrade(id)),
@@ -71,17 +73,29 @@ const GameCanvas = forwardRef(function GameCanvas({ mode, onUpdate, speedPref, t
     const WASD = { w: [0, -1], s: [0, 1], a: [-1, 0], d: [1, 0] };
     const input = createDirectionInput({
       enabled: () => !!engineRef.current && engineRef.current.getState() === 'playing' && !dialogOpen(),
-      stepMode: () => kindRef.current === 'puzzle',
+      stepMode: () => false,
       send: (player, x, y, meta) => { const e = engineRef.current; if (!e) return; if (isMPMode(modeRef.current)) e.setDirMP(player, x, y); else e.setDir(x, y, meta); },
       cancel: (_, source) => engineRef.current?.cancelHeldInput?.(source),
     });
     inputRef.current = input;
     function onKeyDown(e) {
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
       if (dialogOpen() || typingTarget(e.target)) return; // dialog / input memegang keyboard
       const k = e.key.toLowerCase();
       const engine = engineRef.current;
       if (!engine) return;
+      if (kindRef.current === 'puzzle') {
+        if (k === 'escape') { e.preventDefault(); if (!e.repeat) engine.togglePause(); return; }
+        if (engine.getState() !== 'playing') return;
+        const direction = DIRS[k] || WASD[k];
+        if (direction) { e.preventDefault(); if (!e.repeat) engine.setDir(...direction, { source: 'key:' + k }); return; }
+        if (k === 'shift') { e.preventDefault(); engine.setModifier('sneak', true); return; }
+        if (k === ' ' && !onControl(e.target)) { e.preventDefault(); engine.setModifier('run', true); return; }
+        const actions = { e: 'interact', f: 'hide', q: 'gadget', x: 'cycle' };
+        if (actions[k]) { e.preventDefault(); if (!e.repeat) engine.action(actions[k]); return; }
+        if (k === 'r') { e.preventDefault(); if (!e.repeat) engine.restartLevel(); }
+        return;
+      }
       // Spasi/Enter milik kontrol UI yang sedang fokus; jangan dicuri. Spasi di luar kontrol hanya dicegah agar halaman tidak scroll.
       if (k === ' ' || k === 'enter') {
         if (k === ' ' && !onControl(e.target)) { e.preventDefault(); if (!e.repeat && modeRef.current === 'puzzle') engine.setDir(0, 0); }
@@ -100,7 +114,12 @@ const GameCanvas = forwardRef(function GameCanvas({ mode, onUpdate, speedPref, t
       const d = arrow || WASD[k];
       if (d) { e.preventDefault(); input.press('key:' + k, 0, d[0], d[1]); }
     }
-    const onKeyUp = e => input.release('key:' + e.key.toLowerCase());
+    const onKeyUp = e => {
+      const k = e.key.toLowerCase(); input.release('key:' + k);
+      engineRef.current?.cancelHeldInput?.('key:' + k);
+      if (k === 'shift') engineRef.current?.setModifier?.('sneak', false);
+      if (k === ' ') engineRef.current?.setModifier?.('run', false);
+    };
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
     return () => { window.removeEventListener('keydown', onKeyDown); window.removeEventListener('keyup', onKeyUp); input.clear(); inputRef.current = null; };
@@ -129,7 +148,7 @@ const GameCanvas = forwardRef(function GameCanvas({ mode, onUpdate, speedPref, t
     let sx = 0, sy = 0, tracking = false;
     const ignore = (el) => el && el.closest && el.closest('.no-swipe, button, a, input');
     function onStart(e) {
-      if (ignore(e.target) || e.touches.length !== 1 || dialogOpen()) { tracking = false; return; }
+      if (kindRef.current === 'puzzle' || ignore(e.target) || e.touches.length !== 1 || dialogOpen()) { tracking = false; return; }
       sx = e.touches[0].clientX; sy = e.touches[0].clientY; tracking = true;
     }
     function onMove(e) {
@@ -156,7 +175,21 @@ const GameCanvas = forwardRef(function GameCanvas({ mode, onUpdate, speedPref, t
     };
   }, []);
 
-  return <canvas ref={canvasRef} id="c" width="680" height="600" style={{ background: '#a2d149' }} />;
+  useEffect(() => {
+    if (kind !== 'puzzle') return;
+    const canvas = canvasRef.current;
+    const resize = () => {
+      const width = canvas.getBoundingClientRect().width;
+      if (width < 1) return;
+      const ratio = Math.min(2, window.devicePixelRatio || 1);
+      canvas.width = Math.round(width * ratio); canvas.height = Math.round(width * 600 / 680 * ratio);
+      engineRef.current?.resize?.();
+    };
+    const observer = new ResizeObserver(resize); observer.observe(canvas); resize();
+    return () => { observer.disconnect(); canvas.width = 680; canvas.height = 600; };
+  }, [kind]);
+
+  return <canvas ref={canvasRef} id="c" width="680" height="600" aria-label={kind === 'puzzle' ? 'Dungeon Shadow Heist. WASD bergerak, Shift mengendap, E berinteraksi.' : 'Arena K-Snake'} style={{ background: kind === 'puzzle' ? '#152c33' : '#a2d149', aspectRatio: '680 / 600' }} />;
 });
 
 export default GameCanvas;

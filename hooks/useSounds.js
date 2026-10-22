@@ -70,13 +70,17 @@ export function useSounds() {
     } catch (e) {}
   }, []);
 
-  // Puzzle tidak bisa mati, jadi gerakan tertahan TIDAK memakai "eits" (peringatan bahaya).
+  // Gerakan tertahan punya bunyi sendiri; "eits" hanya untuk peringatan bahaya.
   const playBump = useCallback(() => tone(170, 0, 0.09, 'sine', 0.12, 85), [tone]);
   const playLocked = useCallback(() => { tone(330, 0, 0.06, 'square', 0.04); tone(247, 0.07, 0.09, 'square', 0.04); }, [tone]);
   const playWin = useCallback(() => { [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone(f, i * 0.1, 0.16, 'triangle', 0.09)); }, [tone]);
   const playDeliver = useCallback(() => { tone(880, 0, 0.09, 'triangle', 0.1); tone(1318.5, 0.08, 0.16, 'triangle', 0.1); }, [tone]);
+  // Short, stylized double bark; no downloaded audio asset or extra dependency.
+  const playBark = useCallback(() => {
+    for (const start of [0, .19]) { tone(230, start, .13, 'sawtooth', .035, 75); tone(115, start, .15, 'triangle', .07, 55); }
+  }, [tone]);
 
-  return { playChomp, playMove, playEits, playDeath, playBump, playLocked, playWin, playDeliver };
+  return { playChomp, playMove, playEits, playDeath, playBump, playLocked, playWin, playDeliver, playBark };
 }
 
 function play(audio) {

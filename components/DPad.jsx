@@ -1,5 +1,5 @@
 'use client';
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useEffect } from 'react';
 import { ICONS } from '@/lib/icons';
 
 // Satu permukaan bulat: arah ditentukan dari sudut jempol ke titik tengah,
@@ -7,7 +7,7 @@ import { ICONS } from '@/lib/icons';
 // ikut jempol kayak analog, balik ke tengah pas dilepas.
 const DEAD = 0.32; // proporsi radius yang jadi zona mati
 
-export default function DPad({ onMove, onRelease }) {
+export default function DPad({ onMove, onRelease, analog = false }) {
   const padRef = useRef(null);
   const knobRef = useRef(null);
   const st = useRef({ pid: null, dir: null });
@@ -30,6 +30,13 @@ export default function DPad({ onMove, onRelease }) {
 
     if (dist < max * DEAD) { if (st.current.dir) onRelease?.(); st.current.dir = null; return; }
 
+    if (analog) {
+      const sector = Math.round(ang / (Math.PI / 4));
+      const x = Math.round(Math.cos(sector * Math.PI / 4)), y = Math.round(Math.sin(sector * Math.PI / 4));
+      const dir = `${x},${y}`;
+      if (dir !== st.current.dir) { st.current.dir = dir; onMove(x, y); }
+      return;
+    }
     let dir;
     if (ang > -Math.PI / 4 && ang <= Math.PI / 4) dir = 'r';
     else if (ang > Math.PI / 4 && ang <= (3 * Math.PI) / 4) dir = 'd';
@@ -49,10 +56,10 @@ export default function DPad({ onMove, onRelease }) {
       else if (dir === 'l') onMove(-1, 0);
       else onMove(1, 0);
     }
-  }, [onMove, onRelease]);
+  }, [onMove, onRelease, analog]);
 
   const onDown = (e) => {
-    if (st.current.pid !== null || !e.isPrimary) return;
+    if (st.current.pid !== null) return;
     e.preventDefault();
     st.current.pid = e.pointerId;
     padRef.current && padRef.current.setPointerCapture(e.pointerId);
@@ -74,6 +81,13 @@ export default function DPad({ onMove, onRelease }) {
       placeKnob(0, 0);
     }
   };
+
+  const releaseRef = useRef(onRelease); releaseRef.current = onRelease;
+  useEffect(() => {
+    const reset = () => { st.current = { pid: null, dir: null }; placeKnob(0, 0); releaseRef.current?.(); };
+    window.addEventListener('blur', reset);
+    return () => { window.removeEventListener('blur', reset); reset(); };
+  }, []);
 
   const arrow = "absolute text-[#8a988a]";
   return (

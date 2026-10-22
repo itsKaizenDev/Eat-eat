@@ -8,6 +8,7 @@ import Hud from '@/components/Hud';
 import Overlay from '@/components/Overlay';
 import HelpModal from '@/components/HelpModal';
 import DPad from '@/components/DPad';
+import DungeonControls from '@/components/DungeonControls';
 import LoadingScreen from '@/components/LoadingScreen';
 import UpgradeDialog from '@/components/UpgradeDialog';
 import { isTwoPlayer, needsKeyboard } from '@/lib/modes/registry';
@@ -88,6 +89,7 @@ export default function Page() {
     const g = gameRef.current; if (!g) return;
     if (isTouch && !isLandscape) { setPendingPlay(true); return; }
     if (overlay.phase === 'pause') g.resumeRun(); else g.startRun();
+    window.scrollTo({ top: 0, behavior: 'instant' });
   }
 
   function handleDpad(x, y) {
@@ -128,7 +130,7 @@ export default function Page() {
         onWait={() => gameRef.current && gameRef.current.setDir(0, 0)}
       />}
 
-      <div id="wrap" className="game-w relative overflow-hidden border-[7px] rounded-md shadow-2xl" style={{ borderColor: mode === 'classicnight' ? '#2b4763' : '#4a752c' }}>
+      <div id="wrap" className="game-w relative overflow-hidden border-[7px] rounded-md shadow-2xl" style={{ borderColor: mode === 'puzzle' ? '#263f43' : mode === 'classicnight' ? '#2b4763' : '#4a752c' }}>
         <div className={menuOpen ? 'canvas-sleep' : 'canvas-frame'}><GameCanvas ref={gameRef} mode={mode} onUpdate={onUpdate} speedPref={speed} taDuration={taSecs} /></div>
         <Overlay
           onHelp={() => setHelpOpen(true)}
@@ -160,9 +162,11 @@ export default function Page() {
       </div>
 
       {side && <div ref={setSideEl} className="side-menu" />}
-      {!overlay.visible && <DPad onMove={handleDpad} onRelease={() => gameRef.current?.releaseHeldDir()} />}
+      {!overlay.visible && (mode === 'puzzle'
+        ? <DungeonControls data={hud.puzzle} onMove={handleDpad} onRelease={() => gameRef.current?.releaseHeldDir()} onAction={type => gameRef.current?.action(type)} onGait={g => gameRef.current?.setGait(g)} onRestart={() => gameRef.current?.restartLevel()} />
+        : <DPad onMove={handleDpad} onRelease={() => gameRef.current?.releaseHeldDir()} />)}
       {!menuOpen && !side && (mode === 'puzzle'
-        ? <div className="text-[11px] sm:text-xs text-[#8a988a] mt-2.5 text-center">Panah / WASD melangkah • Spasi tunggu • Z undo • R ulang • Esc jeda</div>
+        ? <div className="heist-keyhint text-[11px] sm:text-xs text-[#8a988a] mt-2.5 text-center">WASD / panah gerak · Shift mengendap · Spasi lari · E interaksi · F sembunyi · Q alat · X ganti · R ulang · Esc jeda</div>
         : mode === 'boss'
         ? <div className="text-[11px] sm:text-xs text-[#8a988a] mt-2.5 text-center">Panah / WASD gerak • geser layar • Esc jeda</div>
         : mode === 'territory'

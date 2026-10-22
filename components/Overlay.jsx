@@ -44,7 +44,7 @@ const CONFETTI_SIZE = '64px 84px, 78px 96px, 90px 70px, 70px 110px';
 const CONFETTI_POS = '6px 10px, 34px 46px, 54px 8px, 20px 70px';
 
 const DESCRIPTION = {
-  puzzle: 'Cari kunci, buka tuas, pilih bertarung atau menyelinap.',
+  puzzle: 'Shadow Heist · Amati patroli, curi relik, dan keluar tanpa jejak.',
   delivery: 'Antar paket apel sebelum waktunya habis.',
   roguelite: 'Kumpulkan bekal. Tembus antek. Taklukkan boss.',
   boss: 'Tembus 9 ronde antek, lalu taklukkan boss tiga fase.',
@@ -177,9 +177,9 @@ export default function Overlay({ side, host, visible, phase, mood, title, sub, 
       {am.preview && <details className="mode-details"><summary>Tujuan & cara bermain</summary><p className="start-description">{am.goal}</p><ul className="start-preview" aria-label="Pratinjau aturan">{am.preview.map((t, i) => <li key={i}>{t}</li>)}</ul></details>}
       {isPuzzleMode && lv && selLevel && (
         <div className="level-info" role="status" aria-live="polite" aria-atomic="true">
-          <div className="coin-wallet"><ICONS.normal size={18} /><b>{lv.coins || 0} koin apel</b><span>Skin ular · rencana mendatang</span></div>
+          <div className="coin-wallet"><ICONS.normal size={18} /><b>{lv.coins || 0} koin apel</b><span>Bonus terbaik per misi · replay memberi selisih koleksi saja</span></div>
           {lv.savePending && <div className="save-notice" role="status"><p>Progres masih di sesi ini. Simpan sebelum menutup game.</p><button onClick={onRetrySave}>Coba simpan lagi</button></div>}
-          <p className="start-description"><span><b>Ruang {lv.selected + 1}{selLevel.tutorial ? ' (tutorial)' : ''} · {selLevel.tier || selLevel.name}:</b> {selLevel.goal} Acuan {selLevel.par} langkah.</span></p>
+          <p className="start-description"><span><b>Ruang {lv.selected + 1}{selLevel.tutorial ? ' (tutorial)' : ''} · {selLevel.tier || selLevel.name}:</b> {selLevel.goal} Acuan bintang ketiga {Math.floor(selLevel.par / 60)}:{String(selLevel.par % 60).padStart(2, '0')}.</span></p>
           {selLevel.intro && <p className="level-intro">{selLevel.intro}</p>}
         </div>
       )}
@@ -201,12 +201,12 @@ export default function Overlay({ side, host, visible, phase, mood, title, sub, 
                 key={l.id}
                 disabled={!l.unlocked}
                 aria-pressed={lv.selected === i}
-                aria-label={`Ruang ${i + 1}: ${l.name}${l.unlocked ? '' : ', terkunci'}${l.cleared ? (l.legacyBest ? ', selesai di versi lama' : `, rekor ${l.best} langkah`) : ''}`}
+                aria-label={`Ruang ${i + 1}: ${l.name}${l.unlocked ? '' : ', terkunci'}${l.cleared ? (l.stars ? `, ${l.stars} bintang, rekor ${l.best}` : ', selesai di versi lama') : ''}`}
                 onClick={() => onSelectLevel && onSelectLevel(i)}
                 className="level-btn"
               >
                 <b>{i + 1}</b>
-                <small>{!l.unlocked ? 'Terkunci' : l.cleared ? (l.legacyBest ? 'Versi lama' : `✓ ${l.best}`) : 'Baru'}</small>
+                <small>{!l.unlocked ? 'Terkunci' : l.cleared ? (l.stars ? '★'.repeat(l.stars) + '☆'.repeat(3 - l.stars) : 'Versi lama') : 'Baru'}</small>
               </button>
             ))}
           </div>

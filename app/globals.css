@@ -311,3 +311,91 @@ button:active:not(:disabled) { transform:translateY(1px); }
 .stage-side[data-mode="puzzle"] .puzzle-stats { font-size:11px; gap:3px 8px; }
 .stage-side[data-mode="puzzle"] { --dpad:clamp(100px,30vh,138px); }
 .stage-side[data-mode="puzzle"] .puzzle-actions button { min-height:40px; padding:5px 8px; }
+
+/* Dungeon · Shadow Heist: compact mission HUD and independent multi-touch actions. */
+.heist-hud { width:100%; display:grid; gap:7px; }
+.heist-mission { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.heist-mission .eyebrow { color:#527f79; font-size:9px; }
+.heist-mission strong { font-size:12px; }
+.heist-counters { display:flex; align-items:center; flex-wrap:wrap; gap:5px 16px; font-size:12px; }
+.heist-counters span,.heist-alert span { display:inline-flex; align-items:center; gap:5px; }
+.heist-counters b { font-variant-numeric:tabular-nums; }
+.heist-alert { display:grid; grid-template-columns:1fr auto; align-items:center; gap:5px; font-size:11px; color:#3e7163; }
+.heist-alert[data-alert=true] { color:#af4536; }
+.heist-alert > div { grid-column:1 / -1; height:4px; border-radius:8px; background:#e3e9de; overflow:hidden; }
+.heist-alert i { display:block; height:100%; background:#d7a653; transition:width .1s linear; }
+.heist-alert[data-alert=true] i { background:#d66a54; }
+.heist-message { font-size:11px; line-height:1.45; color:#66776b; min-height:16px; }
+.dungeon-controls { width:var(--gw); margin:10px auto 0; touch-action:none; }
+.heist-buttons { display:grid; gap:7px; }
+.heist-gaits { display:grid; grid-template-columns:repeat(3,1fr); padding:3px; border:1px solid #d8e1d4; background:#e7ece3; border-radius:12px; gap:3px; }
+.heist-gaits button { display:flex; gap:5px; align-items:center; justify-content:center; min-height:36px; font-size:11px; font-weight:650; border-radius:8px; }
+.heist-gaits button[aria-pressed=true] { background:#305d4e; color:#f1f8e8; box-shadow:0 1px 3px #17352d22; }
+.heist-action-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; }
+.heist-action-grid button { border:1px solid #ccd9cb; background:#fffef8; border-radius:11px; min-height:44px; display:flex; align-items:center; justify-content:center; gap:6px; padding:6px; font-size:11px; color:#315348; font-weight:650; }
+.heist-action-grid button span { display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:5px; }
+.heist-action-grid .heist-interact:not(:disabled) { background:#dcecc9; border-color:#8faf7a; }
+.heist-action-grid button[aria-pressed=true] { background:#e6ddf1; border-color:#a995c0; }
+.heist-buttons kbd { font:10px system-ui; border:1px solid #c6d2c0; padding:0 3px; border-radius:4px; opacity:.7; }
+.heist-restart { display:flex; gap:5px; align-items:center; justify-self:end; font-size:10px; color:#728070; min-height:24px; padding:0 5px; }
+.stage-side[data-mode=puzzle] .dungeon-controls { grid-area:pad; align-self:end; width:100%; margin:0; display:flex; align-items:center; gap:9px; flex-wrap:wrap; justify-content:center; }
+.stage-side[data-mode=puzzle] .dungeon-controls #dpad { flex-shrink:0; margin:0; --dpad:90px; }
+.stage-side[data-mode=puzzle] .heist-buttons { flex:1; min-width:135px; }
+.stage-side[data-mode=puzzle] .heist-action-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.stage-side[data-mode=puzzle] .heist-action-grid button { min-height:40px; font-size:10px; gap:3px; }
+.stage-side[data-mode=puzzle] .heist-gaits button { flex-direction:column; gap:1px; min-height:38px; font-size:9px; }
+.stage-side[data-mode=puzzle] .heist-buttons kbd { display:none; }
+.stage-side[data-mode=puzzle] .heist-mission .eyebrow { display:none; }
+.stage-side[data-mode=puzzle] .heist-message { font-size:10px; min-height:0; }
+.stage-side[data-mode=puzzle] .heist-counters { gap:4px 8px; font-size:11px; }
+.stage-side[data-mode=puzzle] .side-hud { max-height:45dvh; }
+.stage-side[data-mode=puzzle] .side-hud .text-2xl { font-size:17px; }
+@media (hover:hover) and (pointer:fine) {
+ .playing-stage[data-mode=puzzle] { --gw:min(calc(100vw - 32px),780px,max(300px,calc((100dvh - 310px) * 1.1333))); }
+ .dungeon-controls .heist-buttons { grid-template-columns:1fr 1.6fr auto; align-items:center; }
+ .heist-restart { min-height:40px; }
+}
+@media (max-height:440px) and (orientation:landscape) {
+ .stage-side[data-mode=puzzle] { --side-w:300px; }
+ .stage-side[data-mode=puzzle] .heist-message { max-height:29px; overflow:auto; }
+ .stage-side[data-mode=puzzle] .dungeon-controls { flex-wrap:nowrap; }
+ .stage-side[data-mode=puzzle] .heist-restart { display:none; }
+}
+@media (prefers-reduced-motion:reduce) { .heist-alert i { transition:none; } }
+.heist-desktop-hud { width:var(--gw); padding:20px; border:1px solid var(--line); border-radius:18px; background:var(--surface); margin-bottom:12px; }
+.heist-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.heist-heading .eyebrow { font-size:9px; color:#527f79; }
+.heist-heading > div { display:flex; gap:5px; }
+.heist-heading .icon-button { min-height:36px; min-width:36px; }
+.heist-desktop-hud h1 { font-family:'Fredoka',ui-rounded,system-ui; font-size:30px; font-weight:600; color:#244d43; margin:8px 0; }
+.heist-level-name { display:flex; align-items:center; gap:7px; flex-wrap:wrap; margin-bottom:18px; font-size:12px; }
+.heist-level-name > b { background:#e6eddc; padding:4px 7px; border-radius:7px; font-size:14px; }
+.heist-level-name small { flex-basis:100%; color:#7d897a; font-size:10px; }
+.heist-best { display:flex; justify-content:space-between; border-top:1px solid var(--line); margin-top:15px; padding-top:12px; font-size:11px; color:#7b8879; }
+.heist-best b { color:#3c6657; }
+.heist-rating-help { color:#5d7565; font-size:11px; margin-top:14px; }
+.heist-rating-help summary { cursor:pointer; }
+.heist-rating-help p { line-height:1.6; margin-top:9px; }
+@media (hover:hover) and (pointer:fine) and (min-width:900px) {
+ .playing-stage[data-mode=puzzle] { --gw:min(780px,calc((100dvh - 74px) * 1.1333),calc(100vw - 356px)); width:fit-content; display:grid; grid-template-columns:var(--gw) 280px; grid-template-rows:auto 1fr auto; grid-template-areas:'game hud' 'game controls' 'hint hint'; gap:16px 24px; align-items:start; }
+ .playing-stage[data-mode=puzzle] #wrap { grid-area:game; width:var(--gw); align-self:start; }
+ .playing-stage[data-mode=puzzle] .heist-desktop-hud { grid-area:hud; width:100%; margin:0; }
+ .playing-stage[data-mode=puzzle] .dungeon-controls { grid-area:controls; width:100%; margin:0; align-self:start; }
+ .playing-stage[data-mode=puzzle] .heist-buttons { display:grid; grid-template-columns:1fr; }
+ .playing-stage[data-mode=puzzle] .heist-action-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+ .playing-stage[data-mode=puzzle] .heist-action-grid button { min-height:48px; }
+ .playing-stage[data-mode=puzzle] .heist-gaits button { min-height:42px; }
+ .playing-stage[data-mode=puzzle] .heist-keyhint { grid-area:hint; margin:0; max-width:100%; }
+ .playing-stage[data-mode=puzzle] .heist-mission { gap:8px; }
+ .playing-stage[data-mode=puzzle] .heist-mission .eyebrow { display:none; }
+ .playing-stage[data-mode=puzzle] .heist-mission strong { line-height:1.6; font-size:13px; }
+ .playing-stage[data-mode=puzzle] .heist-hud { gap:14px; }
+ .playing-stage[data-mode=puzzle] .heist-message { min-height:40px; line-height:1.7; }
+}
+@media (hover:hover) and (pointer:fine) and (max-width:899px) {
+ .playing-stage[data-mode=puzzle] .heist-buttons { grid-template-columns:1fr; }
+ .heist-desktop-hud { padding:12px; }
+ .heist-desktop-hud h1 { font-size:23px; }
+ .heist-level-name { margin-bottom:10px; }
+ .heist-rating-help { display:none; }
+}

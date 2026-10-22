@@ -29,38 +29,21 @@ function Hearts({ count }) {
   );
 }
 
-const GUARD_TEXT = { idle: 'patroli', alert: 'terlihat! Kabur sekarang', chase: 'MENGEJAR!', return: 'mencari jalan pulang', stunned: 'pingsan', windup: 'serangan siap! Hindari petak !', recover: 'celah menyerang' };
-
-// Statistik Puzzle: ikon + teks (status tidak bergantung warna) dan pesan langsung (live region).
 function PuzzleStats({ p }) {
-  const StepsI = ICONS.steps, KeyI = ICONS.key, PlateI = ICONS.plate;
-  return (
-    <div className="puzzle-hud">
-      <div className="puzzle-stats">
-        <span><StepsI size={14} />Langkah {p.steps} · acuan {p.par}</span>
-        {p.keys.need > 0 && <span><KeyI size={14} />Kunci {p.keys.have}/{p.keys.need}</span>}
-        {p.plates.need > 0 && <span><PlateI size={14} />Sakelar {p.plates.active}/{p.plates.need}</span>}
-        <span className="apple-counter"><ICONS.normal size={14} />Apel {p.apples}/{p.applesTotal} <small>bonus</small></span>
-        {p.hammer > 0 && <span><ICONS.hammer size={14} />Palu {p.hammer}</span>}
-        {p.shield > 0 && <span><ICONS.shield size={14} />Perisai {p.shield}</span>}
-        {p.enemies?.total > 0 && <><span className="dungeon-hearts"><ICONS.heart size={14} fill="currentColor" />{p.hearts}/3 hati</span><span><ICONS.eye size={14} />Musuh {p.enemies.left}/{p.enemies.total}</span></>}
-        {p.levers?.total > 0 && <span><ICONS.lock size={14} />Jeruji {p.levers.active}/{p.levers.total} terbuka</span>}
-        {p.guard && <span data-guard={p.guard}><ICONS.eye size={14} />Penjaga: {GUARD_TEXT[p.guard]}</span>}
-      </div>
-      {!!p.legend?.length && <div className="puzzle-legend">{p.legend.map(l => { const I = ICONS[l.icon]; return <span key={l.icon}><I size={13} />{l.text}</span>; })}</div>}
-      <div className="puzzle-msg" role="status" aria-live="polite" aria-atomic="true">{p.message}</div>
+  return <div className="heist-hud">
+    <div className="heist-mission"><span className="eyebrow">SHADOW HEIST{p.shape ? ` · DENAH ${p.shape.toUpperCase()}` : ''}</span><strong>{p.artifacts === p.artifactsTotal ? 'Relik lengkap. Kembali ke pintu keluar.' : p.goal}</strong></div>
+    <div className="heist-counters">
+      <span><ICONS.gift size={15} />Relik <b>{p.artifacts}/{p.artifactsTotal}</b></span>
+      <span><ICONS.normal size={15} />Apel <b>{p.coins}/{p.coinTotal}</b></span>
+      <span><ICONS.timeattack size={15} /><b>{p.time}</b></span>
+      {!!p.keys.length && <span><ICONS.key size={15} />{p.keys.join(', ').toUpperCase()}</span>}
     </div>
-  );
-}
-
-function PuzzleActions({ p, onUndo, onRestart, onWait }) {
-  return (
-    <div className="puzzle-actions flex items-center gap-1.5">
-      <button onClick={onWait} disabled={p.status !== 'playing'} aria-label="Tunggu satu giliran (Spasi)"><ICONS.timeattack size={14} />Tunggu</button>
-      <button onClick={onUndo} disabled={!p.canUndo} aria-label="Undo langkah (Z)"><ICONS.undo size={14} />Undo</button>
-      <button onClick={onRestart} disabled={p.status !== 'playing'} aria-label="Ulang level (R)"><ICONS.restart size={14} />Ulang</button>
+    <div className="heist-alert" data-alert={p.cameraAlarm || p.suspicion > 70}>
+      <span><ICONS.eye size={15} />{p.statusText}</span><small>Alarm {p.alerts}</small>
+      <div role="progressbar" aria-label="Kecurigaan penjaga" aria-valuemin={0} aria-valuemax={100} aria-valuenow={p.suspicion}><i style={{ width: p.suspicion + '%' }} /></div>
     </div>
-  );
+    <div className="heist-message" role="status" aria-live="polite">{p.message}</div>
+  </div>;
 }
 
 // Statistik Delivery: waktu shift, terkirim/target, tiga slot kargo (ikon + huruf + sisa umur), dan pesanan aktif.
@@ -188,6 +171,18 @@ export default function Hud({ mode, modeLabel, timerText, effects, score, best, 
   const isTerritory = mode === 'territory' && !!territory;
   const isBoss = (mode === 'boss' || mode === 'roguelite') && !!boss;
 
+  if (isPuzzle && !side) return <section className="heist-desktop-hud">
+    <div className="heist-heading"><span className="eyebrow">K-SNAKE / DUNGEON</span><div>
+      {canPause && <button className="icon-button" aria-label="Jeda" onClick={onPause}><ICONS.pause size={17} /></button>}
+      <button className="icon-button" aria-label="Bantuan" onClick={onHelp}><HelpIcon size={17} /></button>
+    </div></div>
+    <h1>Shadow Heist</h1>
+    <p className="heist-level-name"><b>{String(puzzle.levelNo).padStart(2, '0')}</b> {puzzle.name}<small>{puzzle.levelNo}/{puzzle.levelCount} misi{puzzle.shape ? ` · Denah ${puzzle.shape}` : ''}</small></p>
+    <PuzzleStats p={puzzle} />
+    <div className="heist-best"><span>Rekor <b>{puzzle.best || '—'}</b></span><span>Acuan <b>{puzzle.par}</b></span></div>
+    <details className="heist-rating-help"><summary>Cara mendapat 3 bintang</summary><p>Tuntaskan misi tanpa alarm, ambil semua koin bonus, lalu keluar sebelum waktu acuan. Mengendap memberi waktu untuk mengamati.</p></details>
+  </section>;
+
   // Mode landscape di HP: kartu kecil & ringkas di panel samping kanvas.
   if (side) {
     const showTimer = mode === 'timeattack' && timerText;
@@ -207,6 +202,7 @@ export default function Hud({ mode, modeLabel, timerText, effects, score, best, 
           </div>
           )}
           <div className="flex items-center gap-1 shrink-0">
+            {isPuzzle && <button onClick={onRestart} aria-label="Ulang & acak" title="Ulang misi dengan denah baru" className="w-8 h-8 rounded-full bg-[#e8eaed] text-[#3c4043] flex items-center justify-center active:scale-95 transition-transform"><ICONS.restart size={15} /></button>}
             <button
               onClick={onSwap}
               aria-label={lefty ? 'Mode kidal aktif, tap untuk balik ke kanan' : 'Pindahkan tombol ke kiri (mode kidal)'}
@@ -232,7 +228,7 @@ export default function Hud({ mode, modeLabel, timerText, effects, score, best, 
         {isPuzzle && (
           <>
             <PuzzleStats p={puzzle} />
-            <PuzzleActions p={puzzle} onUndo={onUndo} onRestart={onRestart} onWait={onWait} />
+
           </>
         )}
         {isDelivery && <DeliveryStats d={delivery} />}
@@ -312,7 +308,7 @@ export default function Hud({ mode, modeLabel, timerText, effects, score, best, 
           <PuzzleStats p={puzzle} />
           <div className="flex items-center gap-3">
             <span className="text-[12px] text-[#5f6368]">Rekor <b className="text-[#202124]">{puzzle.best || '-'}</b></span>
-            <PuzzleActions p={puzzle} onUndo={onUndo} onRestart={onRestart} onWait={onWait} />
+
           </div>
         </div>
       )}

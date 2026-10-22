@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { revives as R, puzzle as P, progressLib as S, makeRogueWorld, makePuzzleWorld, bossSim as B, createRng, campaign } from './helpers/env.mjs';
+import { room } from './puzzle.fixtures.mjs';
 
 function storage(fail = false) {
   const values = {};
@@ -109,32 +110,18 @@ test('koin: hadiah hanya selisih rekor koleksi, undo/replay tidak menggandakan, 
   r = S.recordPuzzleResult(p, 'jk-1', 19, 4, 1); assert.equal(r.earned, 0); assert.equal(S.appleCoins(r.progress), 3);
 });
 
-const coinLevel = () => P.buildLevel({ id: 'coin', name: 'Koin', par: 4, map: ['########', '#.FK.E.#', '########'], snake: [[1, 1]], dir: 'R', exit: { keys: 1, plates: [] } }).level;
-test('koin controller: belum disimpan saat pickup; undo membatalkan, keluar menyimpan sekali, replay nol tambahan', () => {
-  const w = makePuzzleWorld({ levels: [coinLevel()] }); w.eng.startRun(); w.play('R');
-  assert.equal(w.last('puzzle').apples, 1); assert.equal(w.saves.length, 0);
-  w.eng.undo(); assert.equal(w.last('puzzle').apples, 0);
-  w.play('RRRR'); assert.equal(w.eng.getState(), 'won'); assert.equal(w.last('puzzleMenu').coins, 1);
-  assert.equal(w.saves.length, 1); w.eng.startRun(); w.play('RRRR'); assert.equal(w.last('puzzleMenu').coins, 1);
-  assert.match(w.overlays('gameover')[1].overlay.sub, /\+0 koin/);
+// Dungeon's former undo/step contract is replaced with real-time retry and completion.
+const coinLevel = () => ({ ...room(), id:'coin', guards:[],
+  spawn:{x:2.5,y:2.5},exit:{x:4.5,y:2.5},artifacts:[{id:'r',x:3.5,y:2.5,kind:'artifact'}],loot:[{id:'b',x:3.5,y:2.5,kind:'loot'}] });
+test('koin controller: pickup belum tersimpan; restart membatalkan; keluar sekali dan replay nol tambahan',()=>{
+ const w=makePuzzleWorld({levels:[coinLevel()]});w.eng.startRun();w.eng.setDir(1,0);w.advance(350);assert.equal(w.x.world.loot,1);assert.equal(w.saves.length,0);
+ w.eng.restartLevel();assert.equal(w.x.world.loot,0);w.eng.setDir(1,0);w.advance(1200);assert.equal(w.eng.getState(),'won');assert.equal(w.last('puzzleMenu').coins,1);assert.equal(w.saves.length,1);
+ w.eng.startRun();w.eng.setDir(1,0);w.advance(1200);assert.equal(w.last('puzzleMenu').coins,1);assert.match(w.overlays('gameover')[1].overlay.sub,/\+0 koin/);w.eng.destroy();
 });
-
-test('animasi puzzle: input beruntun antre, pause membekukan antrean, undo tidak menyisakan input', () => {
-  const w = makePuzzleWorld({ levels: [coinLevel()], animate: true }); w.eng.startRun();
-  w.play('RR'); assert.equal(w.last('score'), 1);
-  w.frame(130); assert.equal(w.last('score'), 2);
-  w.eng.pauseRun('help'); w.frame(5000); assert.equal(w.last('score'), 2); assert.equal(w.rafQueue.length, 0);
-  w.eng.releasePause('help'); w.eng.resumeRun(); w.frame(130);
-  w.play('R'); w.play('R'); w.eng.undo(); w.frame(400);
-  assert.equal(w.last('score'), 2); assert.equal(w.eng.getState(), 'playing'); w.eng.destroy();
+test('real-time dungeon: bantuan membekukan waktu dan menghapus arah tertahan',()=>{
+ const w=makePuzzleWorld({levels:[coinLevel()]});w.eng.startRun();w.eng.setDir(1,0);w.advance(200);w.eng.pauseRun('help');const before=w.x.world.time;w.advance(5000);assert.equal(w.x.world.time,before);assert.equal(w.rafQueue.size,0);
+ w.eng.releasePause('help');w.eng.resumeRun();const x=w.x.world.player.x;w.advance(1000);assert.equal(w.x.world.player.x,x);w.eng.destroy();
 });
-
-test('kampanye baru: semua penjaga punya rute 3+ petak, semua apel opsional, maskot satu petak', () => {
-  for (const lv of campaign.CAMPAIGN_LEVELS) {
-    assert.equal(P.initialState(lv).snake.length, 1);
-    assert.equal(lv.revision, 4);
-    assert.ok(lv.foods.length <= 3);
-    for (const g of lv.guards) assert.ok(g.patrol.length >= 3);
-    assert.equal(P.solve({ ...lv, foods: [] }, 60000).length, lv.par, lv.id);
-  }
+test('campaign revision 6 keeps the small snake explorer and expands optional Apple Coin rewards',()=>{
+ for(const l of campaign.CAMPAIGN_LEVELS){const s=P.createState(l);assert.ok(s.player);assert.equal(s.snake,undefined);assert.equal(l.revision,6);assert.equal(l.loot.length,l.number>=35?8:l.number>=10?6:4);assert.ok(l.loot.every(o=>o.value===5));assert.ok(l.guards.every(g=>g.route.length>=2));assert.ok(l.artifacts.length>=1);}
 });

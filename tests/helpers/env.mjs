@@ -31,6 +31,7 @@ export const puzzle = await load('puzzle/sim.mjs');
 export const { LEVELS, RAW_LEVELS, REJECTED_LEVELS, loadLevels } = await load('puzzle/levels.mjs');
 export const { createPuzzleGame } = await load('puzzle/controller.mjs');
 export const generator = await load('puzzle/generator.mjs');
+export const rounds = await load('puzzle/rounds.mjs');
 export const campaign = await load('puzzle/campaign.mjs');
 export const progressLib = await load('progress.mjs');
 export const registry = await load('modes/registry.mjs');
@@ -38,25 +39,23 @@ export const constants = await load('constants.mjs');
 export const sceneTheme = await load('sceneTheme.mjs');
 export { root };
 
-// Dunia palsu untuk controller Puzzle: canvas stub, suara hitung, penyimpanan progres di memori.
-export function makePuzzleWorld({ progress, levels, animate } = {}) {
-  const noop = () => {};
-  const ctxCalls = { fillRect: 0 };
-  const ctx = new Proxy({}, { get: (t, p) => (p === 'fillRect' ? (() => { ctxCalls.fillRect++; }) : (p in t ? t[p] : noop)), set: (t, p, v) => { t[p] = v; return true; } });
-  const canvas = { width: 680, height: 600, getContext: () => ctx };
-  const w = { emits: [], saves: [], calls: { move: 0, chomp: 0, eits: 0, death: 0, bump: 0, locked: 0, win: 0 }, rafQueue: [], now: 5000 };
-  const sounds = { playMove: () => w.calls.move++, playChomp: () => w.calls.chomp++, playEits: () => w.calls.eits++, playDeath: () => w.calls.death++, playBump: () => w.calls.bump++, playLocked: () => w.calls.locked++, playWin: () => w.calls.win++ };
-  // Animasi diuji dengan RAF & jam palsu (hanya bila diminta); tanpa itu controller tidak menjadwalkan frame apa pun.
-  const anim = animate ? { raf: (cb) => { w.rafQueue.push(cb); return w.rafQueue.length; }, caf: () => { w.rafQueue = []; }, now: () => w.now } : {};
-  w.progress = progress || { v: 1, puzzle: { levels: {} } };
-  const io = { load: () => w.progress, save: (p) => { w.saves.push(p); w.progress = p; } };
-  w.eng = createPuzzleGame({ canvas, sounds, onUpdate: p => w.emits.push(p), io, levels: levels || LEVELS, ...anim }); // tes lama memakai 5 level tutorial; kampanye 50 level diuji eksplisit
-  w.frame = (ms) => { w.now += ms; const q = w.rafQueue; w.rafQueue = []; q.forEach(cb => cb(w.now)); };
-  w.draws = () => ctxCalls.fillRect;
-  w.last = (key) => { for (let i = w.emits.length - 1; i >= 0; i--) if (key in w.emits[i]) return w.emits[i][key]; };
-  w.overlays = (phase) => w.emits.filter(e => e.overlay && e.overlay.phase === phase);
-  const D = { U: [0, -1], D: [0, 1], L: [-1, 0], R: [1, 0], W: [0, 0] };
-  w.play = (path) => { for (const k of path) w.eng.setDir(...D[k]); };
+export const geometry = await load('puzzle/geometry.mjs');
+export const validation = await load('puzzle/validation.mjs');
+
+// Fixed-step dungeon controller with an observable world and an actual simulated RAF clock.
+export function makePuzzleWorld({ progress, levels, io, rng = createRng(123) } = {}) {
+  const noop=()=>{};
+  const ctx=new Proxy({}, {get:(t,p)=>p in t?t[p]:noop,set:(t,p,v)=>{t[p]=v;return true;}});
+  const w={emits:[],saves:[],calls:{win:0,death:0,chomp:0,eits:0},rafQueue:new Map(),now:5000,seq:0};
+  w.progress=progress||{v:1,puzzle:{levels:{}}};
+  const sounds=Object.fromEntries(['Win','Death','Chomp','Eits'].map(n=>['play'+n,()=>w.calls[n.toLowerCase()]++]));
+  w.eng=createPuzzleGame({canvas:{width:680,height:600,getContext:()=>ctx},sounds,onUpdate:p=>w.emits.push(p),
+    levels:levels||LEVELS,rng,io:io||{load:()=>w.progress,save:p=>{w.saves.push(p);w.progress=p;return true;}},
+    raf:fn=>{const id=++w.seq;w.rafQueue.set(id,fn);return id;},caf:id=>w.rafQueue.delete(id),now:()=>w.now,inspect:h=>w.x=h});
+  w.frame=ms=>{w.now+=ms;const q=[...w.rafQueue.values()];w.rafQueue.clear();q.forEach(cb=>cb(w.now));};
+  w.advance=ms=>{const end=w.now+ms;while(w.now<end)w.frame(Math.min(1000/60,end-w.now));};
+  w.last=key=>w.emits.findLast(e=>key in e)?.[key];
+  w.overlays=phase=>w.emits.filter(e=>e.overlay?.phase===phase);
   return w;
 }
 

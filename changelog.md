@@ -4627,3 +4627,146 @@ Saran `strategic-compact`: karena fase eksplorasi/audit ini sudah selesai dan re
 - File probe sementara saya hapus; **tidak ada file proyekmu yang diubah**. Fix T-01 dan T-02 divalidasi hanya di salinan scratch.
 
 </details>
+
+---
+
+## 2026-10-22 — Dungeon: Shadow Heist (kampanye revisi 5)
+
+### Gameplay dan integrasi
+
+- Dungeon berubah dari puzzle giliran/pertarungan tiga hati menjadi pencurian relik real-time. Tetap memakai mode ID/kind `puzzle`, menu Dungeon, dan halaman utama yang sama.
+- Simulasi fixed-step 60 Hz: arah ditahan/dilepas, diagonal dinormalisasi, collision lingkaran dengan substep, serta tiga kecepatan (mengendap/jalan/lari). Waktu frame dibatasi agar kembali dari tab latar tidak membuat pemain melompat.
+- WASD/panah bergerak; Shift mengendap; Spasi berlari; E berinteraksi; F bersembunyi/keluar; Q memakai alat; X mengganti alat; R mengulang; Esc menjeda. Input dibersihkan saat jeda, kehilangan fokus, restart, dan pergantian mode.
+- Kunci/pintu berlabel A, tuas/segel permanen, relik wajib, koin opsional, ceruk persembunyian, portal berpasangan, dan pelat berwaktu. Gerbang pelat menetap terbuka setelah dilewati serta tidak menutup menimpa karakter.
+- Batu dilempar ke arah hadap untuk mengalihkan penjaga. Kristal asap menutup pandangan selama 4,5 detik tanpa menghapus collision atau ingatan penjaga. Persediaan kedua alat terbatas.
+
+### Penjaga dan lingkungan
+
+- FSM PATROL, SUSPICIOUS, INVESTIGATE, CHASE, SEARCH, dan RETURN; penglihatan bertahap, lokasi terakhir terlihat, penyelidikan suara, pengejaran, pencarian, lalu kembali ke patroli.
+- Raycasting yang sama menjadi dasar deteksi dan kerucut visual. Dinding, peti, pintu tertutup, dan asap menghalangi pandangan; obor dan bayangan memengaruhi laju kecurigaan. Penjaga yang melihat pemain masuk persembunyian dapat memeriksanya.
+- Navigasi grid dengan cache rute dan mekanisme saling memberi jalan. Menyentuh penjaga dapat menggagalkan misi; serangan dan hati dari kontrak lama tidak dipakai lagi.
+- Suara menyebar lewat petak yang tersambung: dinding/peti menghalangi, pintu tertutup menambahkan redaman tiga petak. Berlari terdengar lebih jauh; lonceng memperbesar gangguan. Kristal pengawas memberi alarm dengan sorot yang terlihat.
+
+### Kampanye, progres, dan hadiah
+
+- Semua 50 misi dirancang ulang memakai 10 denah dasar buatan tangan dan 50 konfigurasi misi deterministik, dengan tahap pengenalan mekanik, variasi titik masuk, kunci, tuas, patroli, serta bonus.
+- ID `jk-1`–`jk-5` dan `gen-6`–`gen-50` dipertahankan. Level 37 menggunakan tuas permanen dan pintasan pelat 10 detik, tanpa syarat paritas langkah. Misi akhir menambah relik kedua, penjaga keempat, dan jalur gerbang alternatif.
+- `snake-progress-v1` tetap digunakan. Rekor langkah lama `best`, level selesai, koin, dan data mode lain dipertahankan. Catatan baru `heist` menyimpan revisi, waktu terbaik dalam milidetik, bintang, bonus terbaik, dan alarm tersedikit.
+- Satu bintang untuk selesai; dua untuk tanpa alarm; tiga untuk tanpa alarm, seluruh bonus, serta waktu acuan terpenuhi. Replay hanya memberi selisih bonus terbaik. Hasil lokal yang gagal disimpan tetap tersedia untuk retry dan digabungkan dengan progres tersimpan terbaru.
+
+### Tampilan dan kontrol
+
+- Renderer Canvas orisinal: lantai berlapis, dinding batu, peti, maskot ular penjelajah dengan syal/tas, penjaga berhelm, arah hadap, status ?, !, dan …, sorot pandang, bayangan, asap, serta efek pengambilan objek.
+- HUD ringkas berbahasa Indonesia dengan tujuan, relik, bonus, waktu, status bahaya, dan persediaan alat. Pemilih level menampilkan bintang baru serta penanda penyelesaian versi lama.
+- Panel desktop di sisi arena dan kontrol landscape ponsel: joystick delapan arah, pilihan gait, interaksi, sembunyi, dan alat. Tombol aksi memakai pointer sentuh agar jari kedua tetap bekerja saat joystick ditahan; pembatalan pointer mengembalikan joystick ke tengah.
+- Cache lantai, pathfinding berkala, HUD 10 Hz, batas DPR 2, dan dukungan reduced motion. Tidak menambah dependensi proyek.
+
+### Berkas yang berubah
+
+| Kelompok | Berkas lama yang dimodifikasi |
+| --- | --- |
+| Halaman utama | `app/page.js`, `app/globals.css` |
+| Komponen bersama | `components/GameCanvas.jsx`, `components/DPad.jsx`, `components/Hud.jsx`, `components/Overlay.jsx` |
+| Registrasi dan progres | `lib/constants.js`, `lib/modes/registry.js`, `lib/progress.js` |
+| Sistem Dungeon | `lib/puzzle/controller.js`, `lib/puzzle/sim.js`, `lib/puzzle/render.js`, `lib/puzzle/generator.js`, `lib/puzzle/levels.js`, `lib/puzzle/campaign.js`, `lib/puzzle/campaignData.js` |
+| Generator kampanye | `scripts/build-campaign.mjs` |
+| Tes dan fixture | `tests/puzzle.test.mjs`, `tests/puzzle9a.test.mjs`, `tests/puzzle9b.test.mjs`, `tests/puzzle.fixtures.mjs`, `tests/dungeon-combat.test.mjs`, `tests/dungeon-input.test.mjs`, `tests/helpers/env.mjs`, `tests/revive-quest.test.mjs` |
+| Dokumentasi | Entri ini ditambahkan ke `changelog.md`; riwayat lama dipertahankan. |
+
+Berkas sumber baru: `components/DungeonControls.jsx`, `lib/puzzle/geometry.js`, dan `lib/puzzle/validation.js`. Tidak ada halaman/rute baru atau berkas Markdown baru.
+
+### Verifikasi yang benar-benar dijalankan
+
+- Baseline ZIP: `npm test` **299/299 lolos**. Kontrak tes giliran, undo, dan pertarungan Dungeon diganti dengan perilaku stealth real-time; cakupan mode lain dipertahankan.
+- Hasil akhir `npm test`: **298/298 lolos**, 0 gagal, 0 dilewati. Mencakup gerakan, collision, hold/release, jeda/fokus/restart, vision/occlusion, noise, FSM, hiding, interaksi, progres/migrasi, retry/merge, hadiah replay, dan regresi mode lain.
+- Seluruh 50 misi lolos replay jalur waktu melalui simulasi aktif: semua relik, seluruh bonus, keluar tanpa alarm dan tanpa alat, dalam waktu tiga bintang. Level 2, 16, 27, 37, dan 50 juga lolos dengan waktu mulai ditunda tiga detik.
+- `npm run build:campaign`: **lolos**, memvalidasi 50 misi dan menulis 45 entri kampanye.
+- `npm run build`: **lolos**, termasuk kompilasi, pemeriksaan lint/tipe bawaan, dan prerender. Route tetap `/`, `/_not-found`, serta `/manifest.webmanifest`.
+- Browser Chromium headless: **12 pemeriksaan integrasi lolos**. Desktop 1366×768: gerak/lepas, Esc jeda/resume, restart, blur, ukuran arena, bantuan, dan kembali bermain Classic. Landscape sentuh 844×390: progres lama membuka level 37, tata letak, joystick+alat simultan, pointer cancel, serta pilihan gait. Gate orientasi portrait tetap bekerja. Tidak ada error runtime halaman selama pemeriksaan.
+- Render desktop dan landscape diperiksa secara visual. `git diff --check` lolos. Paket ZIP tidak menyertakan `node_modules`, `.next`, riwayat git, log, atau alat pengujian sementara.
+
+### Batas verifikasi
+
+- Pencarian jalur bercabang menjalankan simulasi 60 Hz beserta suara, kecurigaan, dan ingatan penjaga, lalu memutar ulang rute yang ditemukan. Ini membuktikan rute contoh yang berhasil, bukan seluruh kemungkinan timing, pilihan pemain, atau semua keadaan AI. Denah memakai variasi terkurasi, bukan 50 topologi yang seluruhnya unik.
+- Pengujian sentuh memakai emulasi Chromium, belum perangkat Android/iOS fisik atau Safari. Performa ponsel kelas bawah dan keseimbangan kesulitan masih memerlukan playtest perangkat serta pemain nyata; tidak ada klaim 60 FPS terukur pada perangkat tersebut.
+
+---
+
+## 2026-10-22 — Denah acak per ronde dan alarm CCTV langsung
+
+### Perilaku baru
+
+- Mulai, coba lagi setelah kalah, lanjut level berikutnya, serta **Ulang & acak / R** memilih varian ronde baru. Pause/resume mempertahankan denah, posisi, dan waktu yang sama. Bentuk ronde berikutnya tidak mengulang bentuk ronde sebelumnya selama controller Dungeon tetap aktif.
+- Empat bentuk area yang benar-benar dapat dilalui: **bulat, L, C, dan T**. Area kosong di luar denah tidak digambar sebagai lantai dan tetap menghalangi gerak, penglihatan, serta suara.
+- Tiap level memiliki delapan varian dengan susunan ruang relik, posisi masuk/keluar, kunci, tuas, bonus, persembunyian, penjaga/patroli, CCTV, dan perlengkapan lingkungan yang berbeda. Total **400 varian untuk 50 level**; pemilihan berlangsung acak saat ronde dimulai.
+- Pembuatan varian memakai seed yang dapat direproduksi saat build. Hanya varian yang lolos geometri, urutan akses, keamanan spawn, fungsi sorot CCTV, serta replay misi tiga bintang yang dimasukkan ke paket. Tidak menjalankan pencarian jalur yang mahal saat pemain memulai ronde.
+- ID level, urutan unlock, jumlah relik/bonus per tingkat, key penyimpanan, dan rekor lama dipertahankan. Rekor/hadiah tetap milik level; berpindah varian tidak memberi hadiah replay tambahan. Fixture level kustom tetap dihormati dan tidak diganti oleh bank kampanye.
+
+### CCTV dan respons penjaga
+
+- CCTV mendeteksi pada **tick simulasi pertama saat pemain terlihat**, tanpa penumpukan kecurigaan. Ini memicu alarm, bukan kematian otomatis.
+- Alarm jaringan mengirim lokasi yang terlihat kepada **semua penjaga**, termasuk yang jauh atau di balik dinding. Penjaga menuju titik tersebut untuk menyelidiki; collision dan pintu terkunci tetap berlaku.
+- Selama CCTV melihat pemain, lokasi laporan terus diperbarui. Setelah sorot terputus, laporan berhenti pada lokasi terakhir. Penjaga mencari di sana lalu kembali ke patroli jika tidak menemukan pemain; tidak mengetahui posisi baru secara otomatis.
+- Suara langkah tidak menimpa tujuan laporan CCTV yang masih ditangani. Beberapa kamera yang melihat bersamaan dihitung sebagai satu episode alarm; terlihat lagi setelah putus sorot dapat memicu episode baru.
+- Dinding, pintu tertutup, asap, dan persembunyian yang tidak teramati tetap melindungi. Kamera memiliki tubuh/lensa dan label CCTV; penjaga yang menerima laporan memakai tanda seru dan sorot merah.
+- HUD dan bantuan menjelaskan status CCTV serta pergantian denah. Tombol **Ulang & acak** tersedia di header HUD landscape pendek, sehingga tidak bergantung pada tombol bawah yang disembunyikan untuk menghemat ruang.
+
+### Berkas
+
+- Sumber baru: `lib/puzzle/rounds.js`.
+- Tes baru: `tests/dungeon-rounds.test.mjs`.
+- Diubah: `lib/puzzle/{campaign,campaignData,controller,geometry,levels,render,sim,validation}.js`, `scripts/build-campaign.mjs`, `lib/constants.js`, `lib/modes/registry.js`, `components/Hud.jsx`, `components/DungeonControls.jsx`.
+- Tes diperbarui: `tests/dungeon-combat.test.mjs`, `tests/puzzle9b.test.mjs`, `tests/revive-quest.test.mjs`, dan `tests/helpers/env.mjs`. Fixture koin menggunakan ruang uji tersendiri agar tidak bergantung pada denah kampanye yang berubah.
+- Tidak menambah route, halaman, Markdown, atau dependensi proyek. Dokumentasi hanya menambahkan entri ini ke `changelog.md`.
+
+### Hasil pemeriksaan
+
+- `npm run build:campaign`: **lolos**, 50 level / 400 varian. Seluruh varian memiliki replay tanpa alat/alarm, mengumpulkan semua relik dan bonus, lalu keluar dalam par tiga bintang. Semua delapan varian level 2, 16, 27, 37, dan 50 juga disaring dengan waktu mulai ditunda tiga detik.
+- `npm test`: **307/307 lolos**, 0 gagal, 0 dilewati. Mencakup replay ulang seluruh 400 varian, reproduksi seed, perubahan bentuk, pause/resume, identitas level, progres/hadiah, batas luar denah, CCTV instan/global/occlusion/reacquisition, serta regresi mode lain.
+- Pencarian/replay temporal kini memakai input arah -1/0/1 seperti keyboard/joystick. Heuristik jarak koridor membantu pencarian di denah melengkung dan bercabang tanpa mengubah simulasi permainan.
+- `npm run build`: **lolos**, termasuk lint/pemeriksaan tipe bawaan dan prerender; route tetap sama. First Load JS halaman utama sekitar **300 kB** (sebelumnya sekitar 202 kB), terutama karena bank varian yang telah diverifikasi.
+- Chromium dengan build produksi: **9 pemeriksaan browser lolos**. Pause/resume, empat bentuk melalui R, nomor level tetap benar, tata letak desktop 1366×768, bantuan, progres lama ke level 37, landscape 844×390, joystick+asap simultan, pointer cancel, ulang melalui sentuhan, dan gate portrait; tidak ditemukan error runtime halaman dalam pengujian tersebut.
+- Render keempat bentuk dan HUD landscape diperiksa secara visual. `git diff --check` lolos.
+
+### Batas yang tetap berlaku
+
+- Pengacakan memilih dari bank delapan varian teruji per level, bukan menghasilkan denah tanpa batas saat bermain. Varian lama dapat muncul lagi setelah ronde lain; bentuk yang sama tidak dipilih dua ronde berurutan dalam sesi controller tersebut.
+- Replay membuktikan rute contoh yang berhasil pada setiap varian, bukan semua kemungkinan timing/perilaku pemain. Pengujian ponsel masih berupa emulasi Chromium; belum perangkat fisik Android/iOS atau Safari.
+
+### 2026-10-22 — Dungeon revision 6: map abstrak, bayangan, anjing, dan trap
+
+#### Perubahan gameplay
+
+- Obor sekarang menerangi **radius 360°**, dengan batas cahaya memakai raycast yang sama dengan deteksi. Tembok, pintu tertutup, peti, dan asap tetap memutus cahaya. Lingkaran tidak memiliki garis kerucut dari pusat.
+- Enam keluarga denah: bulat, L, C, T, **gua abstrak**, dan **reruntuhan**. Tetap delapan varian per level (400 untuk 50 level); dua slot masing-masing untuk gua dan reruntuhan. Ronde berikutnya menghindari bentuk ronde sebelumnya.
+- Penjaga yang berhenti menghadap ruas koridor menuju tujuan patroli berikutnya. Perhitungan ulang rute tidak lagi menarik musuh kembali ke pusat petak setiap kali sehingga berjalan bolak-balik; jalan terputus tidak dipaksa ditembus. Pencarian memakai sapuan pendek, bukan berputar terus.
+- **Level 20+**: satu penjaga tipe runner berarmor merah/chevron, bergerak **18% lebih cepat** daripada penjaga biasa pada level yang sama.
+- **Level 30+**: makhluk bayangan bersarang dekat tembok atau pintu palsu. Jalur menerjangnya tetap lurus, ditandai jejak panah dan peringatan merah **0,8 detik** sebelum serbuan. Dapat memakan ular, penjaga, dan anjing; musuh yang dimakan hilang untuk ronde itu dan berhenti mendeteksi, menggonggong, menghalangi jalan, atau menerima laporan CCTV. Tidak mengejar keluar jalurnya.
+- **Level 35+**: satu anjing terikat dan satu anjing lepas. Jangkauan penglihatan melingkar **4,8 petak**, kecepatan kejar **4,8 petak/detik** (lari ular 3,65). Anjing terikat dibatasi radius rantai 2,3 petak serta dinding; yang lepas patroli, mengejar lokasi terlihat terakhir, mencari, lalu kembali.
+- Gonggongan anjing memanggil penjaga melalui koridor dalam radius suara 8 petak. Dinding memutus suara dan pintu meredamnya. Ada indikator GUK, status HUD, dan bunyi gonggongan sintetis; CCTV tetap berbeda karena laporannya menjangkau semua penjaga hidup.
+- **Batu, asap, dan trap dapat digunakan berulang**, dengan cooldown independen **10 detik per alat**. Q memakai alat, X mengganti batu → asap → trap. Pause membekukan cooldown; restart memulihkan alat. Lemparan/penempatan gagal tidak memulai cooldown.
+- Trap pemain aktif setelah 0,3 detik, aman bagi ular, sekali kena, dan hilang setelah 30 detik. Menahan penjaga/anjing **4,5 detik**, atau menghentikan terjangan bayangan selama **3 detik** sebelum bayangan mundur. Trap aktif diproses sebelum gigitan anjing pada posisi yang sama.
+- Jebakan duri lantai bertambah bertahap: level 8–19 satu, 20–34 tiga, dan 35–50 lima. Siklus 5,5 detik, aktif 1,25 detik, peringatan kuning 0,7 detik. Fase aktif menggagalkan ular dan menahan penjaga/anjing sementara; fase padam aman dilewati.
+- Pickup Apple Coin menjadi **4 / 6 / 8** pada level 1–9 / 10–34 / 35–50. Masing-masing bernilai **5**, sehingga maksimal **20 / 30 / 40 Apple Coin per misi**. HUD menampilkan nilai koin; syarat tiga bintang tetap mengumpulkan seluruh pickup. Hadiah masuk saat berhasil keluar, replay hanya memberi selisih terhadap hadiah terbaik yang sudah diterima.
+
+#### Penempatan, progres, dan implementasi
+
+- Penempatan anjing menyisakan area aman yang tersambung dari spawn ke ruang relik. Pickup luar yang masuk area pengawasan tetap atau kantong terisolasi dipindahkan. Rute patroli, posisi berhenti, spawn, jalur bayangan, dan semua objek diperiksa sebelum varian diterima.
+- Bank map dibuat di luar runtime permainan. Pembuatan menyimpan checkpoint per level di cache pengembangan; perubahan kode generator/simulasi membatalkan checkpoint lama. File campaign diganti atomik hanya setelah seluruh level lolos.
+- Pencarian jalur waktu menyalin status anjing, bayangan, trap, dan cooldown per cabang. Bukti rute memakai simulasi 60 Hz sebenarnya, termasuk musuh dan jebakan aktif; tidak menonaktifkan bahaya atau menambahkan kekebalan.
+- ID misi dan `snake-progress-v1` tetap. Rekor waktu memakai revision 6, sedangkan unlock, catatan langkah lama, dan saldo yang sudah diperoleh dipertahankan lewat penggabungan progres. Mode lain tetap memakai perilaku/hadiah sebelumnya.
+- File baru: `lib/puzzle/navigation.js`, `lib/puzzle/threats.js`, `tests/dungeon-wildlife.test.mjs`. Perubahan lain berada pada generator/bank/validator/simulasi/renderer/controller Dungeon, controls/HUD, bantuan/registry, pencatatan hadiah, hook suara, build script, dan tes terkait.
+- Tidak menambah halaman, route, dependency, maupun file Markdown. Catatan perubahan hanya ditambahkan di `changelog.md` ini.
+
+#### Pemeriksaan yang dilakukan
+
+- `npm run build:campaign`: **lolos 50 level / 400 varian**, termasuk replay tiga bintang tanpa alat/alarm. Semua varian level 2, 16, 20, 27, 30, 35, 37, dan 50 juga disaring dengan start ditunda tiga detik.
+- `npm test`: **325 kasus dijalankan**; 324 lolos pada run lengkap. Satu assertion lama masih mewajibkan revision 5 dan maksimal tiga pickup. Assertion itu diperbarui menjadi revision 6, 4/6/8 pickup, dan nilai 5; `node --test --test-concurrency=1 tests/revive-quest.test.mjs` kemudian **11/11 lolos**. Hanya assertion tes yang berubah setelah run lengkap, tanpa perubahan kode produksi. Run lengkap mencakup replay ulang seluruh 400 varian pada kode simulasi final, reproduksi seed, semua batas level, interaksi musuh/trap/CCTV, progres, dan regresi mode lain.
+- `npm run build`: **lolos**, termasuk lint/pemeriksaan tipe bawaan dan prerender. Route tetap `/`, `/_not-found`, dan manifest. First Load JS **327 kB**, naik dari sekitar 300 kB karena bank map dan mekanik baru.
+- Chromium: **10 pemeriksaan lolos** — tujuh alur produksi (enam bentuk dan identitas level; cooldown/pause; layout desktop/restart; bantuan; progres lama + multitouch; layout HP + reroll abstrak; gate portrait), dua pemeriksaan renderer aktual (map abstrak dan tampilan ancaman), serta pemeriksaan tanpa error JavaScript.
+- Screenshot desktop 1366×768, landscape HP 844×390, map gua/reruntuhan, cahaya melingkar, rantai anjing, penjaga merah, duri, gonggongan, trap, dan peringatan bayangan diperiksa secara visual. `git diff --check` lolos.
+
+#### Batas pengujian
+
+- Replay membuktikan adanya rute contoh yang berhasil pada tiap varian, bukan semua kemungkinan timing atau tindakan pemain. Denah tetap bank delapan varian per level, bukan generator tanpa batas saat bermain.
+- Uji HP menggunakan emulasi Chromium, belum perangkat fisik Android/iOS atau Safari. Bunyi anjing berupa efek sintetis bergaya kartun.
