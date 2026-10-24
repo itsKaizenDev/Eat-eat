@@ -63,7 +63,7 @@ test('shadow: telegraph allows side-step; rush never changes its fixed lane',()=
   advance(s,6);assert.equal(s.beasts[0].state,'IDLE');assert.equal(s.beasts[0].x,1.5);
 });
 test('shadow: eats snake, guard and dog on its lane; removed enemies never react to CCTV or bark again',()=>{
-  const s=P.createState(room({beasts:[beast()],guards:[guard(4,4,{range:0,pause:20})],dogs:[dog(6,4,{range:0})]}));advance(s,2);
+  const s=P.createState(room({beasts:[beast()],guards:[guard(4,4,{range:0,pause:20})],dogs:[dog(6,4,{range:0})]}));s.guards[0].stunnedUntil=3;s.dogs[0].stunnedUntil=3;advance(s,2);
   assert.equal(s.guards[0].alive,false);assert.equal(s.dogs[0].alive,false);assert.equal(s.status,'playing');
   const dead=[s.guards[0].x,s.dogs[0].x];P.noise(s,pt(5,4),8,1,2,'bark');advance(s,5);assert.deepEqual([s.guards[0].x,s.dogs[0].x],dead);assert.equal(s.alerts,0);
   s.crystals.push({...pt(5,2),facing:Math.PI,baseFacing:Math.PI,sweep:0,phase:0,rate:0,range:5,fov:1});P.step(s);assert.equal(s.cameraAlarm,true);assert.equal(s.guards[0].cameraReport,false);assert.equal(s.dogs[0].barkUntil,0);

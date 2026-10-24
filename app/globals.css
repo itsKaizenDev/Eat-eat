@@ -349,3 +349,27 @@ body[data-playing=true] { overflow:hidden; overscroll-behavior:none; }
 @media (prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior:auto!important; animation:none!important; transition:none!important; } }
 
 .game-viewport:has(.controls-hint) .game-toast { visibility:hidden; }
+
+/* Dungeon is a full-bleed camera surface. Accessible HUD stays inside the arena. */
+.viewport-active[data-mode=puzzle] .arena-space { inset:0; }
+.viewport-active[data-mode=puzzle] .world-frame { aspect-ratio:auto; border-radius:0; box-shadow:none; }
+.game-viewport[data-mode=puzzle] .game-hud { padding:max(8px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) 8px max(8px,env(safe-area-inset-left)); }
+.game-viewport[data-mode=puzzle] .hud-chip { padding:6px 8px; gap:5px; border-radius:10px; background:#14271ccf; }
+.game-viewport[data-mode=puzzle] .hud-chip small { display:none; }
+.game-viewport[data-mode=puzzle] .hud-chip b { font-size:15px; }
+.game-viewport[data-mode=puzzle] .hud-readout { max-width:calc(100% - 104px); }
+.game-viewport[data-mode=puzzle] .hud-signals { max-width:calc(100vw - 164px); }
+.game-viewport[data-mode=puzzle] .hud-tools { top:max(8px,env(safe-area-inset-top)); right:max(8px,env(safe-area-inset-right)); }
+.camera-tools { position:absolute; top:calc(max(8px,env(safe-area-inset-top)) + 52px); right:max(8px,env(safe-area-inset-right)); display:flex; gap:4px; pointer-events:auto; }
+.camera-tools button { width:44px; height:44px; display:flex; align-items:center; justify-content:center; border-radius:12px; color:#ecf4db; background:#18352bd9; border:1px solid #c5e9a944; }
+.camera-tools button:disabled { opacity:.4; }
+.camera-tools button[aria-pressed=true] { background:#355449; border-color:#9ed8c2; }
+.game-viewport[data-mode=puzzle] .joystick-anchor { left:max(12px,env(safe-area-inset-left)); bottom:max(12px,env(safe-area-inset-bottom)); }
+.game-viewport[data-mode=puzzle] .dungeon-controls { right:max(12px,env(safe-area-inset-right)); bottom:max(12px,env(safe-area-inset-bottom)); }
+.game-viewport[data-mode=puzzle][data-lefty=true] .joystick-anchor { left:auto; right:max(12px,env(safe-area-inset-right)); }
+.game-viewport[data-mode=puzzle][data-lefty=true] .dungeon-controls { right:auto; left:max(12px,env(safe-area-inset-left)); }
+.game-viewport[data-mode=puzzle] .controls-hint { top:112px; }
+.game-viewport[data-mode=puzzle] .game-toast { top:auto; bottom:124px; max-width:calc(100% - 32px); white-space:normal; }
+@media (max-width:450px) { .game-viewport[data-mode=puzzle] .hud-values { display:grid; grid-template-columns:repeat(2,max-content); } .game-viewport[data-mode=puzzle] .hud-signals { margin-top:4px; } .game-viewport[data-mode=puzzle] .controls-hint { top:128px; } }
+
+.game-viewport[data-mode=puzzle] .game-toast { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; max-width:min(360px,calc(100% - 32px)); }

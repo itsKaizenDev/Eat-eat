@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {campaign,rounds,makePuzzleWorld,puzzle as P,geometry as G} from './helpers/env.mjs';
+import {campaign,rounds,generator,makePuzzleWorld,puzzle as P,geometry as G} from './helpers/env.mjs';
 
 test('random rounds: every replay changes footprint even when RNG repeats',()=>{
  const variants=campaign.CAMPAIGN_VARIANTS[36],base=variants[0];let previous;
@@ -39,12 +39,12 @@ test('campaign wildlife: exact unlock thresholds, fixed safe lanes, more traps a
  for(const variants of campaign.CAMPAIGN_VARIANTS)for(const l of variants){
   const n=l.number;
   assert.equal(l.guards.some(g=>g.kind==='runner'),n>=20);
-  assert.equal(l.beasts.length,n>=30?1:0);
+  assert.equal(l.beasts.length,generator.levelPlan(n).monsters.length);
   assert.equal(l.dogs.length,n>=35?2:0);
   if(n>=35){assert.equal(l.dogs.filter(d=>d.tethered).length,1);assert.equal(l.dogs.filter(d=>!d.tethered).length,1);assert.ok(l.dogs.every(d=>d.range===4.8&&d.speed>P.SPEEDS.run));}
   assert.equal(l.hazards.length,n>=35?5:n>=20?3:n>=8?1:0);
-  assert.equal(l.loot.length,n>=35?8:n>=10?6:4);assert.ok(l.loot.every(o=>o.value===5));
-  assert.equal(l.gadgets.cooldown,10);assert.equal(l.revision,6);
+  assert.equal(l.loot.length,n>=35?5:n>=10?4:3);assert.ok(l.loot.every(o=>o.value===5));
+  assert.equal(l.gadgets.cooldown,10);assert.equal(l.revision,7);
   if(n>=20){const fast=l.guards.find(g=>g.kind==='runner'),normal=l.guards.find(g=>g.kind!=='runner');assert.ok(Math.abs(fast.speed/normal.speed-1.18)<1e-8);}
  }
  for(const shape of ['cavern','ruins'])assert.ok(campaign.CAMPAIGN_VARIANTS.every(v=>v.filter(l=>l.shape===shape).length===2));

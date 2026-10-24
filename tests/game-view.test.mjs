@@ -3,11 +3,12 @@ import assert from 'node:assert/strict';
 import { gameView, registry, makeWorld, ICONS } from './helpers/env.mjs';
 const { arenaLayout, WORLD_RATIO } = gameView;
 
-test('arena preserves whole world and reserves thumb regions across viewport matrix', () => {
+test('Dungeon fills the surface; fixed-board modes retain their whole world', () => {
   for (const [w,h] of [[344,724],[724,344],[828,374],[916,414],[752,1008],[1008,752],[1350,752],[1904,1064],[667,368]]) {
     for (const touch of [true,false]) for (const actions of [true,false]) {
       const r=arenaLayout(w,h,{touch,actions});
       assert.ok(r.left>=0 && r.top>=0 && r.left+r.width<=w+.01 && r.top+r.height<=h+.01);
+      if(actions){assert.deepEqual(r,{rail:false,left:0,top:0,width:w,height:h});continue;}
       assert.ok(Math.abs(r.width/r.height-WORLD_RATIO)<1e-9);
       if(r.rail || (touch && w>h) || (actions && w>=1100)) {
         assert.ok(r.left>=160, `${w}x${h} has clear thumb rail`);

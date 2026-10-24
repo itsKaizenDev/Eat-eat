@@ -55,6 +55,7 @@ const GameCanvas = forwardRef(function GameCanvas({ mode, onUpdate, speedPref, t
     setHeldDir: (x, y) => kindRef.current === 'puzzle' ? engineRef.current?.setDir(x, y, { source: 'pad' }) : inputRef.current?.press('pad', 0, x, y),
     releaseHeldDir: () => { inputRef.current?.release('pad'); engineRef.current?.cancelHeldInput?.('pad'); },
     action: (type) => engineRef.current?.action?.(type),
+    setCamera: (value) => engineRef.current?.setCamera?.(value),
     setGait: (gait) => engineRef.current?.setGait?.(gait),
     setSpeedPref: (v) => engineRef.current && engineRef.current.setSpeedPref(v),
     setTaDuration: (s) => engineRef.current && engineRef.current.setTaDuration(s),
@@ -179,10 +180,10 @@ const GameCanvas = forwardRef(function GameCanvas({ mode, onUpdate, speedPref, t
   useEffect(() => {
     const canvas = canvasRef.current;
     const resize = () => {
-      const width = canvas.getBoundingClientRect().width;
+      const rect = canvas.getBoundingClientRect(), width = rect.width;
       if (width < 1) return;
       const ratio = Math.min(2, window.devicePixelRatio || 1);
-      const w = Math.max(17, Math.round(width * ratio / 17) * 17), h = w * 15 / 17;
+      const w = kind === 'puzzle' ? Math.max(1, Math.round(width * ratio)) : Math.max(17, Math.round(width * ratio / 17) * 17), h = kind === 'puzzle' ? Math.max(1, Math.round(rect.height * ratio)) : w * 15 / 17;
       if (canvas.width === w && canvas.height === h) return;
       canvas.width = w; canvas.height = h;
       engineRef.current?.resize?.();
@@ -191,7 +192,7 @@ const GameCanvas = forwardRef(function GameCanvas({ mode, onUpdate, speedPref, t
     return () => observer.disconnect();
   }, [kind]);
 
-  return <canvas ref={canvasRef} id="c" width="680" height="600" aria-label={kind === 'puzzle' ? 'Dungeon Shadow Heist. WASD bergerak, Shift mengendap, E berinteraksi.' : 'Arena K-Snake'} style={{ background: kind === 'puzzle' ? '#152c33' : '#a2d149', aspectRatio: '680 / 600' }} />;
+  return <canvas ref={canvasRef} id="c" width="680" height="600" aria-label={kind === 'puzzle' ? 'Dungeon Shadow Heist. WASD bergerak, Shift mengendap, E berinteraksi.' : 'Arena K-Snake'} style={{ background: kind === 'puzzle' ? '#152c33' : '#a2d149', aspectRatio: kind === 'puzzle' ? 'auto' : '680 / 600' }} />;
 });
 
 export default GameCanvas;

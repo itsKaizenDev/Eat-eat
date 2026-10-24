@@ -2,7 +2,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useIsTouch } from '@/hooks/useIsTouch';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import RotatePrompt from '@/components/RotatePrompt';
 import GameCanvas from '@/components/GameCanvas';
 import GameViewport from '@/components/GameViewport';
 import GameSheet from '@/components/GameSheet';
@@ -24,9 +23,7 @@ export default function Page() {
   const primaryTouch = useIsTouch();
   const touch = useMediaQuery('(any-pointer: coarse)');
   const finePointer = useMediaQuery('(any-pointer: fine)');
-  const landscape = useMediaQuery('(orientation: landscape)');
   const [keyboardUsed, setKeyboardUsed] = useState(false);
-  const [pendingPlay, setPendingPlay] = useState(false);
   const [lefty, setLefty] = useState(false);
   const [hint, setHint] = useState(false);
   const [speed, setSpeed] = useState('normal');
@@ -41,9 +38,7 @@ export default function Page() {
   const menuOpen = overlay.visible && overlay.phase === 'start';
   const upgrade = !!hud.roguelite?.offer?.length;
   const active = !menuOpen && (hud.running || hud.paused || upgrade);
-  // Dungeon retains its proven landscape safeguard; arcade also works in portrait.
-  const askRotate = primaryTouch && !landscape && mode === 'puzzle' && (pendingPlay || active);
-  const externalModal = askRotate || helpOpen || !!panel || upgrade;
+  const externalModal = helpOpen || !!panel || upgrade;
   const controls = active && !overlay.visible && !externalModal;
   const keyboardAvailable = finePointer || keyboardUsed;
   const kind = kindOf(mode);
@@ -65,16 +60,9 @@ export default function Page() {
     else gameRef.current?.releasePause('help');
   }, [helpOpen, panel]);
   useEffect(() => {
-    if (askRotate) gameRef.current?.pauseRun('orientation');
-    else gameRef.current?.releasePause('orientation');
-  }, [askRotate]);
-  useEffect(() => {
-    if (pendingPlay && landscape) { setPendingPlay(false); gameRef.current?.startRun(); }
-  }, [pendingPlay, landscape]);
-  useEffect(() => {
-    if (active || askRotate) document.body.dataset.playing = 'true'; else delete document.body.dataset.playing;
+    if (active) document.body.dataset.playing = 'true'; else delete document.body.dataset.playing;
     return () => { delete document.body.dataset.playing; };
-  }, [active, askRotate]);
+  }, [active]);
   useEffect(() => {
     if (!controls) { setHint(false); return; }
     try { setHint(localStorage.getItem(`snake-controls-hint-${kind}`) !== '1'); } catch { setHint(true); }
@@ -94,11 +82,10 @@ export default function Page() {
   function dismissHint() { setHint(false); try { localStorage.setItem(`snake-controls-hint-${kind}`, '1'); } catch {} }
   function openPanel(value) { gameRef.current?.pauseRun('help'); setPanel(value); }
   function openHelp() { gameRef.current?.pauseRun('help'); setPanel(null); setHelpOpen(true); }
-  function returnToMenu() { setPendingPlay(false); setPanel(null); setHelpOpen(false); gameRef.current?.returnToMenu(); }
+  function returnToMenu() { setPanel(null); setHelpOpen(false); gameRef.current?.returnToMenu(); }
   function handlePlay() {
     const g = gameRef.current; if (!g) return;
     if (primaryTouch && needsKeyboard(mode) && !keyboardAvailable) { openPanel('keyboard'); return; }
-    if (primaryTouch && !landscape && mode === 'puzzle') { setPendingPlay(true); return; }
     if (overlay.phase === 'pause') g.resumeRun(); else g.startRun();
     window.scrollTo({ top: 0, behavior: 'instant' });
   }
@@ -115,18 +102,18 @@ export default function Page() {
 
   return <>
     {loading && <LoadingScreen onDone={finishLoading} />}
-    {askRotate ? <RotatePrompt onMenu={returnToMenu} /> : <>
+    <>
       {upgrade ? <UpgradeDialog data={hud.roguelite} onChoose={id => gameRef.current?.chooseUpgrade(id)} /> : <>
         <HelpModal open={helpOpen} mode={mode} onClose={closeHelp} />
         {!helpOpen && <GameSheet panel={panel} mode={mode} hud={hud} onClose={closePanel} onPanel={setPanel} lefty={lefty} onSwap={swap} fullscreen={fullscreen} canFullscreen={canFullscreen} onFullscreen={toggleFullscreen} fullscreenMessage={fullscreenMessage} onHelp={openHelp} onRestart={restart} />}
       </>}
-    </>}
+    </>
     <main data-mode={mode} inert={externalModal ? '' : undefined} aria-hidden={externalModal || undefined} className={`stage ${menuOpen ? 'focus-stage' : 'playing-stage'} ${active ? 'game-active' : ''}`}>
       <GameViewport active={active} sleeping={menuOpen} mode={mode} touch={touch} lefty={lefty} world={<GameCanvas ref={gameRef} mode={mode} onUpdate={onUpdate} speedPref={speed} taDuration={taSecs} />}>
-        {!menuOpen && <Hud mode={mode} hud={hud} onInfo={() => openPanel('info')} canPause={controls} onPause={() => gameRef.current?.pauseRun('user')} />}
+        {!menuOpen && <Hud mode={mode} hud={hud} onInfo={() => openPanel('info')} canPause={controls} onPause={() => gameRef.current?.pauseRun('user')} onCamera={v => gameRef.current?.setCamera(v)} />}
         {controls && touch && getMode(mode)?.touch && <div className="joystick-anchor"><DPad analog={kind === 'puzzle'} onMove={(x, y) => gameRef.current?.setHeldDir(x, y)} onRelease={() => gameRef.current?.releaseHeldDir()} /></div>}
         {controls && kind === 'puzzle' && <DungeonControls data={hud.puzzle} onAction={type => gameRef.current?.action(type)} onGait={g => gameRef.current?.setGait(g)} />}
-        {hint && controls && <div className="controls-hint no-swipe"><p>{kind === 'puzzle' ? 'Joystick: 8 arah. Bulan: sembunyi. Kunci: interaksi. Alat pulih 10 detik.' : touch ? 'Geser joystick atau layar untuk berbelok. Info menyimpan aturan dan pengaturan.' : 'Panah / WASD untuk bergerak. Esc menjeda. Info menyimpan aturan dan pengaturan.'}</p><button aria-label="Tutup petunjuk" onClick={dismissHint}><ICONS.close size={16} /></button></div>}
+        {hint && controls && <div className="controls-hint no-swipe"><p>{kind === 'puzzle' ? 'Joystick: 8 arah. +/−: zoom. Peta: lihat denah; ikon bidik kembali ke ular. Alat pulih 10 detik.' : touch ? 'Geser joystick atau layar untuk berbelok. Info menyimpan aturan dan pengaturan.' : 'Panah / WASD untuk bergerak. Esc menjeda. Info menyimpan aturan dan pengaturan.'}</p><button aria-label="Tutup petunjuk" onClick={dismissHint}><ICONS.close size={16} /></button></div>}
         <Overlay {...overlay} visible={overlay.visible && !externalModal} mode={mode} keyboardAvailable={keyboardAvailable} onModeChange={setMode} speed={speed} onSpeedChange={v => { if (saveSpeed(v)) setSpeed(v); }} taSecs={taSecs} onTaChange={v => { if (saveDuration(v)) setTaSecs(v); }} onPlay={handlePlay} onHelp={openHelp} onInfo={() => openPanel('info')} onSettings={() => openPanel('settings')} onRestart={() => openPanel('restart')} onRevive={() => gameRef.current?.reviveRun()} onRetrySave={() => gameRef.current?.retrySave()} onMenu={returnToMenu} puzzleMenu={hud.puzzleMenu} deliveryMenu={hud.deliveryMenu} rogueMenu={hud.rogueMenu} territoryMenu={hud.territoryMenu} bossMenu={hud.bossMenu} onSelectLevel={i => gameRef.current?.setLevel(i)} />
       </GameViewport>
     </main>

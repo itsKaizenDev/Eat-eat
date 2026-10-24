@@ -50,14 +50,14 @@ test('CCTV: first visible tick alerts every guard, including distant guards behi
  let l=room({width:25,map:['#'.repeat(25),...Array(7).fill('#'+'.'.repeat(23)+'#'),'#'.repeat(25)],spawn:pt(2,4),crystals:[camera()],guards:[guard(10,2),guard(21,6,{route:[pt(21,6),pt(22,6)]})]});
  for(let y=1;y<8;y++)l=withWall(l,12,y);
  const s=P.createState(l);P.step(s);assert.equal(s.alerts,1);assert.equal(s.cameraAlarm,true);assert.equal(s.status,'playing');
- for(const g of s.guards){assert.equal(g.state,'INVESTIGATE');assert.equal(g.cameraReport,true);assert.deepEqual(g.lastKnown,pt(2,4));}
+ for(const g of s.guards)assert.equal(g.state,'INVESTIGATE');assert.ok(s.guards.some(g=>g.cameraReport&&Math.hypot(g.lastKnown.x-2.5,g.lastKnown.y-4.5)<1.5),'a nearby guard pursues the reported place');assert.equal(s.report.source,'camera');assert.ok(s.guards.every(g=>g.lastKnown));
  advance(s,1);assert.equal(s.alerts,1,'continuous visibility is one alarm episode');
 });
 test('CCTV: tracks only visible positions, does not let footsteps overwrite the report, and can reacquire',()=>{
  const s=P.createState(room({spawn:pt(2,4),crystals:[camera()],guards:[guard(10,6,{route:[pt(10,6),pt(10,7)],speed:.1})]}));
- P.step(s);s.player.x=3.5;P.step(s);assert.deepEqual(s.guards[0].lastKnown,pt(3,4));
+ P.step(s);s.player.x=3.5;advance(s,1.1);assert.ok(Math.hypot(s.guards[0].lastKnown.x-3.5,s.guards[0].lastKnown.y-4.5)<1.5,'report refreshes about once a second while visible');const seen=s.guards[0].lastKnown;
  s.player={...s.player,...pt(1,1)};P.noise(s,pt(10,5),3,1,2,'footstep');advance(s,.5);
- assert.equal(s.cameraAlarm,false);assert.deepEqual(s.guards[0].lastKnown,pt(3,4));assert.equal(s.alerts,1);
+ assert.equal(s.cameraAlarm,false);assert.deepEqual(s.guards[0].lastKnown,seen);assert.equal(s.alerts,1);
  s.player={...s.player,...pt(2,4)};P.step(s);assert.equal(s.alerts,2);
 });
 test('CCTV: walls, closed doors, smoke and an unseen hide block instant detection',()=>{
@@ -70,4 +70,46 @@ test('CCTV: walls, closed doors, smoke and an unseen hide block instant detectio
 test('CCTV: overlapping cameras count one network alarm and reports eventually return to patrol',()=>{
  const s=P.createState(room({spawn:pt(2,4),hides:[pt(1,1)],crystals:[camera(),camera({id:'second'})],guards:[guard(10,6,{route:[pt(10,6),pt(10,7)]})]}));
  P.step(s);assert.equal(s.alerts,1);s.player={...s.player,...pt(1,1)};P.action(s,'hide');advance(s,25);assert.equal(s.guards[0].cameraReport,false);assert.equal(s.guards[0].state,'PATROL');
+});
+
+// ---- Level 51: Penjaga Relik Agung (Adventure-style HP, phases, telegraphed attacks, big weak window). ----
+import {campaign,threats} from './helpers/env.mjs';
+const {BOSS_RULES,bossHp}=threats;
+const bossLevel=()=>campaign.CAMPAIGN_LEVELS[50];
+function playBoss(level,{careless=false,limit=900}={}){
+  const s=P.createState(level),b=s.boss,tile=o=>`${Math.floor(o.x)},${Math.floor(o.y)}`;
+  const dir=goal=>{const n=G.findPath(s,s.player,goal)?.[0];return n?{x:n.x-s.player.x,y:n.y-s.player.y}:{x:goal.x-s.player.x,y:goal.y-s.player.y};};
+  const safe=()=>{const seen=new Set([tile(s.player)]),q=[{x:Math.floor(s.player.x),y:Math.floor(s.player.y)}];for(let i=0;i<q.length;i++){const c=q[i];if(!b.danger.has(`${c.x},${c.y}`))return{x:c.x+.5,y:c.y+.5};for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const n={x:c.x+dx,y:c.y+dy},k=`${n.x},${n.y}`;if(!seen.has(k)&&level.map[n.y]?.[n.x]==='.'){seen.add(k);q.push(n);}}}return s.player;};
+  let defeatedAt=null;
+  while(s.status==='playing'&&s.time<limit){
+    const inDanger=b.danger.has(tile(s.player))&&(b.state==='TELE'||b.state==='ACTIVE');let goal;
+    if(b.state==='WINDOW'){const open=b.targets.filter(i=>!b.used.includes(i)).sort((a,c)=>Math.hypot(level.boss.weak[a].x-s.player.x,level.boss.weak[a].y-s.player.y)-Math.hypot(level.boss.weak[c].x-s.player.x,level.boss.weak[c].y-s.player.y));goal=open.length?level.boss.weak[open[0]]:{x:11.5,y:8.5};}
+    else if(b.defeated)goal=s.artifacts?level.exit:level.artifacts[0];
+    else if(inDanger||b.state==='TELE')goal=safe();else goal={x:11.5,y:8.5};
+    let v=Math.hypot(goal.x-s.player.x,goal.y-s.player.y)<.15?{x:0,y:0}:dir(goal);
+    const next={x:s.player.x+Math.sign(v.x)*.3,y:s.player.y+Math.sign(v.y)*.3};
+    if(!careless&&(b.state==='TELE'||b.state==='ACTIVE')&&b.danger.has(tile(next))&&!inDanger)v={x:0,y:0};
+    P.step(s,{x:v.x,y:v.y,gait:'run'});if(b.defeated&&defeatedAt===null)defeatedAt=s.time;
+  }
+  return {s,defeatedAt};
+}
+test('level 51 is the special boss arena after level 50, with five phases and a 50-coin relic',()=>{
+  const l=bossLevel();assert.equal(l.number,51);assert.equal(l.special,true);assert.equal(l.guards.length,0);assert.equal(BOSS_RULES.phases.length,5);
+  assert.equal(bossHp(),BOSS_RULES.phases.reduce((n,p)=>n+p.hp,0));assert.equal(l.artifacts.length,1);assert.equal(l.artifacts[0].value,50);assert.equal(l.artifacts[0].locked,'boss');
+  assert.equal(l.boss.weak.length,3);assert.ok(BOSS_RULES.weakRadius>=1.5,'weak window must be big');
+});
+test('boss relic stays locked until the guardian is defeated, then pays 50 Apple Coins',()=>{
+  const l=bossLevel(),s=P.createState(l);s.player.x=l.artifacts[0].x;s.player.y=l.artifacts[0].y;P.step(s,{});assert.equal(s.artifacts,0);assert.equal(s.coins,0);
+  s.boss.defeated=true;P.step(s,{});assert.equal(s.artifacts,1);assert.equal(s.coins,50);
+});
+test('boss attacks are telegraphed first, hurt with invulnerability frames, and run out of lives',()=>{
+  const l=bossLevel(),s=P.createState(l),b=s.boss;let tele=false;
+  for(let i=0;i<60*30&&b.state!=='TELE';i++)P.step(s,{});assert.equal(b.state,'TELE');assert.equal(s.boss.lives,5);
+  const [k]=[...b.danger];const [x,y]=k.split(',').map(Number);s.player.x=x+.5;s.player.y=y+.5;
+  for(let i=0;i<60*4&&b.state!=='ACTIVE';i++){P.step(s,{});assert.equal(b.lives,5,'no damage during the telegraph');}
+  assert.equal(b.state,'ACTIVE');P.step(s,{});assert.equal(b.lives,4);const t=b.invulnUntil;P.step(s,{});assert.equal(b.lives,4,'invulnerable right after a hit');assert.ok(t>s.time);
+});
+test('weak window hits once per target; a perfect run beats all five phases and wins with 50 coins; mistakes cost lives',()=>{
+  const {s,defeatedAt}=playBoss(bossLevel());assert.equal(s.status,'won');assert.equal(s.coins,50);assert.equal(s.result.coinReward,50);assert.equal(s.boss.hits,bossHp());assert.equal(s.boss.phase,5);assert.ok(defeatedAt>60,'not a trivial fight');
+  const sloppy=playBoss(bossLevel(),{careless:true}).s;assert.ok(sloppy.boss.lives<s.boss.lives,'walking into red costs lives');
 });

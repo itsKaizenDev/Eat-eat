@@ -42,6 +42,7 @@ export { root };
 
 export const geometry = await load('puzzle/geometry.mjs');
 export const validation = await load('puzzle/validation.mjs');
+export const threats = await load('puzzle/threats.mjs');
 
 // Fixed-step dungeon controller with an observable world and an actual simulated RAF clock.
 export function makePuzzleWorld({ progress, levels, io, rng = createRng(123) } = {}) {

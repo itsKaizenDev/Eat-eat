@@ -36,6 +36,37 @@ Aturan terbaru Dungeon ada pada [revisi Dungeon](#doc-dungeon-revision); pedoman
 - Diff kode historis
   - [Diff Dungeon lengkap per file](#doc-dungeon-diff-per-file)
 
+<a id="dungeon-boss-51"></a>
+## Dungeon: level spesial 51 — Penjaga Relik Agung — 24 Oktober 2026
+
+- Level 51 muncul setelah level 50: arena tunggal 23×19 (bukan varian acak), penjaga raksasa 3×3 menjaga satu relik bernilai 50 Apple Coin. Relik terkunci sampai bos tumbang; setelah itu ambil relik dan kembali ke pintu keluar.
+- Mekanisme dipinjam dari Adventure: HP bos 26 dalam 5 fase (3/4/5/6/8), serangan bertelegraf (baris, ranjau, koridor), nyawa pemain 5 dengan kebal 2,5 detik setelah terkena, jantung hijau memulihkan 1 nyawa tiap pindah fase, bintang dari sisa nyawa.
+- Celah besar: setelah tiap serangan terbuka 1–3 lingkaran bercahaya berjari-jari 1,5 petak di depan bos; menginjaknya memberi 1 pukulan per lingkaran per jendela (7 detik di fase 1 menjadi 5 detik di fase 5). Fase 4–5 melukai 2 nyawa.
+- `lib/puzzle/threats.js`: createBoss/updateBoss/BOSS_RULES; `sim.js`: relik terkunci, hadiah koin, rating; `render.js`: tubuh bos, area merah, lingkaran celah, bar HP dan nyawa; `controller.js`: teks status dan total koin; `generator.js`: bossLevel().
+- Tes baru di `dungeon-combat.test.mjs`: relik terkunci, telegraf dan kebal, serta bot yang mengalahkan seluruh 5 fase dan menang dengan 50 koin.
+
+<a id="dungeon-polish-v10"></a>
+## Dungeon: perapihan posisi item dan monster — 24 Oktober 2026
+
+- Tahap `polishRound` (rounds.js) dijalankan di atas bank yang sudah terverifikasi: `node scripts/build-campaign.mjs --polish`. Tiap varian diverifikasi ulang (rencana, validasi, tes diam, replay); yang gagal tetap memakai versi asli.
+- Jebakan, tempat sembunyi, koin, obor, dan lonceng yang bertumpuk digeser ke petak terdekat yang punya jarak cukup dari item lain.
+- Jalur Shadow yang menempel dinding dipindah ke jalur dengan ruang terbuka di kedua sisi; jalur tetap dijauhkan dari rute patroli dan objektif.
+- Slot monster fleksibel (level 41+) diseimbangkan lintas varian: Peniru dan Laba-laba bergantian, level 45+ juga bisa Shadow kedua. Level 36–39 selalu Peniru, level 40 selalu Laba-laba.
+- Varian yang dirapikan ditandai `polished`; tes reproduksi seed dilewati untuk varian itu, sedangkan replay tetap dijalankan.
+
+<a id="dungeon-logic-v8"></a>
+## Dungeon: logika peta, penjaga, dan monster — 24 Oktober 2026
+
+Fokus batch ini adalah logika; tampilan monster baru sengaja sederhana. Tidak ada file baru dan tidak ada route/halaman baru.
+
+- **Rencana per level** (`levelPlan`): peran penjaga (Relik, Koridor, Akses, Penyisir), penjaga cepat, anjing, slot monster, dan jumlah kamera mengikuti tabel master prompt. Peta tumbuh dari 13×11 sampai 29×25 dan luas lantai punya target yang naik tiap level (toleransi ±2). Revisi kampanye 7.
+- **Generator denah**: sekat dengan pintu dua petak membentuk sektor; bentuk denah diskalakan per level; brankas 5×5 di level awal dan 5×7 mulai level 16; penjaga relik berdiri di samping poros brankas dan menoleh bergantian; kamera menghadap pintu sekat dan menyapu.
+- **Simulasi**: alarm terkoordinasi (penjaga terdekat mengejar, lainnya menyisir titik berbeda, penjaga relik dibatasi jarak kejarnya); laporan CCTV diperbarui sekali per detik selama terlihat; penjaga macet kembali ke pos tanpa teleport; Shadow memberi peringatan 1,2 detik; Peniru dan Laba-laba ditambahkan; NPC hanya menghindari monster yang pernah mereka lihat, dan ingatannya memudar.
+- **Validasi**: validatePlan, tes diam 45 detik, par dari rute nyata. Mulai level 16 pengumpulan semua apple coin tidak diwajibkan dalam replay; level 1–15 tetap wajib.
+- **Kepadatan**: jarak pandang penjaga dipersempit mulai level 25, kamera menjadi berkas sempit mulai level 21 dan dikurangi di level 35+, anjing bebas satu di level 35+, monster dijauhkan dari rute patroli.
+- **Kamera pemain** untuk peta besar: bila tile < 18 px CSS, tampilan mengikuti pemain.
+- Bank 50 misi × 8 varian dibangun ulang dan lolos replay.
+
 <a id="ksnake-dan-audit"></a>
 ## Nama K-Snake dan telaah audit — 20 Oktober 2026
 
@@ -4787,3 +4818,66 @@ Berkas sumber baru: `components/DungeonControls.jsx`, `lib/puzzle/geometry.js`, 
 - Chromium: **12 pemeriksaan browser lolos** — desktop, panel/fokus/jeda, cooldown/ulang, awal dan alur jeda/menu pada 15 mode, split window, Fullscreen API masuk/keluar, sentuh dua jari, pelepasan joystick saat resize, blur/fokus, rotasi Dungeon, portrait arkade, kontrol kidal, serta tanpa error JavaScript. Mode tersembunyi dipilih melalui state React hanya di skrip QA, tanpa hook debug produksi. Screenshot aktual Dungeon desktop/HP, portrait arkade, Delivery, Roguelite, Boss, dan Territory diperiksa.
 - Viewport yang diperiksa: 360×740, 740×360, 844×390, 932×430, 768×1024, 1024×768, 1366×768, 1920×1080, 1093×614, 683×384, dan 600×768. Ukuran CSS kecil menyimulasikan ruang efektif zoom/split; zoom browser native dan perubahan toolbar pada HP fisik belum diuji.
 - Pengujian memakai emulasi Chromium, belum Android/iOS fisik atau Safari. Alur upgrade/penyelesaian seluruh kampanye dan fase akhir boss dicakup tes simulasi; tidak semuanya dimainkan manual dalam uji UI ini. Dungeon portrait tetap menampilkan panduan rotasi.
+
+<a id="dungeon-design-v9"></a>
+## Penyelarasan desain arena Dungeon — 24 Oktober 2026
+
+- Menyatukan gaya objek lama dan monster v8 dalam ilustrasi canvas: outline gelap, shading lembut, serta material batu, kayu, dan logam yang konsisten dengan identitas kartun K-Snake. Penyesuaian mencakup ular penjelajah, penjaga, anjing, lantai/tembok, peti, pintu, relik, kunci, koin, tuas, pelat, ceruk, portal, pintu keluar, obor, lonceng, CCTV, dan jebakan.
+- Peran penjaga memiliki lencana permata/kunci/kaca pembesar; penjaga cepat memakai warna hangat dan chevron. Bantuan menjelaskan tanda ini, Peniru, serta sarang laba-laba.
+- Peniru memakai gambar peti bersama. Peti tile yang ditempatinya tidak lagi menimpa gambar monster saat rahangnya terbuka. Penanda gigit mengikuti pusat/jangkauan dan raycast serangan aktual; gambar laba-laba, jaring, benang, serta tanda sambar ditambahkan dengan gaya yang sama.
+- Shadow menyatu dengan sarangnya saat diam: siluet redup, celah pintu, dan kilatan samar saat animasi aktif. Tubuh dan tanda arah menjadi jelas pada peringatan/serbuan. Reduced motion tetap didukung. Waktu serangan tidak diubah; keterangan bantuan lama yang menyebut 0,8 detik diganti penjelasan visual agar sesuai v8.
+- Label canvas digambar memakai ukuran font normal lalu diskalakan ke koordinat dunia, sehingga glyph kecil pada koin/pintu/ceruk tidak hilang akibat metrik font subpiksel. Lantai statis dicache dalam koordinat dunia untuk kedua tampilan overview dan kamera mengikuti pemain; pergeseran kamera tidak menggambar ulang seluruh lantai.
+- File perubahan: modul bersama baru `lib/puzzle/art.js`, integrasi `lib/puzzle/render.js`, teks bantuan `lib/constants.js`, dan bagian changelog ini. Data kampanye, generator, simulasi/AI, hitbox, progres, input, UI arena, dependency, dan mode lain dibandingkan dengan ZIP v8; berkas-berkas tersebut identik. Tidak menambah route atau Markdown.
+
+### Verifikasi batch desain
+
+- `npm run build`: lolos pada kode produksi terakhir; First Load JS 433 kB, route tetap `/`, `/_not-found`, dan manifest.
+- `node --test --test-concurrency=1 tests/dungeon-input.test.mjs tests/dungeon-wildlife.test.mjs tests/game-view.test.mjs`: **26/26 lolos**. Suite lengkap/replay 400 varian tidak diulang untuk perubahan render ini; tidak ada perubahan kode simulasi maupun bank misi.
+- **7 pemeriksaan Chromium lolos**: renderer aktual pada level 1/20/30/36/40/50; fixture Shadow/Peniru/laba-laba pada fase diam/peringatan/serang/pulang; animasi normal, asap, dan efek pickup; resize kamera/cache pada 740×360, 844×390, 360×740, dan 768×1024; permainan produksi level 1 di desktop 1366×768 dengan alat/jeda/bantuan/lanjut; produksi level 40 di HP landscape 844×390 DPR 2 beserta kontrol dan pengaman rotasi; serta tidak ada error JavaScript. Pemilihan level memakai API controller melalui referensi React hanya pada skrip QA, tanpa hook debug produksi.
+- Fixture canvas native pada 1380×900 dan 680×600 serta seluruh fase monster digambar dan diperiksa. Snapshot sebelum/sesudah render memastikan fungsi gambar tidak mengubah state simulasi. Screenshot browser desktop, HP, serta fase monster juga diperiksa secara visual. `git diff --check` bersih.
+- Batas: browser memakai emulasi Chromium; belum HP fisik atau Safari. Fixture serangan membantu pemeriksaan visual, bukan klaim seluruh kampanye dimainkan manual.
+
+## Arena penuh dan penempatan AI Dungeon — 24 Oktober 2026 (v11)
+
+### Arena dan kamera
+
+- Dungeon sekarang memakai seluruh permukaan viewport. HUD, info/jeda, joystick, dan tombol aksi menjadi overlay di dalam arena; tidak ada lagi ruang header atau rel samping yang memaksa arena mengecil.
+- Canvas mengikuti lebar **dan tinggi** ruang yang tersedia, termasuk perubahan orientasi. Dungeon dapat dimulai di portrait; memutar perangkat tidak membuat misi baru.
+- Kamera mengikuti ular dengan tile dasar 32–48 CSS px, terlepas dari ukuran level. Map membesar sebagai ruang permainan, bukan dengan mengecilkan karakter agar seluruh map muat.
+- Tombol zoom menyediakan skala 0,8× / 1× / 1,3× / 1,65×. Tombol Peta menampilkan seluruh denah; tombol bidik kembali mengikuti ular. Kamera mempertahankan ruang aman untuk ular di antara HUD dan kontrol.
+- Pesan panjang dibatasi dua baris. Bantuan menjelaskan kamera dan ambang monster. Kontrol HTML tetap dapat diakses dengan keyboard dan pembaca layar.
+- Cache lantai dibatasi sisi terpanjang 2048 px; memperbesar tampilan tidak membuat bitmap lantai tumbuh tanpa batas. Penggambaran aktor tetap mengikuti resolusi canvas.
+
+### Pos, patroli, dan lalu lintas NPC
+
+- Penempatan membedakan sudut dinding yang masih mempunyai jalur alternatif dengan titik yang benar-benar memutus akses. Pos penjaga dipilih dekat area yang dijaga tanpa menutup akses penting.
+- Titik awal dan tujuan patroli ikut dipesan, sehingga pos penjaga/anjing terikat tidak menjadi tujuan patroli NPC lain. Pos dan barang tidak memakai koordinat yang sama.
+- Penjaga serta anjing bebas memakai perencana jalan dan pemeriksaan badan yang sama. Lorong satu tile mempunyai pemilik sementara; NPC berikutnya menunggu, mencari rute alternatif, atau mundur ke kantong lewat yang nyata.
+- NPC yang memberi jalan melanjutkan tujuan sebelumnya setelah jalur bebas. Tidak ada teleportasi, penonaktifan collision, atau penghapusan NPC untuk menyelesaikan kemacetan.
+- Perbaikan khusus untuk posisi pecahan di belokan: NPC boleh mengambil segmen berikutnya yang aman tanpa lebih dulu merapat ke tengah tile ke arah NPC yang menghalangi. Jika pihak yang diminta mundur tidak mempunyai kantong lewat, pihak lainnya dapat mengalah.
+- Penjaga dan anjing yang melihat peringatan serangan monster dapat menghindar. NPC yang terpojok atau terkena stun tetap dapat dimangsa; monster tetap berbahaya untuk semua makhluk.
+- Salinan state pencarian rute sekarang memisahkan memori monster, antrean lalu lintas, dan jalur mengalah antar cabang pencarian.
+
+### Monster dan bank map
+
+- Shadow hadir di setiap variasi mulai level 30, Mimic mulai level 36, dan laba-laba mulai level 40. Mulai level 40 ketiganya hadir bersama; tidak lagi saling menggantikan lewat slot acak.
+- Sarang/mulut monster harus berada dekat jalur NPC yang terlihat, maksimal tiga tile, dan dekat jalur misi. Dinding tetap dihitung; tetangga di balik tembok tidak dianggap area ramai.
+- Mimic berupa peti yang benar-benar mempunyai mulut menghadap lantai yang dapat dicapai. Shadow tetap mempunyai jalur lurus dan ruang menghindar; laba-laba memerlukan lantai sarang yang cukup terbuka.
+- Builder menolak penempatan yang kehilangan monster wajib, menyumbat rute, membahayakan spawn, mematikan patroli ketika pemain diam, atau menyebabkan penantian lalu lintas berkepanjangan dalam simulasi.
+- Variasi yang tidak menyediakan penempatan layak dibangun ulang dalam bentuk yang sama, kemudian diuji lagi. Tidak ada fallback diam-diam ke versi lama yang gagal pemeriksaan.
+- Enam keluarga bentuk (bulat, L, C, T, gua abstrak, reruntuhan), delapan variasi tiap level, pertumbuhan luas, ID 50 level, progres, dan nilai Apple Coin dipertahankan.
+- `npm run build:campaign -- --arrange` menyusun ulang bank. Opsi lama `--polish` memakai jalur yang sama. Builder dapat memakai `--workers=8` dan menyimpan checkpoint yang terikat pada sumber logika; tidak menerbitkan bank setengah jadi.
+
+### Verifikasi hasil akhir v11
+
+- Bank final: **400 variasi (50 level × 8)**. Semua mempunyai replay misi tanpa alarm dan tanpa gadget; semua bonus ikut direplay pada level 1–15. Delapan variasi pada masing-masing 10 level pengenalan juga diverifikasi dengan awal tertunda tiga detik.
+- Audit gerakan terpisah: **400 × 45 detik**, tanpa badan penjaga/anjing bertumpuk dan tanpa menembus tembok. Jarak pusat NPC terdekat yang terukur 0,540003 tile. Ini pemeriksaan skenario idle/patroli, bukan klaim pembuktian untuk setiap kemungkinan pengejaran.
+- Monster final: 168 Shadow, 120 Mimic, 88 laba-laba. Semua jenis yang sudah terbuka hadir di setiap variasi level berikutnya; lokasi dinilai kembali setelah seluruh peti dan monster selesai ditempatkan.
+- Kontrak data diperiksa untuk seluruh 400 variasi: 50 ID lama, delapan ID variasi unik per level, enam keluarga bentuk, luas bertumbuh, dan waktu acuan yang mencakup waktu replay.
+- Waktu acuan 62 variasi yang dibangun ulang dikalibrasi dari replay, sehingga nilai sementara generator tidak masuk ke permainan. Rentang acuan final 55–230 detik.
+- **287 tes regresi lolos**: 283 tes di berkas selain `puzzle9b.test.mjs`, serta empat tes mekanik/progres/penyimpanan dalam berkas itu. Replay temporal dan pemeriksaan idle bank tidak diulang dalam hitungan tes tersebut karena sudah dijalankan oleh builder dan audit di atas. Pemilihan tes final selesai dengan exit code 0.
+- `npm run build` lolos. Lima pemeriksaan browser produksi lolos: arena desktop, zoom/peta, reset kamera saat restart, info/jeda/lanjut, dan HP portrait–landscape tanpa reset waktu. Screenshot portrait serta landscape diperiksa secara visual.
+- Planner verifikasi mencoba rute geometri dan perkiraan pergerakan sebelum A* penuh. Perkiraan tidak mengesahkan hasil: kandidat selalu direplay dengan pemain terlihat, AI, collision, bahaya, dan alarm normal. Tes memastikan perkiraan tidak dapat meloloskan jalan menembus penjaga.
+- Animasi kaki penjaga/anjing berhenti ketika antre. Memulai ronde baru kembali ke kamera mengikuti ular agar mode Peta tidak membuat level berikutnya kembali terlihat kecil.
+- Tidak menambah halaman/rute atau dokumen Markdown baru. Catatan perubahan hanya ditambahkan ke changelog ini. Aset gambar tetap sama dengan v10.
+- Belum diuji pada HP fisik atau Safari. Uji sentuh memakai emulasi viewport/DPR di Chromium.

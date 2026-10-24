@@ -162,7 +162,7 @@ export function GameDetails({ mode, hud: h }) {
   </div>;
 }
 
-export default function Hud({ mode, hud, onInfo, onPause, canPause }) {
+export default function Hud({ mode, hud, onInfo, onPause, canPause, onCamera }) {
   const view = gameView(mode, hud);
   const [notice, setNotice] = useState('');
   useEffect(() => {
@@ -186,6 +186,11 @@ export default function Hud({ mode, hud, onInfo, onPause, canPause }) {
       <button type="button" onClick={onInfo} title="Info misi & pengaturan" aria-label="Info misi dan pengaturan"><ICONS.info size={20} /></button>
       {canPause && <button type="button" onClick={onPause} title="Jeda (Esc)" aria-label="Jeda"><ICONS.pause size={20} /></button>}
     </nav>
+    {mode === 'puzzle' && <nav className="camera-tools" aria-label="Kamera Dungeon">
+      <button onClick={() => onCamera?.('out')} aria-label="Perkecil tampilan" disabled={!hud.puzzle?.camera?.overview && hud.puzzle?.camera?.zoom <= .8}><ICONS.zoomOut size={19} /></button>
+      <button onClick={() => onCamera?.('toggle')} aria-label={hud.puzzle?.camera?.overview ? 'Ikuti ular' : 'Lihat seluruh peta'} aria-pressed={!!hud.puzzle?.camera?.overview}>{hud.puzzle?.camera?.overview ? <ICONS.locate size={19} /> : <ICONS.map size={19} />}</button>
+      <button onClick={() => onCamera?.('in')} aria-label="Perbesar tampilan" disabled={!hud.puzzle?.camera?.overview && hud.puzzle?.camera?.zoom >= 1.65}><ICONS.zoomIn size={19} /></button>
+    </nav>}
     {notice && <div className="game-toast" title={notice} role="status" aria-live="polite" aria-atomic="true">{notice}</div>}
   </div>;
 }
