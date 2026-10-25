@@ -29,3 +29,10 @@ test('camera: a new random round returns to the readable follow view',()=>{
  const w=makePuzzleWorld({levels:campaign.CAMPAIGN_LEVELS});w.eng.startRun();w.eng.setCamera('toggle');assert.equal(w.last('puzzle').camera.overview,true);
  w.eng.restartLevel();assert.equal(w.last('puzzle').camera.overview,false);w.eng.destroy();
 });
+
+
+test('camera: compact boss entrance keeps the arena in view without a large empty bottom margin',()=>{
+ const l=campaign.BOSS_LEVEL, screen={width:780,height:1688,cssWidth:390,cssHeight:844};
+ const v=cameraView(l,screen,l.spawn);const floorBottom=(v.oy+l.height*v.size)/2,player=(v.oy+l.spawn.y*v.size)/2;
+ assert.ok(floorBottom>=690&&floorBottom<=700);assert.ok(player>184&&player<696);assert.ok((v.oy+(l.boss.y-1.7)*v.size)/2>176);
+});

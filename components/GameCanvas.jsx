@@ -1,28 +1,29 @@
 'use client';
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
-import { createSnakeGame } from '@/lib/gameEngine';
-import { createPuzzleGame } from '@/lib/puzzle/controller';
-import { createDeliveryGame } from '@/lib/delivery/controller';
-import { createRogueliteGame } from '@/lib/roguelite/controller';
-import { createTerritoryGame } from '@/lib/territory/controller';
-import { createBossGame } from '@/lib/boss/controller';
 import { kindOf, isTwoPlayer } from '@/lib/modes/registry';
 import { useSounds } from '@/hooks/useSounds';
+import { createResultWriter, loadRecords, saveRecords } from '@/lib/records';
 import { createDirectionInput } from '@/lib/input';
+
+const LOADERS = { arcade: () => import('@/lib/gameEngine').then(m => m.createSnakeGame), puzzle: () => import('@/lib/puzzle/controller').then(m => m.createPuzzleGame), delivery: () => import('@/lib/delivery/controller').then(m => m.createDeliveryGame), roguelite: () => import('@/lib/roguelite/controller').then(m => m.createRogueliteGame), territory: () => import('@/lib/territory/controller').then(m => m.createTerritoryGame), boss: () => import('@/lib/boss/controller').then(m => m.createBossGame) };
 
 const isMPMode = (m) => isTwoPlayer(m);
 const typingTarget = (t) => !!(t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable));
 const onControl = (t) => !!(t && t.closest && t.closest('button, a, [role="button"]'));
 const dialogOpen = () => typeof document !== 'undefined' && !!document.querySelector('[role="dialog"][aria-modal="true"]');
 
-const GameCanvas = forwardRef(function GameCanvas({ mode, onUpdate, speedPref, taDuration }, ref) {
+const GameCanvas = forwardRef(function GameCanvas({ mode, onUpdate, speedPref, taDuration, audioPrefs }, ref) {
+  const pendingRecords = useRef(null);
+  if (!pendingRecords.current) pendingRecords.current = createResultWriter({ load: loadRecords, save: saveRecords }, true);
   const canvasRef = useRef(null);
   const engineRef = useRef(null);
   const modeRef = useRef(mode);
   const prefsRef = useRef({ speedPref, taDuration });
   const kindRef = useRef('arcade');
   const inputRef = useRef(null);
-  const sounds = useSounds();
+  const sounds = useSounds(audioPrefs);
+  const updateRef = useRef(onUpdate), sceneRef = useRef({ mode });
+  updateRef.current = patch => { sceneRef.current = { ...sceneRef.current, ...patch }; sounds.updateScene(sceneRef.current); onUpdate({ ...patch, recordSave: patch.recordSave || { pending: pendingRecords.current.pending } }); };
 
   const kind = kindOf(mode); // 'arcade' (engine lama), 'puzzle' (stealth real-time), atau 'delivery' (kurir)
   prefsRef.current = { speedPref, taDuration };
@@ -32,14 +33,18 @@ const GameCanvas = forwardRef(function GameCanvas({ mode, onUpdate, speedPref, t
   // Satu controller aktif per jenis mode. Berpindah jenis (arkade <-> puzzle) menghancurkan yang lama
   // (timer/RAF/tween ikut dibersihkan) dan membuat yang baru; berpindah antar mode arkade memakai engine yang sama.
   useEffect(() => {
-    const make = kind === 'puzzle' ? createPuzzleGame : kind === 'delivery' ? createDeliveryGame : kind === 'roguelite' ? createRogueliteGame : kind === 'territory' ? createTerritoryGame : kind === 'boss' ? createBossGame : createSnakeGame;
-    const engine = make({ canvas: canvasRef.current, sounds, onUpdate });
-    engine.setMode(modeRef.current);
-    // Engine baru (mis. kembali dari Puzzle ke arkade) harus langsung memakai preferensi pemain, bukan default.
-    if (prefsRef.current.speedPref) engine.setSpeedPref(prefsRef.current.speedPref);
-    if (prefsRef.current.taDuration) engine.setTaDuration(prefsRef.current.taDuration);
-    engineRef.current = engine;
-    return () => { inputRef.current?.clear(); engine.destroy(); if (engineRef.current === engine) engineRef.current = null; };
+    let cancelled = false, engine = null;
+    onUpdate({ engineReady: false, engineError: '' });
+    LOADERS[kind]().then(make => {
+      if (cancelled) return;
+      engine = make({ canvas: canvasRef.current, sounds, onUpdate: patch => updateRef.current(patch) });
+      engine.setMode(modeRef.current);
+      if (prefsRef.current.speedPref) engine.setSpeedPref(prefsRef.current.speedPref);
+      if (prefsRef.current.taDuration) engine.setTaDuration(prefsRef.current.taDuration);
+      engineRef.current = engine;
+      onUpdate({ engineReady: true, engineError: '' });
+    }).catch(() => { if (!cancelled) onUpdate({ engineReady: false, engineError: 'Mode belum dapat dimuat. Pilih mode lain lalu coba lagi.' }); });
+    return () => { cancelled = true; inputRef.current?.clear(); engine?.destroy(); if (engineRef.current === engine) engineRef.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kind]);
 
@@ -64,7 +69,7 @@ const GameCanvas = forwardRef(function GameCanvas({ mode, onUpdate, speedPref, t
     undo: () => { inputRef.current?.clear(); return !!(engineRef.current && engineRef.current.undo && engineRef.current.undo()); },
     restartRun: () => { inputRef.current?.clear(); const e = engineRef.current; if (!e) return false; if (kindRef.current === 'puzzle') return e.restartLevel(); e.returnToMenu(); return e.startRun(); },
     restartLevel: () => { inputRef.current?.clear(); return !!(engineRef.current && engineRef.current.restartLevel && engineRef.current.restartLevel()); },
-    retrySave: () => engineRef.current?.retrySave?.(),
+    retrySave: () => { const ok = engineRef.current?.retrySave?.(); const all = pendingRecords.current.retry(); onUpdate({ recordSave: { pending: pendingRecords.current.pending } }); return ok ?? all; },
     setLevel: (i) => !!(engineRef.current && engineRef.current.setLevel && engineRef.current.setLevel(i)),
     isRunning: () => !!(engineRef.current && engineRef.current.isRunning()),
     getState: () => (engineRef.current ? engineRef.current.getState() : 'menu'),

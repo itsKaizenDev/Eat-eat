@@ -373,3 +373,25 @@ body[data-playing=true] { overflow:hidden; overscroll-behavior:none; }
 @media (max-width:450px) { .game-viewport[data-mode=puzzle] .hud-values { display:grid; grid-template-columns:repeat(2,max-content); } .game-viewport[data-mode=puzzle] .hud-signals { margin-top:4px; } .game-viewport[data-mode=puzzle] .controls-hint { top:128px; } }
 
 .game-viewport[data-mode=puzzle] .game-toast { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; max-width:min(360px,calc(100% - 32px)); }
+
+/* Touch control preferences (set from Pengaturan) and the layout editor. */
+.joystick-anchor { transform:translate(var(--pad-dx,0px),var(--pad-dy,0px)); opacity:var(--ctl-opacity,1); }
+.dungeon-controls { transform:translate(var(--btn-dx,0px),var(--btn-dy,0px)) scale(var(--btn-scale,1)); transform-origin:bottom right; opacity:var(--ctl-opacity,1); }
+.game-viewport[data-lefty=true] .dungeon-controls { transform-origin:bottom left; }
+.float-zone { position:absolute; left:0; bottom:0; width:calc(50vw - 8px); height:min(56vh,360px); z-index:29; }
+.game-viewport[data-lefty=true] .float-zone { left:auto; right:0; }
+.joystick-anchor:has(.float-zone) { left:0 !important; bottom:0 !important; right:auto !important; width:0; height:0; }
+.game-viewport[data-lefty=true] .joystick-anchor:has(.float-zone) { left:auto !important; right:0 !important; }
+.joystick-anchor.editing, .dungeon-controls.editing { outline:2px dashed #ffe27a; outline-offset:6px; cursor:grab; touch-action:none; z-index:40; }
+.joystick-anchor.editing *, .dungeon-controls.editing * { pointer-events:none !important; }
+.layout-editor { position:absolute; left:50%; top:max(76px,env(safe-area-inset-top)); transform:translateX(-50%); z-index:50; display:grid; gap:8px; padding:12px 14px; max-width:min(92vw,420px); background:#14231bf2; border:1px solid #cae7bb60; border-radius:14px; color:#eaf5df; text-align:center; font-size:14px; }
+.layout-editor > div { display:flex; gap:8px; justify-content:center; }
+.control-settings { display:grid; gap:10px; margin:10px 0; }
+.control-settings h3 { font-size:13px; letter-spacing:.04em; text-transform:uppercase; opacity:.8; margin:0; }
+.slider-row { display:grid; gap:4px; font-size:14px; }
+.slider-row span { display:flex; justify-content:space-between; }
+.slider-row input[type=range] { width:100%; accent-color:#bbe879; min-height:32px; }
+
+/* Mission feedback stays with the HUD, outside the followed-player area. */
+.dungeon-note { max-width:min(420px,100%); padding:3px 6px; border-radius:6px; background:#14271cf2; color:#e5eed9; font-size:10px; line-height:1.35; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
+@media (max-width:450px) { .dungeon-note { -webkit-line-clamp:1; } }

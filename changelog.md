@@ -1,6 +1,6 @@
 # Changelog — K-Snake
 
-Diperbarui: 20 Oktober 2026.
+Diperbarui: 25 Oktober 2026.
 
 Seluruh catatan revisi, aturan, hasil verifikasi, prompt aset dan diff Markdown disatukan dalam berkas ini. `README.md` tetap menjadi panduan menjalankan proyek. Catatan rinci disimpan dalam bagian buka-tutup agar riwayat tetap tersedia tanpa memenuhi halaman utama.
 
@@ -35,6 +35,14 @@ Aturan terbaru Dungeon ada pada [revisi Dungeon](#doc-dungeon-revision); pedoman
   - [Tahap 9](#doc-docs-tahap-9)
 - Diff kode historis
   - [Diff Dungeon lengkap per file](#doc-dungeon-diff-per-file)
+
+<a id="touch-controls-v13"></a>
+## Kontrol sentuh: joystick halus dan tata letak yang bisa diatur — 24 Oktober 2026
+
+- Joystick Dungeon kini analog halus: arah bebas (bukan 8 sektor), kecepatan naik sesuai jarak dorongan, zona mati turun dari 32% ke 12%, ukuran bawaan 115%. Mode lama 8 arah tetap tersedia.
+- Pengaturan > Kontrol sentuh: ukuran joystick (80–160%), ukuran tombol (80–150%), zona mati, transparansi, mode gerak (Halus / 8 arah), joystick melayang (muncul di bawah jempol), Atur posisi kontrol (seret joystick dan tombol aksi), dan Reset kontrol.
+- Pilihan disimpan di `localStorage` (`snake-controls-v2`) lewat `lib/controlPrefs.js`; posisi dibatasi agar kontrol tidak keluar layar.
+- Tes baru: normalisasi preferensi dan kecepatan analog (dorongan parsial lebih lambat dari penuh).
 
 <a id="dungeon-boss-51"></a>
 ## Dungeon: level spesial 51 — Penjaga Relik Agung — 24 Oktober 2026
@@ -4881,3 +4889,198 @@ Berkas sumber baru: `components/DungeonControls.jsx`, `lib/puzzle/geometry.js`, 
 - Animasi kaki penjaga/anjing berhenti ketika antre. Memulai ronde baru kembali ke kamera mengikuti ular agar mode Peta tidak membuat level berikutnya kembali terlihat kecil.
 - Tidak menambah halaman/rute atau dokumen Markdown baru. Catatan perubahan hanya ditambahkan ke changelog ini. Aset gambar tetap sama dengan v10.
 - Belum diuji pada HP fisik atau Safari. Uji sentuh memakai emulasi viewport/DPR di Chromium.
+
+## Boss Dungeon bervariasi dan arena lebih rapi — 25 Oktober 2026 (v14)
+
+### Pertarungan Penjaga Relik Agung
+
+- Level 51 tetap memakai ID/progres dan hadiah Relik Agung 50 Apple Coin. Mode Boss terpisah dari Dungeon tidak diubah.
+- Delapan pola dengan giliran acak tanpa pengulangan berurutan: Palu Batu, Benih Retak, Gerbang Runtuh, Sapu Tiga Jalur, Tatapan Pemburu, Gema Cincin, Salib Pecah, dan Sangkar Bergilir. Semua pola dalam daftar fase dicoba sebelum daftar diacak ulang.
+- Sapuan, tatapan, cincin, dan sangkar mempunyai beberapa hantaman. Setiap hantaman mendapat peringatan baru; area yang sudah terkunci tidak mengikuti gerakan pemain selama peringatan. Waktu peringatan mempertimbangkan jarak rute aktual menuju lantai aman, termasuk pilar, dengan kecepatan jalan dan tambahan waktu reaksi.
+- Lima fase mempunyai mekanik pertahanan berbeda:
+  1. **Batu terbangun:** injak rune yang menyala.
+  2. **Segel berdenyut:** tetap di rune selama 0,7 detik. Keluar membatalkan charge.
+  3. **Urutan rune:** aktifkan rune sesuai nomor; rune berikutnya belum aktif sebelum yang pertama selesai.
+  4. **Rantai penjaga:** putuskan dua rune samping dalam urutan bebas, lalu injak inti tengah untuk tiga damage. Inti tidak bisa diserang sebelum kedua rantai terputus.
+  5. **Inti mengamuk:** dua pola serangan sebelum jendela balasan, diikuti urutan rune dan charge pada rune terakhir.
+- Batu yang benar-benar mengenai resonator sian selama peringatan memutus serangan dan membuka rune. Counter menggunakan arah hadap, ujung lemparan dan cooldown normal, bukan tombol damage langsung. Asap menyembunyikan posisi aktual dari tatapan; trap yang terkena area serang memperpanjang peringatan berikutnya. Alat tetap pulih setiap 10 detik.
+- Lima nyawa dan invulnerability setelah damage dipertahankan. Jantung pergantian fase ditempatkan pada lantai yang dapat dicapai; jantung tidak terbuang saat nyawa masih penuh. Seluruh lantai yang dapat dijangkau masuk domain pola, termasuk pintu masuk dan galeri relik.
+- Arena boss disusun ulang dari 23×19 menjadi 19×17: sudut terpotong, dua pilar, serta tiga pendekatan rune yang tersambung. Golem, rantai, charge, resonator, peringatan, HP dan hati memakai gambar canvas yang mengikuti gaya Dungeon. Simbol hati/rantai digambar sebagai bentuk agar tidak bergantung glyph font perangkat.
+- HUD menampilkan nama fase, nama pola, nomor hantaman, kombo, dan sisa waktu rune. Arah menuju tempat aman atau rune berikutnya muncul di tepi layar bila target berada di luar kamera. Relik tidak digambar sebelum boss kalah. Kamera boss portrait menahan batas arena agar tidak menyisakan bidang kosong besar di bawah pemain.
+
+### Penataan map kampanye
+
+- Audit awal seluruh 400 varian tidak menemukan dua objek/pos awal yang memakai titik yang sama. Masalah ruang yang terbukti: 219 varian mempunyai padding luar berlebih.
+- Memangkas **10.255 sel padding** dari 219 varian tersebut. Semua lantai, peti, tembok di sekitar lantai, objek, sarang, arah, rute, jangkauan dan jarak relatif dipertahankan. Koordinat bersarang seperti mulut Mimic, rumah/pos, dan waypoint ikut ditranslasikan.
+- Luas lantai tetap bertumbuh dari level awal sampai akhir; pengecilan dimensi hanya membuang tepi yang tidak dimainkan. ID, variasi bentuk, roster monster, hadiah dan progres tetap kompatibel.
+- Dinding/peti di depan aktor atau objek penting meredup agar gambar tidak menutupinya. Penempatan NPC tidak diacak ulang tanpa bukti; jalur yang sudah diverifikasi dipertahankan.
+- Generator berikutnya lebih mengutamakan pertumbuhan ke tepi dengan beberapa tetangga lantai sebelum membuat cabang satu sel. Pemadatan dipakai generator dan arranger; builder menghitung cache dari modul baru dan memakai dimensi sumber saat membangun ulang footprint yang pernah diperbesar.
+
+### Verifikasi v14
+
+- **307 tes regresi lolos:** 303 kasus pada seluruh berkas tes selain `puzzle9b.test.mjs`, ditambah empat kasus mekanik/progres/penyimpanan yang dipilih dari berkas tersebut. Bukan klaim `npm test` lengkap; replay temporal 400 misi tidak diulang.
+- Dua belas replay boss dengan seed berbeda menamatkan kelima fase, mengambil relik dan keluar lewat gerakan biasa tanpa gadget, tanpa kehilangan nyawa. Waktu terlama 188,55 detik; kumpulan replay mencakup delapan jenis serangan. Ada pengujian terpisah untuk counter batu, asap, trap, charge batal, urutan salah, rantai, kombo, invulnerability dan relik terkunci.
+- Seluruh 400 map dibandingkan dengan v13 untuk kesetaraan geometri/objek. Masing-masing disimulasikan 45 detik bersama versi asal: tidak ada NPC mati, alarm, badan bertumpuk atau menembus tembok. Jarak pusat NPC terdekat 0,540003 tile; selisih numerik posisi setelah translasi paling besar sekitar 2,03×10^-13 tile. Ini audit patroli rutin, bukan semua kemungkinan pengejaran pemain.
+- `npm run build` lolos. Sembilan pemeriksaan Chromium lolos: boss produksi dengan keyboard, jeda/info/lanjut, zoom/peta, sentuh portrait/landscape, render delapan skill, antarmuka lima fase, charge/heal/arah target, map kampanye, serta tanpa error JavaScript. Fixture memastikan renderer tidak mengubah state simulasi. Pemilihan level QA memakai API controller yang sudah ada, tanpa route debug produksi.
+- Screenshot boss desktop/HP, rune dan map diperiksa. Pengujian HP memakai emulasi Chromium, belum perangkat fisik atau Safari.
+- Tidak menambah route/halaman, dependency, aset gambar eksternal, atau dokumen Markdown baru. Catatan perubahan ditambahkan hanya ke changelog ini; pengaturan kontrol v13 dipertahankan.
+
+## v15 — Eksplorasi terukur, reaksi AI dan audio adaptif (25 Oktober 2026)
+
+### A. Audit dan akar masalah
+
+Audit v14 mencakup 15 mode: Classic, Malam, Portal, Time Attack, empat Mayhem/Impossible, dua mode 2P, Dungeon, Kurir, Ekspedisi, Boss Kebun dan Rebut Arena. Adventure adalah grup menu, bukan simulasi tersendiri.
+
+Temuan terkonfirmasi: overlay jeda menangkap sentuhan saat mengedit kontrol; pesan Dungeon dapat menutup ular pada layar pendek; pilihan joystick ditawarkan pada mode yang tidak memakainya; pesan restart Ekspedisi tidak menjelaskan hilangnya upgrade run; aturan bintang boss berbeda dari penjelasan hasil; rekor antartab dapat saling menimpa dan kegagalan simpan tidak diberitahukan; controller Dungeon beserta 400 map ikut dimuat saat membuka Classic. Next 14.2.34 juga tertinggal patch upstream. Dugaan bahwa semua map abstrak rusak ditolak: luas lantai memang bertambah. Masalah yang diukur terpisah ialah perjalanan menuju tujuan, relevansi ruangan dan penempatan aktor. Contoh baseline: varian `gen-32-ruins-3205010`, 219 lantai tetapi jarak masuk–relik hanya 13 langkah.
+
+### B. Implementasi dan kompatibilitas
+
+Controller dimuat sesuai jenis mode; impor tertunda dibatalkan saat pemain berpindah sebelum pemuatan selesai. Ada status memuat dan kesalahan pemuatan. Next diperbarui ke 15.5.28, React 18 dipertahankan. Tidak menambah dependensi audio, halaman, atau berkas Markdown. Editor memakai satu pemilik jeda; zona mati berlaku untuk semua joystick; pilihan Halus/8 arah hanya muncul di Dungeon; posisi kontrol dijepit ulang setelah rotasi. Pesan misi berada di HUD; HUD boss menampilkan HP, nyawa dan fase sebagai teks tanpa menduplikasi bar canvas besar.
+
+Rekor baru Kurir/Ekspedisi/Rebut Arena/Boss memakai jurnal lokal per ID run, sehingga tab berbeda tidak menimpa snapshot yang sama. Hasil setelah revive mengganti ID run yang sama. Snapshot `snake-records-v1` lama tetap dibaca sebagai baseline, tanpa penghapusan. Kegagalan simpan menyisakan antrean sesi yang dapat dicoba lagi, termasuk setelah pindah mode. Antrean yang belum tersimpan tidak tahan terhadap penutupan browser; UI mengatakannya. Jurnal belum dikompaksi otomatis agar tidak memperkenalkan perlombaan antartab. Progres Dungeon tetap memakai mekanisme merge/retry yang sudah bekerja. Kunci konfigurasi boss v4 dan Ekspedisi v3 memisahkan rekor pola baru dari hasil lama; entri lama tetap disimpan. Revisi kampanye 8 memisahkan waktu heist lama dari waktu denah baru, sambil mempertahankan pembukaan misi dan Apple Coin.
+
+### C. Dungeon
+
+`quality.js` menilai jarak jalur masuk–relik, keterhubungan tujuan, kedekatan portal dengan relik, lantai jauh dari jalur/tujuan opsional, dan sebaran fungsi ruang. Ambang jarak mengikuti ukuran lantai dan tahap pengenalan; skor bukan persentase wajib seluruh lantai. Skor tidak dijadikan bukti solvabilitas. Penerimaan bank tetap memerlukan pemeriksaan kunci/tuas, penempatan, patroli dan replay simulasi sebenarnya. Perbaikan mendahulukan posisi masuk/keluar, pemilihan pos relevan dan penataan ulang pada geometri yang sama; footprint hanya diganti dalam keluarga bentuk yang sama bila kandidat tersebut gagal. Generator tidak menghapus monster yang gagal ditempatkan. Delapan varian per misi dan enam keluarga bentuk dipertahankan.
+
+Jumlah manusia berkurang pada tahap lanjut: satu penjaga akses cukup, patroli koridor dibatasi dua; maksimum enam manusia, ditambah anjing dan ekosistem monster sesuai level. Penjaga cepat tetap mulai level 20, maksimum dua. Pos yang menjaga keterkaitan monster dengan jalur NPC diprioritaskan saat mengurangi roster. Koin opsional dapat mengisi cabang jauh dari jalur wajib; tidak menambah kewajiban mengunjungi seluruh map. Acuan waktu juga menambahkan anggaran perjalanan bonus, sehingga cabang opsional tidak memakai batas waktu rute wajib saja. `npm run build:campaign` menjalankan penerimaan kualitas dan penataan reward, dengan cache yang dibatalkan jika source atau input bank berubah. Relik tetap berada dalam sistem brankas/kunci/tuas yang sesuai. Tujuan utama tidak dipindah ke tempat yang membatalkan puzzle.
+
+### D. Musuh dan boss
+
+Warden merupakan spesialisasi pos penjaga mulai level 25, bukan penambahan kerumunan. Ia menyiapkan terjangan 0,8 detik, mengunci satu jalur lurus, menerjang pendek, lalu pulih 1,1 detik. Target tidak membelok mengikuti pemain setelah terkunci. Stun membatalkan persiapan. Petunjuk jalur dan antisipasi hanya digambar untuk aktor dekat; patroli, menunggu lorong, menghindar dan pemulihan punya tanda berbeda. Navigasi/reservasi lorong yang sudah ada dipertahankan.
+
+Penjaga memerlukan 0,2 detik dan anjing 0,12 detik untuk menanggapi peringatan monster yang terlihat. Peringatan baru mempunyai waktu observasi baru meskipun monster pernah dikenal. Ada tanda antisipasi, tanda gerakan menghindar, serta efek suara peringatan/meleset/terkena. Tidak menambah penundaan input pemain atau mengubah collision menjadi teleport.
+
+Shadow tetap samar, memakai jalur tetap; Mimic dan laba-laba tetap hadir setelah ambang levelnya. Boss Dungeon mempertahankan delapan serangan dan lima mekanik fase v14: sentuh, tahan, urutan rune, rantai dan kombinasi finale. Delapan pola, resonator counter, smoke, trap serta jalur keluar yang sudah diuji dipertahankan. Perbaikan v15 ada pada keterbacaan, suara dan penjelasan bintang berbasis nyawa.
+
+Boss Ekspedisi/Kebun menambahkan pola khas bergantian dengan pola bersama: Akar kembar (dua baris), Cincin spora (mengunci kepala yang diamati ketika telegraph dibuat), dan Pagar sulur (lorong aman horizontal). Waktu peringatan dihitung dari jalur keluar yang mempertimbangkan tubuh ular; pola yang tidak mendapat rute aman memakai fallback lama. Scheduler, jendela serang, interrupt, heal dan transisi fase tetap memakai kontrak yang sama.
+
+### E. Audio
+
+Enam identitas orisinal dibuat sebagai PCM sintetis: eksplorasi Dungeon, boss Dungeon, perjalanan Ekspedisi, boss Ekspedisi, eksplorasi Adventure dan bahaya Adventure. Identitas Adventure digunakan pada grup menu/mode terkait, termasuk perubahan tekanan pada akhir shift Kurir. Tiap identitas mempunyai tempo, progresi, motif dan lapisan sendiri; intensitas menanggapi kecurigaan/kejaran, progres rute dan fase. Variasi boss mengubah susunan motif.
+
+Dua stem setiap skor memakai jumlah sampel dan waktu mulai yang sama. Nada dan ekornya ditulis melingkar ke buffer; `AudioBufferSourceNode.loop` menjalankan loop pada jam audio, tanpa memulai ulang lewat RAF/setInterval. Perpindahan identitas memakai fade gain, perubahan intensitas mempertahankan playhead. Satu AudioContext dimiliki game; pause/mute menangguhkannya, resume mempertahankan waktu musikal. Autoplay menunggu interaksi pemain. Volume musik/SFX dan mute disimpan terpisah. Cache maksimal dua skor, suara bersamaan dibatasi, node dibersihkan saat selesai/unmount. SFX lama tetap tersedia dan mengikuti volume SFX.
+
+Referensi artistik yang diperiksa lewat katalog Spotify: [Mantis Lords](https://open.spotify.com/track/7uIyzCZKGk9K2EXnb3BtrR), [Greenpath](https://open.spotify.com/track/6fyI2QGPzUiqRHnuYD7oOp), [Hades: Original Soundtrack](https://open.spotify.com/album/5jTYZA6b4VoSRnR5TMldgb), dan [Secunda](https://open.spotify.com/track/38ineLIzGIXTGd8ICMvHXb). Pemeriksaan katalog bukan klaim mendengarkan rekamannya. Tidak ada rekaman, melodi, sampel Spotify atau streaming yang dimasukkan ke proyek; pengaruhnya sebatas arah suasana dan kontras eksplorasi/pertarungan.
+
+### F. Hasil verifikasi rilis
+
+- 311 tes regresi dan fitur baru lulus, 0 gagal, ditambah 4 tes progres/mekanik terpilih lulus. Total 315 kasus tes unik pada pemeriksaan rilis. `node --test --test-concurrency=1` dijalankan untuk seluruh berkas tes kecuali korpus replay mahal `puzzle9b.test.mjs`; empat kasus non-korpus dari berkas itu dijalankan terpisah. Ini bukan klaim seluruh `npm test` sudah diulang.
+- 400/400 varian diterima melalui validasi penempatan, patroli 45 detik dan replay misi tanpa alarm/gadget. Bonus diuji dalam replay untuk 120 varian level 1–15. Pencarian memakai batas 70/170 langkah waktu dan 100/1000 node sesuai jalur builder; batas pencarian hanya menolak kandidat yang belum terbukti, tidak melonggarkan hasil replay.
+- Pemeriksaan fisika bank final: 400 map × 2.700 tick, total 1.080.000 tick. Tidak ada alarm, kematian rutin manusia/anjing, tembus dinding atau overlap antarmanusia/anjing. Jarak terkecil terukur 0,5400033993 petak, di atas batas uji 0,535.
+- Tes boss mencakup 12 seed Dungeon (1–12), menuntaskan lima fase dengan gerakan biasa, lima nyawa utuh, relik dan pintu keluar. Tes pola khas Ekspedisi mencakup ketiga varian pada ketiga fase dengan seed 13; corpus boss lama juga tetap lulus. Ini tidak berarti seluruh run Ekspedisi pada semua seed telah dimainkan manual.
+- Browser Chromium: 45 konfigurasi (15 mode × desktop 1366×768, ponsel 360×740 dan mendatar 740×360, DPR 2 pada ponsel), mulai–jeda–lanjut, tanpa galat JavaScript atau aset aplikasi hilang. Pemilihan mode pada smoke test memakai state/controller aplikasi; bukan klaim semua perjalanan menu dimainkan manual.
+- Editor diuji lewat UI: drag benar-benar menerima pointer dan posisi joystick tetap di layar setelah rotasi. Audio diuji lewat tombol UI: satu AudioContext, waktu beku saat pause, lanjut dari waktu tersebut, mute/unmute dan preferensi musik 22%/SFX 44% tersimpan. Tes PCM memeriksa enam identitas berbeda, sampel finite, headroom stem dan sambungan loop. Tes lifecycle memeriksa batas cache dan pembersihan node.
+- Build produksi Next 15.5.28 berhasil. Build rilis menunjukkan First Load JS 172 kB, dibanding 450 kB pada audit v14; angka ini tidak termasuk keseluruhan aset atau semua mode yang nantinya dimuat.
+- Temuan pada iterasi uji diperbaiki sebelum rilis: margin masuk terhadap monster dipulihkan menjadi minimal 5,5 petak pada enam varian; metadata waktu replay ditambahkan untuk footprint baru; fixture jumlah penjaga/padding diperbarui mengikuti desain baru. Invarian jarak fisik, keterhubungan dan keselamatan tetap diuji.
+
+Hasil bank: 213 pintu masuk mempunyai jarak relik lebih jauh; 36 footprint diganti dalam keluarga bentuk yang sama; 277 varian memiliki reward cabang. Maksimum enam penjaga manusia. Skor heuristik penataan 72–100, rata-rata 93.9; ini bukan skor kualitas aplikasi atau jaminan seluruh ruangan wajib dikunjungi.
+
+Batas verifikasi: belum diuji pada perangkat fisik/iOS Safari atau seluruh kombinasi pengejaran, gadget, monster dan input pemain. Kelayakan tiga bintang untuk seluruh bonus level 16–50 belum dibuktikan lewat replay lengkap; acuan waktunya menambahkan anggaran jalur bonus. Tes numerik/jam audio tidak menggantikan penilaian kenyamanan bunyi melalui speaker/headphone fisik. Kegagalan browser storage tetap membutuhkan retry sebelum sesi ditutup.
+
+<details><summary>Seed bank yang divalidasi (50 misi × 8 varian)</summary>
+
+```text
+1: 100000, 101000, 102000, 103000, 104003, 105000, 106005, 107000
+2: 200000, 201002, 202000, 203000, 204000, 205000, 206000, 207000
+3: 300000, 301002, 302000, 303000, 304000, 305004, 306000, 307002
+4: 400000, 401004, 402007, 403000, 404000, 405000, 406000, 407001
+5: 500000, 501005, 502002, 503000, 504002, 505001, 506001, 507001
+6: 600006, 601000, 602006, 603301, 604003, 605030, 606010, 607013
+7: 700000, 701002, 702004, 703002, 704000, 705000, 706005, 707002
+8: 800001, 801000, 802019, 803001, 804007, 805001, 806002, 807001
+9: 900000, 901001, 902011, 903001, 904005, 905003, 906006, 907006
+10: 1000022, 1001007, 1002000, 1003003, 1004002, 1005023, 1006002, 1007011
+11: 1100007, 1101009, 1102001, 1103013, 1104073, 1105022, 1106025, 1107026
+12: 1200009, 1201139, 1202055, 1203037, 1204032, 1205037, 1206007, 1207035
+13: 1300024, 1301025, 1302016, 1303073, 1304030, 1305033, 1306004, 1307013
+14: 1400008, 1401002, 1402010, 1403016, 1404001, 1405003, 1406004, 1407001
+15: 1500014, 1501002, 1502025, 1503093, 1504018, 1505003, 1506004, 1507003
+16: 1600031, 101604637, 1602024, 1603045, 1604083, 1605009, 1606012, 1607018
+17: 1700018, 1701028, 1702007, 101706039, 1704008, 1705005, 1706000, 1707064
+18: 1800014, 1801000, 1802017, 1803011, 1804010, 1805009, 101809537, 1807038
+19: 1900008, 1901020, 101905242, 1903000, 101906027, 1905007, 101908325, 1907000
+20: 2000037, 2001092, 102015333, 2003316, 2004084, 2005125, 2006010, 2007013
+21: 2100001, 2101010, 2102023, 2103051, 2104022, 2105064, 102110666, 2107032
+22: 2200003, 2201004, 2202012, 2203003, 2204003, 2205002, 2206005, 2207005
+23: 2300007, 2301043, 2302023, 2303008, 2304004, 2305005, 2306004, 2307031
+24: 2400005, 2401010, 2402028, 2403000, 2404007, 102407328, 2406017, 102410035
+25: 2500006, 2501001, 2502011, 2503036, 2504003, 102509248, 2506003, 2507013
+26: 102602232, 2601003, 2602015, 2603035, 102606426, 2605000, 2606005, 2607005
+27: 2700012, 2701001, 2702007, 2703023, 102706435, 2705039, 102708833, 2707019
+28: 2800001, 2801016, 102806390, 2803059, 2804007, 2805024, 2806009, 2807005
+29: 102902424, 102903039, 2902005, 2903000, 2904003, 2905005, 2906037, 2907008
+30: 3000006, 3001030, 3002000, 3003025, 3004003, 3005001, 3006015, 3007131
+31: 3100004, 103103084, 3102010, 3103017, 3104005, 3105001, 3106007, 3107010
+32: 3200015, 3201008, 103204125, 3203002, 3204008, 3205010, 3206017, 3207002
+33: 3300001, 3301017, 3302006, 3303026, 103307133, 3305001, 3306000, 3307027
+34: 3400013, 3401010, 3402017, 3403007, 3404003, 3405018, 3406000, 3407009
+35: 3500001, 235010022, 3502001, 3503001, 103508955, 235050052, 235060030, 3507000
+36: 3600032, 236010027, 3602043, 3603000, 3604051, 3605087, 3606133, 103609498
+37: 3700012, 3701008, 103704407, 3703026, 3704014, 3705063, 103709363, 3707027
+38: 3800048, 3801006, 3802001, 3803011, 3804113, 3805006, 3806034, 103809286
+39: 239000025, 3901020, 3902005, 3903025, 3904014, 239050017, 3906045, 3907099
+40: 4000014, 4001011, 240020019, 240030079, 4004045, 4005004, 4006005, 240070023
+41: 4100020, 241010030, 241020061, 4103041, 4104024, 104107531, 4106023, 4107005
+42: 4200000, 4201018, 4202052, 4203000, 4204008, 242050055, 242060060, 4207011
+43: 4300017, 4301019, 4302007, 104305024, 243040017, 143050028, 243060022, 143070016
+44: 4400056, 244010019, 244020018, 4403003, 4404019, 244050041, 4406007, 104409445
+45: 245000021, 104505243, 4502002, 145030064, 145040234, 245050023, 245060031, 245070036
+46: 4600017, 146010109, 146020101, 246030017, 4604003, 146050014, 146060027, 146070012
+47: 4700046, 247010066, 4702016, 247030119, 247040025, 247050033, 247060027, 147070013
+48: 4800034, 248010030, 248020021, 248030023, 4804046, 4805019, 4806011, 4807020
+49: 249000027, 149010284, 149020019, 149030046, 249040038, 149050048, 149060018, 249070032
+50: 105004472, 250010025, 5002018, 250030036, 150040196, 150050060, 150060042, 150070060
+```
+
+SHA-256 CSV seed berurutan: `6700e5176507fcda26cfe144874722f2e64e297e9e36850b9aae8de6de91761b`. Posisi, seed, skor, waktu bukti dan varian tersimpan dalam `lib/puzzle/campaignData.js`.
+</details>
+
+### G. Paket proyek
+
+ZIP rilis berisi source K-Snake, aset yang dipertahankan, pengujian, lockfile dan changelog ini. Dependensi terpasang, cache, hasil build serta screenshot QA tidak dimasukkan. Jalankan `npm ci`, lalu `npm run dev` atau `npm run build`. `npm run build:campaign` adalah pekerjaan offline yang lebih berat: menghasilkan kembali bank yang lolos bukti sebelum mengganti data kampanye.
+
+
+## v15.1 — Verifikasi penuh dan perbaikan pencari rute (25 Oktober 2026)
+
+Status terbaru: seluruh `npm test` kini dijalankan dan lulus **377 tes, 0 gagal, 0 dilewati**. Catatan v15 tentang korpus yang belum diulang merupakan status historis sebelum pemeriksaan ini. Build produksi Next 15.5.28 juga lulus.
+
+Pemeriksaan lengkap mencakup replay delapan varian pada seluruh 50 misi, patroli 45 detik untuk setiap varian, serta sepuluh skenario mulai terlambat tiga detik. Batas verifikasi bonus tetap sama: replay dengan seluruh bonus mencakup level 1–15. Ini bukan klaim seluruh bonus level 16–50 atau perangkat fisik sudah diverifikasi.
+
+Run penuh pertama menemukan satu kegagalan pada varian `gen-11-L-1101009`. Forecast panjang memilih jalur yang terlalu lama menunggu sehingga gagal membuktikan jalan keluar sebelum acuan 140 detik. Replay lain berhasil menuntaskan semua bonus, tanpa alarm, dalam 64,05 detik. Masalah ini berada pada pencari bukti otomatis, bukan bukti bahwa map mustahil dimainkan.
+
+`verifyMission` kini mencoba forecast pendek terlebih dahulu dan memakai forecast panjang sebagai fallback. Kedua percobaan memakai dunia awal yang terpisah dan tetap tunduk pada simulasi, alarm, bonus, serta waktu acuan asli. Tidak menaikkan par atau mengubah posisi musuh untuk meloloskan tes. Tes regresi level 11 juga memastikan pencarian tidak memutasi data map. Builder mencatat horizon yang benar-benar berhasil untuk bukti berikutnya.
+
+Korpus verifikasi dibagi per level ke maksimal empat worker bawaan Node, masing-masing dengan state simulasi sendiri dan cache modul hanya-baca. Seluruh pemeriksaan dipertahankan; proses tidak lagi menumpuk semua pekerjaan panjang dalam satu alur sinkron. Tidak menambah dependensi, halaman aplikasi, atau berkas Markdown.
+
+## v16 — Audio setiap mode, identitas boss, dan event permainan lengkap (25 Oktober 2026)
+
+### Audit lanjutan dan hasil implementasi
+
+Laporan v15 sebelumnya terlalu luas: enam identitas musikal memang ada, tetapi sepuluh mode arcade masih masuk ke tema Adventure yang sama. Variasi boss Ekspedisi hanya menukar motif pada satu komposisi. Ditemukan pula event interaksi Dungeon yang dapat hilang saat tick berikutnya mengosongkan event, pemetaan pukulan ke boss Kebun ke suara pemain terluka, dan suara meleset Shadow yang dipicu berulang selama terjangan. Ini diperbaiki pada sumber yang sama, bukan dengan menambah halaman.
+
+- **20 komposisi orisinal:** sepuluh identitas arcade terpisah (Classic, Malam, Portal, Time Attack, Mayhem, Mayhem+, Hard, Impossible, 2P, Mayhem Duo); eksplorasi dan boss Dungeon; perjalanan Ekspedisi serta tiga tema boss (Akar, Spora, Sulur); dan empat identitas Adventure untuk perjalanan Kurir, tahap pengantaran sibuk, Rebut Arena, dan keadaan bahaya. Pergantian keadaan mengikuti HUD simulasi yang sebenarnya. Gelombang antek memakai identitas perjalanan/tempur Ekspedisi; musik boss utama baru masuk pada ronde boss.
+- **Aransemen:** setiap komposisi memiliki frasa 16 bar, harmoni, instrumen, bass, motif tanya-jawab dan pola perkusi tersendiri. PCM dibuat dari sintesis orisinal; tidak memakai rekaman/melodi Spotify. Dua stem tetap sinkron pada jumlah sampel dan titik mulai yang sama. Nada dan ekornya membungkus batas buffer. Peak gabungan kedua stem dibatasi untuk menyediakan headroom.
+- **Fase boss:** pergantian fase menambahkan motif balasan, ostinato dan aksen perkusi, bukan menaikkan playback rate. Aransemen tema yang sama dimulai pada offset musikal yang sedang berlangsung dan di-crossfade. Perubahan kecurigaan, kejaran, kemajuan rute, akhir waktu dan tekanan duel mencampur stem tanpa mengulang frasa.
+- **Respons input:** komposisi PCM dipindahkan ke satu Web Worker. Hanya satu pekerjaan berjalan; perpindahan mode cepat digabung menuju permintaan terakhir. Tema aktif tetap berjalan sampai penggantinya siap. Ada fallback komposisi lokal untuk browser yang menolak worker, pembatalan saat unmount, dan cache dua skor.
+- **Satu sistem audio:** lima aset SFX lama didekode ke AudioContext yang sama dengan musik dan efek sintetis. Autoplay menunggu gesture; audio yang masih diunduh memakai cue sintetis langsung dan tidak memutar event lama ketika unduhan selesai. Kegagalan aset tetap punya fallback. Musik/SFX mengikuti preferensi volume, mute, pause/resume dan pembersihan yang sama. Suara gerak dibatasi frekuensinya, pengulangan sampel menghentikan instans lama, maksimum 20 suara sintetis/sampel bersamaan, dan cue prioritas dapat menggantikan suara yang kurang penting. Peringatan eits dihentikan sebelum suara kematian.
+- **Feedback permainan:** portal, pintu/tuas, asap, batu, trap, sembunyi, langkah pemain yang benar-benar bergerak, persiapan/eksekusi serangan, antisipasi, menghindar, meleset, damage, relik, rune, heal, fase dan boss tumbang mempunyai event yang terhubung. Tombol aksi menguras event segera; tick berikutnya tidak memutar ulang atau membuangnya. Pukulan ke boss dibedakan dari pemain kehilangan hati. Time Attack dan hasil 2P juga memakai cue hasil melalui kontrak suara yang sudah ada.
+
+### Dungeon dan validasi yang dipertahankan/dilengkapi
+
+Perubahan map, pertumbuhan lantai, 400 varian, penempatan tujuan/pos pertahanan, batas enam penjaga, Warden, CCTV, anjing, Shadow, Mimic, laba-laba, trap, kamera, kontrol mobile, delapan serangan/lima fase boss Dungeon serta tiga pola khas boss Ekspedisi dari v15 tetap tersedia. Rilis ini tidak memindahkan objek, mengganti roster, memperpanjang par, atau mengubah data progres untuk membuat tes lulus.
+
+Pencari bukti kini melewati pickup yang sudah benar-benar terambil dan memiliki alternatif urutan kunjungan. Trace lengkap dapat mencatat menunggu, interaksi tuas/pintu, gadget dan durasi menahan arah, lalu diputar ulang dari dunia baru. Pencarian taktis opsional (`gadgets: true`) memakai aksi asap dan cooldown 10 detik yang asli. Langkah yang direncanakan melewati jaring dapat mempunyai durasi lebih panjang; perlambatan tetap dihitung oleh simulasi normal. Pencarian standar tetap tanpa gadget. Tidak ada teleportasi, invulnerability tambahan, NPC dinonaktifkan atau pelonggaran syarat tiga bintang dalam admission replay.
+
+### Verifikasi rilis
+
+- **Seluruh `npm test`: 390 tes, 390 lulus, 0 gagal, 0 dilewati**, 219,77 detik pada lingkungan pengujian ini. Termasuk 13 regresi tambahan untuk pemetaan semua mode, identitas boss, headroom/determinisme PCM, cue aksi langsung, SFX asli/fallback, batas suara, async worker lifecycle, offset fase, gerak di jaring, cooldown dan replay trace dengan pintu/kunci.
+- Korpus tersebut mencakup replay misi untuk **400/400 varian Dungeon**, idle survival setiap varian, 10 kasus mulai terlambat, serta replay bonus/tiga bintang level 1–15. Dua belas replay boss Dungeon menuntaskan lima fase, relik dan pintu keluar dengan gerakan biasa. Tes boss Ekspedisi mencakup pola, fase, celah, damage dan scheduler yang sudah ada.
+- **Build produksi Next 15.5.28 berhasil.** Tidak ada dependensi baru, halaman aplikasi baru, atau berkas Markdown baru.
+- **Chromium produksi: 45 konfigurasi** = 15 mode × 1366×768, 360×740 dan 740×360 (DPR 2 pada emulasi HP). Controller mulai/jeda/lanjut, canvas dan overflow diperiksa. Semua mode menunggu komposisi yang benar-benar selesai dibuat dan source WebAudio loop aktif; satu AudioContext digunakan. Tidak ada galat JavaScript atau respons aset aplikasi 4xx/5xx.
+- Integrasi audio native tambahan memutar **18 kombinasi tema/aransemen** (Dungeon boss, tiga boss Ekspedisi, Adventure sibuk/bahaya × tiga variasi), tanpa fallback worker. Kelima SFX asli selesai didekode dan sampel asli dimainkan. Pause membekukan jam audio, resume melanjutkannya. Tombol mute/unmute dan slider UI diuji dengan musik **22%**, SFX **44%**; preferensi tersimpan.
+- Pemilihan mode dalam matriks browser menggunakan state/controller aplikasi untuk cakupan lintas mode; pengaturan audio menggunakan kontrol UI. Ini bukan klaim seluruh permainan diselesaikan manual pada ketiga ukuran layar, atau mode 2P mendapatkan kontrol sentuh baru.
+
+### Batas bukti
+
+Belum diuji pada perangkat fisik Android/iOS Safari atau dinilai melalui pendengaran speaker/headphone. Sintesis, headroom, kontinuitas sampel, loop native dan transisi lifecycle diuji secara teknis; kenyamanan mendengarkan tetap memerlukan playtest manusia. Angka 390 bukan sertifikasi setiap kombinasi seed, pengejaran, alat dan input. Percobaan pencarian seluruh bonus level lanjut dengan batas node/urutan tertentu tidak selalu menemukan rute; kegagalan pencarian bukan bukti map mustahil. Rilis ini tidak mengklaim seluruh bonus level 16–50 sudah tersertifikasi tiga bintang. Batas penyimpanan browser yang ditolak tetap mengikuti mekanisme retry yang sudah dijelaskan pada v15.

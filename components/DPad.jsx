@@ -1,5 +1,5 @@
 'use client';
-import { useRef, useCallback, useEffect } from 'react';
+import { useRef, useCallback, useEffect, useState } from 'react';
 import { ICONS } from '@/lib/icons';
 
 // Satu permukaan bulat: arah ditentukan dari sudut jempol ke titik tengah,
@@ -7,10 +7,12 @@ import { ICONS } from '@/lib/icons';
 // ikut jempol kayak analog, balik ke tengah pas dilepas.
 const DEAD = 0.32; // proporsi radius yang jadi zona mati
 
-export default function DPad({ onMove, onRelease, analog = false }) {
+export default function DPad({ onMove, onRelease, analog = false, smooth = false, dead = DEAD, floating = false }) {
   const padRef = useRef(null);
   const knobRef = useRef(null);
-  const st = useRef({ pid: null, dir: null });
+  const st = useRef({ pid: null, dir: null, origin: null });
+  const zoneRef = useRef(null);
+  const [anchor, setAnchor] = useState(null);
 
   const placeKnob = (dx, dy) => {
     if (knobRef.current) knobRef.current.style.transform = `translate(${dx}px, ${dy}px)`;
@@ -19,16 +21,24 @@ export default function DPad({ onMove, onRelease, analog = false }) {
   const resolve = useCallback((clientX, clientY) => {
     const el = padRef.current;
     if (!el) return;
-    const r = el.getBoundingClientRect();
-    const dx = clientX - (r.left + r.width / 2);
-    const dy = clientY - (r.top + r.height / 2);
+    const r = el.getBoundingClientRect(), o = st.current.origin;
+    const dx = clientX - (o ? o.x : r.left + r.width / 2);
+    const dy = clientY - (o ? o.y : r.top + r.height / 2);
     const dist = Math.hypot(dx, dy);
     const max = r.width / 2;
     const clamped = Math.min(dist, max * 0.6);
     const ang = Math.atan2(dy, dx);
     placeKnob(Math.cos(ang) * clamped, Math.sin(ang) * clamped);
 
-    if (dist < max * DEAD) { if (st.current.dir) onRelease?.(); st.current.dir = null; return; }
+    if (dist < max * dead) { if (st.current.dir) onRelease?.(); st.current.dir = null; return; }
+
+    if (smooth) {
+      // Free analog vector: any angle, speed grows with thumb travel, with a floor so a light push still moves.
+      const reach = max * .6, edge = max * dead, m = Math.min(1, Math.max(.4, (dist - edge) / Math.max(1, reach - edge)));
+      const x = Math.cos(ang) * m, y = Math.sin(ang) * m, id = `${x.toFixed(2)},${y.toFixed(2)}`;
+      if (id !== st.current.dir) { st.current.dir = id; onMove(x, y); }
+      return;
+    }
 
     if (analog) {
       const sector = Math.round(ang / (Math.PI / 4));
@@ -56,14 +66,19 @@ export default function DPad({ onMove, onRelease, analog = false }) {
       else if (dir === 'l') onMove(-1, 0);
       else onMove(1, 0);
     }
-  }, [onMove, onRelease, analog]);
+  }, [onMove, onRelease, analog, smooth, dead]);
 
   const onDown = (e) => {
     if (st.current.pid !== null) return;
     e.preventDefault();
     padRef.current.dataset.held = 'true';
     st.current.pid = e.pointerId;
-    padRef.current && padRef.current.setPointerCapture(e.pointerId);
+    if (floating) {
+      // The pad appears under the thumb: the first touch becomes the stick's centre.
+      const z = zoneRef.current.getBoundingClientRect();
+      st.current.origin = { x: e.clientX, y: e.clientY }; setAnchor({ x: e.clientX - z.left, y: e.clientY - z.top });
+    }
+    e.currentTarget.setPointerCapture(e.pointerId);
     if (knobRef.current) knobRef.current.style.transition = 'none';
     resolve(e.clientX, e.clientY);
   };
@@ -77,6 +92,7 @@ export default function DPad({ onMove, onRelease, analog = false }) {
     padRef.current.dataset.held = 'false';
     st.current.pid = null;
     st.current.dir = null;
+    st.current.origin = null; setAnchor(null);
     onRelease?.();
     if (knobRef.current) {
       knobRef.current.style.transition = 'transform 150ms ease';
@@ -87,7 +103,7 @@ export default function DPad({ onMove, onRelease, analog = false }) {
   const releaseRef = useRef(onRelease); releaseRef.current = onRelease;
   useEffect(() => {
     const el = padRef.current;
-    const reset = () => { const pid = st.current.pid; st.current = { pid: null, dir: null }; if (pid !== null && el?.hasPointerCapture(pid)) el.releasePointerCapture(pid); if (el) el.dataset.held = 'false'; placeKnob(0, 0); releaseRef.current?.(); };
+    const reset = () => { const pid = st.current.pid; st.current = { pid: null, dir: null, origin: null }; setAnchor(null); if (pid !== null && el?.hasPointerCapture(pid)) el.releasePointerCapture(pid); if (el) el.dataset.held = 'false'; placeKnob(0, 0); releaseRef.current?.(); };
     const hidden = () => { if (document.hidden) reset(); };
     document.addEventListener('visibilitychange', hidden);
     window.addEventListener('blur', reset);
@@ -97,18 +113,16 @@ export default function DPad({ onMove, onRelease, analog = false }) {
   }, []);
 
   const arrow = "absolute text-[#8a988a]";
-  return (
+  const handlers = { onPointerDown: onDown, onPointerMove: onMovePtr, onPointerUp: onUp, onPointerCancel: onUp, onLostPointerCapture: onUp };
+  const size = 'calc(var(--dpad) * var(--pad-scale, 1))';
+  const pad = (
     <div
       id="dpad"
       ref={padRef}
       className="no-swipe floating-pad relative rounded-full touch-none select-none"
-      role="group" aria-label={analog ? 'Joystick, delapan arah' : 'Joystick, empat arah'} tabIndex={0}
-      style={{ width: 'var(--dpad)', height: 'var(--dpad)' }}
-      onPointerDown={onDown}
-      onPointerMove={onMovePtr}
-      onPointerUp={onUp}
-      onPointerCancel={onUp}
-      onLostPointerCapture={onUp}
+      role="group" aria-label={smooth ? 'Joystick analog' : analog ? 'Joystick, delapan arah' : 'Joystick, empat arah'} tabIndex={0}
+      style={floating ? { width: size, height: size, position: 'absolute', pointerEvents: 'none', opacity: anchor ? 1 : .55, ...(anchor ? { left: `calc(${anchor.x}px - ${size} / 2)`, top: `calc(${anchor.y}px - ${size} / 2)` } : { left: 0, bottom: 0 }) } : { width: size, height: size }}
+      {...(floating ? {} : handlers)}
     >
       <ICONS.up className={arrow} style={{ top: '9%', left: '50%', transform: 'translateX(-50%)' }} size={20} strokeWidth={2.6} />
       <ICONS.down className={arrow} style={{ bottom: '9%', left: '50%', transform: 'translateX(-50%)' }} size={20} strokeWidth={2.6} />
@@ -121,4 +135,5 @@ export default function DPad({ onMove, onRelease, analog = false }) {
       />
     </div>
   );
+  return floating ? <div ref={zoneRef} className="float-zone no-swipe touch-none" {...handlers}>{pad}</div> : pad;
 }

@@ -12,7 +12,7 @@ const generator = await import(pathToFileURL(root + '/node_modules/.cache/snake-
 const V = await import(pathToFileURL(root + '/node_modules/.cache/snake-tests/puzzle/validation.mjs').href);
 const { arrangeRound } = await import(pathToFileURL(root + '/node_modules/.cache/snake-tests/puzzle/placement.mjs').href);
 const hash = createHash('sha256');
-for (const name of ['navigation','placement','generator','sim','threats','geometry','validation']) hash.update(fs.readFileSync(path.join(root,`lib/puzzle/${name}.js`)));
+for (const name of ['navigation','placement','layout','rounds','generator','sim','threats','boss','geometry','validation']) hash.update(fs.readFileSync(path.join(root,`lib/puzzle/${name}.js`)));
 hash.update(fs.readFileSync(path.join(root,'lib/puzzle/campaignData.js')));
 hash.update(fs.readFileSync(fileURLToPath(import.meta.url)));
 const signature=hash.digest('hex'),directory=path.join(root,'node_modules/.cache/dungeon-arranged-'+signature.slice(0,16)+'-v11');
@@ -39,7 +39,7 @@ for(const n of levels.filter(n=>(n-1)%count===worker))for(let index=0;index<8;in
  const start=fs.existsSync(attemptFile)?Number(fs.readFileSync(attemptFile,'utf8')):0;
  for(let attempt=start;attempt<2000;attempt++){
   fs.writeFileSync(attemptFile,String(attempt));
-  const raw=attempt===0?original:rounds.generateRound(generator.missionSpec(n),100000000+n*1000000+index*10000+attempt,original.shape,{grow:original.width>generator.levelPlan(n).width?1:0,deferPlacement:true});
+  const raw=attempt===0?original:rounds.generateRound(generator.missionSpec(n),100000000+n*1000000+index*10000+attempt,original.shape,{grow:(original.compact?.sourceWidth??original.width)>generator.levelPlan(n).width?1:0,deferPlacement:true});
   if(!raw){last='new-footprint';continue;}
   const diag={},l=arrangeRound(raw,attempt,diag);if(!l){last=diag.reason;continue;}
   const errors=[...V.validatePlan(l),...V.validateLevel(l)];if(errors.length){last=errors;continue;}

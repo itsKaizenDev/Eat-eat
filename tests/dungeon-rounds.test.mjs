@@ -44,7 +44,7 @@ test('campaign wildlife: exact unlock thresholds, fixed safe lanes, more traps a
   if(n>=35){assert.equal(l.dogs.filter(d=>d.tethered).length,1);assert.equal(l.dogs.filter(d=>!d.tethered).length,1);assert.ok(l.dogs.every(d=>d.range===4.8&&d.speed>P.SPEEDS.run));}
   assert.equal(l.hazards.length,n>=35?5:n>=20?3:n>=8?1:0);
   assert.equal(l.loot.length,n>=35?5:n>=10?4:3);assert.ok(l.loot.every(o=>o.value===5));
-  assert.equal(l.gadgets.cooldown,10);assert.equal(l.revision,7);
+  assert.equal(l.gadgets.cooldown,10);assert.equal(l.revision,8);
   if(n>=20){const fast=l.guards.find(g=>g.kind==='runner'),normal=l.guards.find(g=>g.kind!=='runner');assert.ok(Math.abs(fast.speed/normal.speed-1.18)<1e-8);}
  }
  for(const shape of ['cavern','ruins'])assert.ok(campaign.CAMPAIGN_VARIANTS.every(v=>v.filter(l=>l.shape===shape).length===2));

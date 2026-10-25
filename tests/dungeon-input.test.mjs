@@ -28,5 +28,21 @@ test('capture emits one result and restart rebuilds patrols; loss grants no rewa
 });
 test('UI wiring: Dungeon input branch precedes old shortcuts, pointer cancellation and analog controls exist',()=>{
  const game=fs.readFileSync(root+'/components/GameCanvas.jsx','utf8'),pad=fs.readFileSync(root+'/components/DPad.jsx','utf8');
- assert.ok(game.indexOf("if (kindRef.current === 'puzzle')")<game.indexOf("if (k === 'z'"));assert.match(game,/cancelHeldInput\?\.\('key:' \+ k\)/);assert.match(pad,/onPointerCancel=\{onUp\}/);assert.match(pad,/if \(analog\)/);
+ assert.ok(game.indexOf("if (kindRef.current === 'puzzle')")<game.indexOf("if (k === 'z'"));assert.match(game,/cancelHeldInput\?\.\('key:' \+ k\)/);assert.match(pad,/onPointerCancel: onUp/);assert.match(pad,/if \(analog\)/);assert.match(pad,/if \(smooth\)/);assert.match(pad,/float-zone/);
+});
+
+// ---- Touch control preferences and analog stick feel ----
+import {controlPrefs,puzzle as P2,campaign} from './helpers/env.mjs';
+test('control prefs: defaults widen the stick, values are clamped and bad data falls back',()=>{
+  const d=controlPrefs.normalizeControls();assert.ok(d.pad>1&&d.dead<.2&&d.smooth);
+  const c=controlPrefs.normalizeControls({pad:99,btn:-3,opacity:'x',dead:5,padOff:{x:1e9,y:NaN}});
+  assert.equal(c.pad,1.6);assert.equal(c.btn,.8);assert.equal(c.opacity,1);assert.equal(c.dead,.3);assert.equal(c.padOff.x,2000);assert.equal(c.padOff.y,0);
+  const vars=controlPrefs.controlVars(d);assert.equal(vars['--pad-scale'],d.pad);assert.ok(vars['--pad-dx'].endsWith('px'));
+});
+test('analog stick: partial push moves slower than a full push, in any angle',()=>{
+  const make=()=>{const l=campaign.CAMPAIGN_LEVELS[0];return P2.createState(l);};
+  const slow=make(),fast=make();
+  for(let i=0;i<30;i++){P2.step(slow,{x:Math.cos(.4)*.4,y:Math.sin(.4)*.4,gait:'walk'});P2.step(fast,{x:Math.cos(.4),y:Math.sin(.4),gait:'walk'});}
+  const run=(s,o)=>Math.hypot(s.player.x-o.x,s.player.y-o.y);
+  const origin=campaign.CAMPAIGN_LEVELS[0].spawn;assert.ok(run(fast,origin)>run(slow,origin)*1.5);assert.ok(run(slow,origin)>0);
 });

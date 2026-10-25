@@ -299,7 +299,7 @@ test('properti (80 permainan acak): invarian ular/apel/ancaman/energi/HP selalu 
 
 test('rekor: recordBoss (kerusakan terbesar, kemenangan tercepat), kompatibel dengan parse', () => {
   const R = recordsLib, key = R.bossConfigKey('normal');
-  assert.equal(key, 'boss|v:3|hp:18|lives:5|rounds:10|speed:normal');
+  assert.equal(key, 'boss|v:4|hp:18|lives:5|rounds:10|speed:normal');
   let r = R.recordBoss({ v: 1, records: {} }, key, { damage: 1, won: false, secs: 40 }).records;
   r = R.recordBoss(r, key, { damage: 3, won: true, secs: 120 }).records;
   const x = R.recordBoss(r, key, { damage: 3, won: true, secs: 90 }); r = x.records;

@@ -43,6 +43,7 @@ export { root };
 export const geometry = await load('puzzle/geometry.mjs');
 export const validation = await load('puzzle/validation.mjs');
 export const threats = await load('puzzle/threats.mjs');
+export const controlPrefs = await load('controlPrefs.mjs');
 
 // Fixed-step dungeon controller with an observable world and an actual simulated RAF clock.
 export function makePuzzleWorld({ progress, levels, io, rng = createRng(123) } = {}) {
@@ -50,7 +51,7 @@ export function makePuzzleWorld({ progress, levels, io, rng = createRng(123) } =
   const ctx=new Proxy({}, {get:(t,p)=>p in t?t[p]:noop,set:(t,p,v)=>{t[p]=v;return true;}});
   const w={emits:[],saves:[],calls:{win:0,death:0,chomp:0,eits:0},rafQueue:new Map(),now:5000,seq:0};
   w.progress=progress||{v:1,puzzle:{levels:{}}};
-  const sounds=Object.fromEntries(['Win','Death','Chomp','Eits'].map(n=>['play'+n,()=>w.calls[n.toLowerCase()]++]));
+  const sounds=Object.fromEntries(['Win','Death','Chomp','Eits'].map(n=>['play'+n,()=>w.calls[n.toLowerCase()]++])); w.sounds = sounds;
   w.eng=createPuzzleGame({canvas:{width:680,height:600,getContext:()=>ctx},sounds,onUpdate:p=>w.emits.push(p),
     levels:levels||LEVELS,rng,io:io||{load:()=>w.progress,save:p=>{w.saves.push(p);w.progress=p;return true;}},
     raf:fn=>{const id=++w.seq;w.rafQueue.set(id,fn);return id;},caf:id=>w.rafQueue.delete(id),now:()=>w.now,inspect:h=>w.x=h});

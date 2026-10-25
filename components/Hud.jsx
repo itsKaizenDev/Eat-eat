@@ -152,12 +152,12 @@ export function GameDetails({ mode, hud: h }) {
   const meta = getMode(mode);
   return <div className="game-details">
     <p className="eyebrow">K-SNAKE / {meta?.label}</p>
-    {h.puzzle && <><h3>Ruang {h.puzzle.levelNo} · {h.puzzle.name}</h3><PuzzleStats p={h.puzzle} /><p>Rekor: {h.puzzle.best || '—'} · Acuan: {h.puzzle.par} · Denah: {h.puzzle.shape}</p><details><summary>Cara mendapat 3 bintang</summary><p>Tanpa alarm, ambil semua koin bonus, dan keluar sebelum waktu acuan.</p></details></>}
+    {h.puzzle && <><h3>Ruang {h.puzzle.levelNo} · {h.puzzle.name}</h3><PuzzleStats p={h.puzzle} /><p>Rekor: {h.puzzle.best || '—'} · Acuan: {h.puzzle.par} · Denah: {h.puzzle.shape}</p><details><summary>Cara mendapat 3 bintang</summary><p>{h.puzzle.boss ? 'Boss: lima nyawa untuk tiga bintang; tiga atau empat nyawa untuk dua bintang. Waktu tidak menentukan bintang.' : 'Tanpa alarm, ambil semua koin bonus, dan keluar sebelum waktu acuan.'}</p></details></>}
     {h.delivery && <DeliveryStats d={h.delivery} />}
     {h.roguelite && <RogueStats r={h.roguelite} />}
     {h.boss && <BossStats b={h.boss} />}
     {h.territory && <TerritoryStats t={h.territory} />}
-    {meta?.kind === 'arcade' && <p>Skor {h.score} · Terbaik {h.best}</p>}
+    {meta?.kind === 'arcade' && <p>Skor {h.score} · Rekor arkade bersama {h.best}</p>}
     <p>{meta?.goal || meta?.description}</p><p>{meta?.finish}</p>
   </div>;
 }
@@ -180,6 +180,7 @@ export default function Hud({ mode, hud, onInfo, onPause, canPause, onCamera }) 
         {view.signals.map((s, i) => { const Icon = ICONS[s.icon] || ICONS.help; return <span key={i} data-danger={s.danger}><Icon size={13} aria-hidden="true" />{s.label}</span>; })}
         {view.cargo?.map((c, i) => <span key={`cargo-${i}`} className="cargo-chip" data-danger={c && c.secs <= 3} aria-label={`Kargo ${i + 1}: ${c ? `paket ${c.type}, ${c.secs} detik` : 'kosong'}`}><ICONS.delivery size={13} />{c ? `${c.type} · ${c.secs}d` : '—'}</span>)}
       </div>}
+      {mode === 'puzzle' && notice && <div className="dungeon-note" role="status" aria-live="polite">{notice}</div>}
       {view.suspicion !== null && <div className="hud-awareness" role="progressbar" aria-label="Kecurigaan penjaga" aria-valuemin={0} aria-valuemax={100} aria-valuenow={view.suspicion}><i style={{ width: `${view.suspicion}%` }} /></div>}
     </div>
     <nav className="hud-tools" aria-label="Menu permainan">
@@ -191,6 +192,6 @@ export default function Hud({ mode, hud, onInfo, onPause, canPause, onCamera }) 
       <button onClick={() => onCamera?.('toggle')} aria-label={hud.puzzle?.camera?.overview ? 'Ikuti ular' : 'Lihat seluruh peta'} aria-pressed={!!hud.puzzle?.camera?.overview}>{hud.puzzle?.camera?.overview ? <ICONS.locate size={19} /> : <ICONS.map size={19} />}</button>
       <button onClick={() => onCamera?.('in')} aria-label="Perbesar tampilan" disabled={!hud.puzzle?.camera?.overview && hud.puzzle?.camera?.zoom >= 1.65}><ICONS.zoomIn size={19} /></button>
     </nav>}
-    {notice && <div className="game-toast" title={notice} role="status" aria-live="polite" aria-atomic="true">{notice}</div>}
+    {mode !== 'puzzle' && notice && <div className="game-toast" title={notice} role="status" aria-live="polite" aria-atomic="true">{notice}</div>}
   </div>;
 }

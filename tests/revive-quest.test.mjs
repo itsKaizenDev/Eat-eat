@@ -122,6 +122,6 @@ test('real-time dungeon: bantuan membekukan waktu dan menghapus arah tertahan',(
  const w=makePuzzleWorld({levels:[coinLevel()]});w.eng.startRun();w.eng.setDir(1,0);w.advance(200);w.eng.pauseRun('help');const before=w.x.world.time;w.advance(5000);assert.equal(w.x.world.time,before);assert.equal(w.rafQueue.size,0);
  w.eng.releasePause('help');w.eng.resumeRun();const x=w.x.world.player.x;w.advance(1000);assert.equal(w.x.world.player.x,x);w.eng.destroy();
 });
-test('campaign revision 7 keeps the small snake explorer and expands optional Apple Coin rewards',()=>{
- for(const l of campaign.CAMPAIGN_LEVELS.filter(l=>!l.special)){const s=P.createState(l);assert.ok(s.player);assert.equal(s.snake,undefined);assert.equal(l.revision,7);assert.equal(l.loot.length,l.number>=35?5:l.number>=10?4:3);assert.ok(l.loot.every(o=>o.value===5));assert.ok(l.guards.every(g=>g.route.length>=2||g.watch));assert.ok(l.artifacts.length>=1);}
+test('campaign revision 8 keeps the small snake explorer and expands optional Apple Coin rewards',()=>{
+ for(const l of campaign.CAMPAIGN_LEVELS.filter(l=>!l.special)){const s=P.createState(l);assert.ok(s.player);assert.equal(s.snake,undefined);assert.equal(l.revision,8);assert.equal(l.loot.length,l.number>=35?5:l.number>=10?4:3);assert.ok(l.loot.every(o=>o.value===5));assert.ok(l.guards.every(g=>g.route.length>=2||g.watch));assert.ok(l.artifacts.length>=1);}
 });

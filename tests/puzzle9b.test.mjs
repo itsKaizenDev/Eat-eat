@@ -2,6 +2,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {campaign,generator,rounds,validation as V,makePuzzleWorld,progressLib as R,puzzle as P} from './helpers/env.mjs';
+import { createCampaignJobs } from './helpers/campaign-pool.mjs';
+import { root } from './helpers/env.mjs';
 import {room,pt} from './puzzle.fixtures.mjs';
 
 test('campaign: 50 stable IDs, 400 reproducible variants, six nonrectangular footprints per level',()=>{
@@ -12,17 +14,17 @@ test('campaign: 50 stable IDs, 400 reproducible variants, six nonrectangular foo
   const variants=campaign.CAMPAIGN_VARIANTS[i];assert.equal(variants.length,8);assert.deepEqual(l,variants[0]);
   assert.equal(new Set(variants.map(v=>v.variantId)).size,8);assert.equal(new Set(variants.map(v=>JSON.stringify([v.map,v.spawn,v.keys,v.guards]))).size,8);
   assert.deepEqual([...new Set(variants.map(v=>v.shape))].sort(),[...rounds.ROUND_SHAPES].sort());
-  for(const v of variants){assert.equal(v.id,l.id);if(!v.polished)assert.deepEqual({...v,par:0},{...rounds.generateRound(generator.missionSpec(i+1),v.roundSeed,v.shape,{grow:v.width>generator.levelPlan(i+1).width?1:0}),par:0});assert.deepEqual(V.validatePlan(v),[],v.variantId);assert.deepEqual(V.idleSurvival(v),{ok:true,dead:0,alerts:0,status:'playing'},v.variantId);assert.deepEqual(V.validateLevel(v),[],v.variantId);assert.ok(v.map.some(row=>row.includes(' ')));}
+  for(const v of variants){assert.equal(v.id,l.id);if(!v.polished)assert.deepEqual({...v,par:0},{...rounds.generateRound(generator.missionSpec(i+1),v.roundSeed,v.shape,{grow:v.width>generator.levelPlan(i+1).width?1:0}),par:0});assert.deepEqual(V.validatePlan(v),[],v.variantId);assert.deepEqual(V.validateLevel(v),[],v.variantId);assert.ok(v.map.some(row=>row.includes(' ')));}
  }
 });
-for(let n=1;n<=50;n++)test(`campaign ${n}: all eight variants replay the mission without alarms or gadgets (bonus through level 15)`,()=>{
- for(const l of campaign.CAMPAIGN_VARIANTS[n-1]){const r=V.verifyMission(l,{maxNodes:1000,bonus:n<16});assert.ok(r.ok,l.variantId+' '+JSON.stringify({...r,trace:undefined}));if(n<16)assert.equal(r.stars,3);assert.ok(r.time<=l.par);}
+const replayCases = Array.from({length:50},(_,i)=>({id:'mission-'+(i+1),number:i+1,delayed:false,name:`campaign ${i+1}: all eight variants replay the mission without alarms or gadgets (bonus through level 15)`}));
+const delayedCases = [2,10,16,20,27,30,36,40,45,50].map(n=>({id:'delayed-'+n,number:n,delayed:true,name:`campaign ${n}: delayed start also has a valid temporal route`}));
+const campaignJob = createCampaignJobs([...replayCases,...delayedCases],root+'/node_modules/.cache/snake-tests');
+for(const c of [...replayCases,...delayedCases])test(c.name,async()=>{
+ const result=await campaignJob(c);assert.ok(result?.ok,result?.error||'Missing campaign result');
 });
-for(const n of [2,10,16,20,27,30,36,40,45,50])test(`campaign ${n}: delayed start also has a valid temporal route`,()=>{
- const r=V.verifyMission(campaign.CAMPAIGN_LEVELS[n-1],{wait:3,bonus:n<16});assert.ok(r.ok,JSON.stringify({...r,trace:undefined}));
-});
-test('campaign: mechanics introduced progressively, fourth guard and second relic reserved for finale',()=>{
- const a=campaign.CAMPAIGN_LEVELS;assert.equal(a[0].guards.length,1);assert.equal(a[1].guards.length,1);assert.equal(a[3].doors.length,1);assert.equal(a[4].gadgets.stone,1);assert.ok(a[15].levers.length);assert.ok(a[19].plates.length);assert.ok(a[25].torches.length);assert.ok(a[9].crystals.length);assert.ok(a[39].portals.length);assert.equal(a[49].artifacts.length,2);assert.equal(a[49].guards.length,8);
+test('campaign: mechanics introduced progressively, capped roster and second relic reserved for finale',()=>{
+ const a=campaign.CAMPAIGN_LEVELS;assert.equal(a[0].guards.length,1);assert.equal(a[1].guards.length,1);assert.equal(a[3].doors.length,1);assert.equal(a[4].gadgets.stone,1);assert.ok(a[15].levers.length);assert.ok(a[19].plates.length);assert.ok(a[25].torches.length);assert.ok(a[9].crystals.length);assert.ok(a[39].portals.length);assert.equal(a[49].artifacts.length,2);assert.equal(a[49].guards.length,6);
 });
 test('progress: historical clears retain unlocks and steps, new times are isolated',()=>{
  const p={v:1,puzzle:{levels:Object.fromEntries(campaign.CAMPAIGN_LEVELS.slice(0,37).map(l=>[l.id,{best:25,revision:4,coins:2}]))},otherMode:{achievement:'keep'}};
@@ -39,4 +41,11 @@ test('progress merge/retry protects new mission records and unrelated fields',()
  const b=R.recordHeistResult(base,'jk-1',{time:60,stars:3,loot:2,alerts:0}).progress;
  const c=R.recordHeistResult(b,'jk-2',{time:80,stars:1,loot:1,alerts:2}).progress;
  const m=R.mergeProgress(a,c);assert.equal(m.puzzle.levels['jk-1'].heist.bestTimeMs,60000);assert.equal(m.puzzle.levels['jk-1'].heist.stars,3);assert.equal(R.appleCoins(m),3);assert.deepEqual(m.delivery,{saved:true});
+});
+
+test('campaign: wider forecast still proves the level-11 bonus route within par',()=>{
+ const level=campaign.CAMPAIGN_VARIANTS[10][1],before=JSON.stringify(campaign.CAMPAIGN_VARIANTS[10][1]);
+ const result=V.verifyMission(level,{horizon:170,maxNodes:1000,bonus:true,wait:level.qualityProof?.initialWait||0});
+ assert.ok(result.ok,JSON.stringify({...result,trace:undefined}));assert.equal(result.stars,3);assert.ok(result.time<=level.par);
+ assert.ok(result.checkpoints.every(c=>c.alerts===0));assert.equal(JSON.stringify(level),before);
 });

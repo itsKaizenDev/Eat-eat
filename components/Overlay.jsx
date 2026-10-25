@@ -66,7 +66,7 @@ function ReviveInfo({ data }) {
   return <div className="revive-info"><span><ICONS.heart size={15} />Revive <b>{data.left}/3</b></span><small>{data.resetAt ? `Pulih penuh dalam ${days ? days + ' hari ' : ''}${hours ? hours + ' jam ' : ''}${mins} menit` : 'Pulih penuh 72 jam setelah revive pertama'}</small></div>;
 }
 
-export default function Overlay({ keyboardAvailable, onInfo, onSettings, onRestart, visible, phase, mood, title, sub, btnText, mode, onModeChange, onPlay, onRevive, onRetrySave, onMenu, speed, onSpeedChange, taSecs, onTaChange, puzzleMenu, onSelectLevel, deliveryMenu, rogueMenu, territoryMenu, bossMenu, onHelp }) {
+export default function Overlay({ engineReady, engineError, recordSave, keyboardAvailable, onInfo, onSettings, onRestart, visible, phase, mood, title, sub, btnText, mode, onModeChange, onPlay, onRevive, onRetrySave, onMenu, speed, onSpeedChange, taSecs, onTaChange, puzzleMenu, onSelectLevel, deliveryMenu, rogueMenu, territoryMenu, bossMenu, onHelp }) {
   const [busy, setBusy] = useState(false);
   const isTouch = useIsTouch();
   const touchOnly = isTouch && !keyboardAvailable;
@@ -255,7 +255,7 @@ export default function Overlay({ keyboardAvailable, onInfo, onSettings, onResta
       )}
       <p className="start-touch-note"><ICONS.steps size={14} /> {am.controls}</p>
       {isTouch && <p className="start-touch-note"><ICONS.multiplayer size={14} /> Rebut Arena (2 pemain) memerlukan keyboard.</p>}
-      <button onClick={handlePlay} disabled={isPuzzleMode ? !lv : isDelivery ? !dm : isRogue ? !rm : isTerritory ? !tm : isBoss ? !bm : false} className="start-play">{busy ? 'Bersiap…' : 'Mulai main'}<ICONS.right size={20} aria-hidden="true" /></button>
+      <button onClick={handlePlay} disabled={engineReady === false || (isPuzzleMode ? !lv : isDelivery ? !dm : isRogue ? !rm : isTerritory ? !tm : isBoss ? !bm : false)} className="start-play">{busy ? 'Bersiap…' : 'Mulai main'}<ICONS.right size={20} aria-hidden="true" /></button>
       </div>
       </div>
     </div>
@@ -306,20 +306,20 @@ export default function Overlay({ keyboardAvailable, onInfo, onSettings, onResta
         )}
       </div>
       {isTouch && <p className="start-touch-note"><ICONS.multiplayer size={14} /> Mode 2P Lokal memerlukan keyboard.</p>}
-      <button onClick={handlePlay} className="start-play">{busy ? 'Bersiap…' : 'Mulai main'}<ICONS.right size={20} aria-hidden="true" /></button>
+      <button onClick={handlePlay} disabled={engineReady === false} className="start-play">{busy ? 'Bersiap…' : 'Mulai main'}<ICONS.right size={20} aria-hidden="true" /></button>
       </div>
       </div>
     </div>
   ) : (
     <div className="result-actions">
-      {isPuzzleMode && lv?.savePending && <div className="save-notice" role="status"><p>Progres belum tersimpan.</p><button onClick={onRetrySave}>Coba simpan lagi</button></div>}
+      {recordSave?.pending && <div className="save-notice" role="status"><p>Rekor belum tersimpan.</p><button onClick={onRetrySave}>Coba simpan lagi</button></div>}{isPuzzleMode && lv?.savePending && <div className="save-notice" role="status"><p>Progres belum tersimpan.</p><button onClick={onRetrySave}>Coba simpan lagi</button></div>}
       {phase === 'gameover' && rm && rm.revive.eligible && <>
         <button ref={rm.revive.left ? primaryRef : null} onClick={onRevive} disabled={!rm.revive.left || rm.revive.busy} className="revive-button"><ICONS.heart size={18} />{rm.revive.busy ? 'Menyiapkan…' : `Hidup lagi · ${rm.revive.left}/3`}</button>
         <p className="revive-detail">Lanjut dari rute atau fase ini. Upgrade tetap dibawa.</p>
         <ReviveInfo data={rm.revive} />
         {rm.revive.error && <p role="alert">{rm.revive.error}</p>}
       </>}
-      <button ref={phase === 'gameover' && rm?.revive?.eligible && rm.revive.left ? null : primaryRef} disabled={rm?.revive?.busy} onClick={handlePlay} className="start-play">{phase === 'pause' ? 'Lanjut main' : btnText === 'PLAY' ? 'Main lagi' : btnText}<ICONS.right size={20} /></button>
+      <button ref={phase === 'gameover' && rm?.revive?.eligible && rm.revive.left ? null : primaryRef} disabled={rm?.revive?.busy} onClick={handlePlay} disabled={engineReady === false} className="start-play">{phase === 'pause' ? 'Lanjut main' : btnText === 'PLAY' ? 'Main lagi' : btnText}<ICONS.right size={20} /></button>
       {phase === 'pause' && <div className="pause-links"><button onClick={onInfo}><ICONS.info size={18} />Info misi</button><button onClick={onSettings}><ICONS.settings size={18} />Pengaturan</button><button onClick={onHelp}><ICONS.help size={18} />Cara main</button><button onClick={onRestart}><ICONS.restart size={18} />Ulang</button></div>}
       <button disabled={rm?.revive?.busy} onClick={onMenu} className="secondary-button">Kembali ke menu</button>
     </div>
@@ -339,7 +339,7 @@ export default function Overlay({ keyboardAvailable, onInfo, onSettings, onResta
         <BackgroundLayer mode={mode} />
         <div className="hero-copy"><span className="eyebrow">{adv ? 'Petualangan kecil' : 'Satu ronde lagi?'}</span><h1 ref={slamRef}>{am.label}</h1><span className="hero-tag">{am.players === 2 ? 'Dua pemain' : 'Satu pemain'} · {adv ? 'Misi baru' : 'Arkade'}</span></div>
       </div>
-      <fieldset disabled={busy} className="menu-fieldset">{body}</fieldset>
+      <div role="status">{engineError || (engineReady === false ? 'Memuat mode…' : '')}</div>{recordSave?.pending && <div className="save-notice" role="status"><p>Rekor belum tersimpan. Jangan tutup sesi ini.</p><button onClick={onRetrySave}>Coba simpan lagi</button></div>}<fieldset disabled={busy} className="menu-fieldset">{body}</fieldset>
       <footer className="menu-footer"><ICONS.leaf size={14} />{isTouch ? 'Joystick dan tombol tersedia di dalam arena.' : 'Panah / WASD bergerak · Esc menjeda'}</footer>
     </section>
   );

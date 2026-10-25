@@ -8,12 +8,12 @@
     "start": "next start",
     "lint": "next lint",
     "test": "node --test --test-concurrency=1 \"tests/**/*.test.mjs\"",
-    "build:campaign": "node scripts/build-campaign.mjs"
+    "build:campaign": "node scripts/quality-campaign.mjs --workers=4 --fast && node scripts/reward-campaign.mjs"
   },
   "dependencies": {
     "gsap": "^3.12.5",
     "lucide-react": "^1.48.0",
-    "next": "14.2.34",
+    "next": "15.5.28",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
