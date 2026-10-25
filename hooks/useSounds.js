@@ -1,15 +1,13 @@
 'use client';
 import { useRef, useMemo, useEffect } from 'react';
 import { createAudioDirector } from '@/lib/audio/director';
-import { createScoreRenderer } from '@/lib/audio/renderer';
 import { audioScene } from '@/lib/audio/score';
 
 export function useSounds(preferences) {
   const director = useRef(null);
   const getDirector = () => {
     if (!director.current) {
-      const renderer = createScoreRenderer();
-      director.current = createAudioDirector({renderScore:renderer.render,disposeRenderer:renderer.destroy});
+      director.current = createAudioDirector();
     }
     return director.current;
   };

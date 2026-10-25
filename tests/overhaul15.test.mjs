@@ -25,7 +25,7 @@ function fakeAudio(){
  a.resume=()=>{a.state='running';return Promise.resolve()};a.suspend=()=>{a.state='suspended';return Promise.resolve()};a.close=()=>{a.closed++;return Promise.resolve()};return a;
 }
 test('audio: gesture unlock, synchronized stems, pause/resume without restart, bounded cache, idempotent cleanup',()=>{
- const ac=fakeAudio(), d=createAudioDirector({contextFactory:()=>ac}); d.setScene({key:'dungeon'});assert.equal(ac.sources.length,0);d.unlock();assert.equal(ac.sources.length,2);assert.equal(ac.sources[0].started,ac.sources[1].started);assert.ok(ac.sources.every(s=>s.loop));
+ const ac=fakeAudio(), d=createAudioDirector({contextFactory:()=>ac,loadMusic:()=>[ac.createBuffer(1,20,20),ac.createBuffer(1,20,20)]}); d.setScene({key:'dungeon'});assert.equal(ac.sources.length,0);d.unlock();assert.equal(ac.sources.length,2);assert.equal(ac.sources[0].started,ac.sources[1].started);assert.ok(ac.sources.every(s=>s.loop));
  d.setScene({paused:true});assert.equal(ac.state,'suspended');d.setScene({paused:false,intensity:.8});assert.equal(ac.sources.length,2);
  for(const key of ['dungeonBoss','expedition','expeditionBoss','adventure'])d.setScene({key});assert.equal(d.inspect().cacheSize,2);
  d.setPreferences({muted:true});assert.equal(ac.state,'suspended');d.destroy();d.destroy();assert.equal(ac.closed,1);assert.equal(d.inspect().stems,0);assert.ok(ac.sources.every(s=>s.stopped!==undefined));

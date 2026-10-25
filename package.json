@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "test": "node --test --test-concurrency=1 \"tests/**/*.test.mjs\"",
-    "build:campaign": "node scripts/quality-campaign.mjs --workers=4 --fast && node scripts/reward-campaign.mjs"
+    "build:campaign": "node scripts/quality-campaign.mjs --workers=4 --fast && node scripts/reward-campaign.mjs",
+    "build:audio": "node scripts/build-audio.mjs"
   },
   "dependencies": {
     "gsap": "^3.12.5",

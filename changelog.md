@@ -5084,3 +5084,32 @@ Pencari bukti kini melewati pickup yang sudah benar-benar terambil dan memiliki 
 ### Batas bukti
 
 Belum diuji pada perangkat fisik Android/iOS Safari atau dinilai melalui pendengaran speaker/headphone. Sintesis, headroom, kontinuitas sampel, loop native dan transisi lifecycle diuji secara teknis; kenyamanan mendengarkan tetap memerlukan playtest manusia. Angka 390 bukan sertifikasi setiap kombinasi seed, pengejaran, alat dan input. Percobaan pencarian seluruh bonus level lanjut dengan batas node/urutan tertentu tidak selalu menemukan rute; kegagalan pencarian bukan bukti map mustahil. Rilis ini tidak mengklaim seluruh bonus level 16–50 sudah tersertifikasi tiga bintang. Batas penyimpanan browser yang ditolak tetap mengikuti mekanisme retry yang sudah dijelaskan pada v15.
+
+## v17 — Musik dan efek suara menjadi file audio (25 Oktober 2026)
+
+Musik latar kini dibaca dari aset fisik. Pemutaran produksi tidak lagi memanggil komposer PCM atau Web Worker musik; `renderer.js` dan `score.worker.js` dilepas. Komposisi v16 tetap menjadi sumber ekspor offline, sehingga identitas musik dan aransemen yang sudah dibuat tetap tersedia.
+
+### Lokasi file
+
+- `public/sounds/music/`: **30 MP3 full mix** untuk didengarkan langsung, serta **60 FLAC** untuk 30 pasang stem `base` dan `danger`. Ada 20 tema; Dungeon dan empat tema boss memiliki tiga aransemen. Contoh: `dungeon.mp3`, `dungeon.base.flac`, `dungeon.danger.flac`, `dungeon-boss-v2.mp3`. MP3 adalah versi siap dengar; game memuat stem FLAC, bukan MP3 pratinjaunya.
+- `public/sounds/effects/`: **30 WAV** untuk portal, langkah, serangan, relik, rune, boss, alat dan cue lainnya.
+- Lima SFX lama tetap berada di `public/sounds/`. Total 35 file efek suara tersedia untuk pemutaran.
+- `lib/audio/catalog.js`: pemetaan tema/aransemen dan alamat file. Frame count, sample rate serta durasi hasil ekspor dicatat di sini.
+
+FLAC 16-bit mono 22.050 Hz dipakai untuk stem karena mempertahankan jumlah sampel dan batas loop tanpa encoder padding dari kompresi lossy. [Panduan codec MDN](https://developer.mozilla.org/en-US/docs/Web/Media/Guides/Formats/Audio_codecs#flac_free_lossless_audio_codec) menjadi acuan pemilihan format; kompatibilitas fisik iOS tidak diklaim sudah diuji. MP3 full mix disediakan agar lagu mudah dibuka di pemutar audio biasa.
+
+### Pemutaran dan penggantian
+
+Loader hanya mengambil dua stem tema yang diminta, mendekodenya lewat AudioContext, lalu menjalankan loop native yang sinkron. Cache tetap dibatasi dua aransemen. Crossfade, perpindahan fase pada posisi musikal yang sama, intensitas, pause/resume, mute dan volume tetap bekerja. File MP3 pratinjau tidak ikut diunduh oleh permainan. Efek WAV memakai BufferSource setelah siap; cue sintetis pendek hanya menjadi fallback ketika aset belum siap atau gagal, dan event lama tidak diputar terlambat.
+
+Untuk mengganti musik, ganti file stem yang dipetakan pada katalog dengan pasangan yang sama durasinya. Bisa pula mengarahkan `base` ke satu file MP3/WAV/FLAC sendiri dan mengatur `danger: null`; loader membuat lapisan kedua hening dan memakai durasi file yang baru. Ini menonaktifkan lapisan intensitas untuk tema tersebut. Jika tema mempunyai beberapa aransemen, perbarui entri tiap aransemen yang hendak diganti. Mengganti MP3 pratinjau saja tidak mengubah musik permainan.
+
+`npm run build:audio` mengekspor ulang seluruh file melalui komposisi orisinal. Perintah ekspor membutuhkan FFmpeg di PATH. Menjalankan `npm run dev` atau `npm run build` tidak membutuhkan FFmpeg karena semua aset sudah disertakan. Tidak ada dependensi npm, halaman, atau Markdown baru.
+
+### Verifikasi
+
+- **27 tes terarah lulus, 0 gagal, 0 dilewati.** Termasuk pemeriksaan 60 header/frame FLAC, 30 WAV tidak hening, keberadaan 30 MP3, request/decode, pasangan stem tidak cocok, file gagal, pembatalan, mode, cue, volume, cache dan lifecycle. Ini bukan klaim seluruh korpus replay Dungeon dijalankan ulang pada v17; hasil 390 tes penuh adalah verifikasi v16 sebelumnya.
+- **Build produksi lulus**, First Load JS halaman utama 175 kB. Aset audio dimuat terpisah sesuai kebutuhan; ukuran ini tidak mencakup seluruh musik.
+- **45 konfigurasi browser produksi lulus:** 15 mode × desktop, ponsel tegak, ponsel mendatar. Setiap mode menunggu `activeTrack` yang sesuai dan loop dari file yang telah dimuat. Tidak ada galat JavaScript atau aset aplikasi 4xx/5xx.
+- Integrasi Chromium mendekode dan memainkan seluruh **30 aransemen/60 stem FLAC**, mendekode seluruh **30 MP3** dengan durasi dan energi audio valid, memuat **35 file efek**, serta memastikan cue portal memakai BufferSource. Tidak ada pekerjaan komposisi musik dalam worker. Pause/resume membekukan/melanjutkan jam audio; mute/unmute dan slider musik 22%/SFX 44% tetap bekerja melalui UI.
+- Paket aset baru berukuran 31.205.470 byte sebelum pengemasan ZIP. Tidak ada perubahan data map, aturan gameplay atau progres pada v17. Batas playtest pendengaran dan perangkat fisik pada v16 tetap berlaku.
