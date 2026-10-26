@@ -44,7 +44,7 @@ const CONFETTI_POS = '6px 10px, 34px 46px, 54px 8px, 20px 70px';
 
 const DESCRIPTION = {
   puzzle: 'Shadow Heist · Amati patroli, curi relik, dan keluar tanpa jejak.',
-  delivery: 'Antar paket apel sebelum waktunya habis.',
+  delivery: 'Antar hasil panen lewat kebun dan peternakan.',
   roguelite: 'Kumpulkan bekal. Tembus antek. Taklukkan boss.',
   boss: 'Tembus 9 ronde antek, lalu taklukkan boss tiga fase.',
   territory: 'Gambar jejak dan rebut wilayah dari lawan.',
@@ -66,7 +66,7 @@ function ReviveInfo({ data }) {
   return <div className="revive-info"><span><ICONS.heart size={15} />Revive <b>{data.left}/3</b></span><small>{data.resetAt ? `Pulih penuh dalam ${days ? days + ' hari ' : ''}${hours ? hours + ' jam ' : ''}${mins} menit` : 'Pulih penuh 72 jam setelah revive pertama'}</small></div>;
 }
 
-export default function Overlay({ engineReady, engineError, recordSave, keyboardAvailable, onInfo, onSettings, onRestart, visible, phase, mood, title, sub, btnText, mode, onModeChange, onPlay, onRevive, onRetrySave, onMenu, speed, onSpeedChange, taSecs, onTaChange, puzzleMenu, onSelectLevel, deliveryMenu, rogueMenu, territoryMenu, bossMenu, onHelp }) {
+export default function Overlay({ engineReady, engineError, recordSave, keyboardAvailable, onInfo, onSettings, onRestart, visible, phase, mood, title, sub, btnText, mode, onModeChange, onPlay, onRevive, onRetrySave, onMenu, speed, onSpeedChange, taSecs, onTaChange, puzzleMenu, onSelectLevel, deliveryMenu, onDeliveryDifficulty, rogueMenu, territoryMenu, bossMenu, onHelp }) {
   const [busy, setBusy] = useState(false);
   const isTouch = useIsTouch();
   const touchOnly = isTouch && !keyboardAvailable;
@@ -214,12 +214,16 @@ export default function Overlay({ engineReady, engineError, recordSave, keyboard
       )}
       {isDelivery && (
         <div className="start-settings">
-          <div className="start-menu-heading"><span>Durasi shift</span><span>{am.duration ? am.duration.label : ''}</span></div>
+          <div className="start-menu-heading"><span>Tata jalan</span><span>{dm?.mapSize}</span></div>
+          <div className="start-chips" role="group" aria-label="Kesulitan Delivery">{[['normal','Normal'],['hard','Hard']].map(([id,label])=><Chip key={id} start on={dm?.difficulty===id} onClick={()=>onDeliveryDifficulty?.(id)}>{label}</Chip>)}</div>
+          <p className="start-touch-note">{dm?.difficulty==='hard'?'Jalan sempit satu petak, belok presisi. Progres versi sebelumnya tetap tersedia.':'Jalan utama 2–3 petak, persimpangan lapang. Belokan ke arah tembok bisa ditahan hingga 2 petak sebelum bukaan.'}</p>
+          <div className="start-menu-heading"><span>Delivery Mayhem</span><span>{dm?.shiftSec} detik · {dm?.target} kiriman</span></div>
+          {dm?.missions && <><p className="start-touch-note">{dm.missions[dm.selected].name} · {dm.missions[dm.selected].tier}</p><div className="level-grid delivery-missions" role="group" aria-label="Misi Delivery">{dm.missions.map((m,i)=><button key={m.id} className="level-btn" disabled={!m.unlocked} aria-pressed={i===dm.selected} aria-label={`Misi ${m.number}: ${m.name}${m.unlocked?'':' terkunci'}`} onClick={()=>onSelectLevel?.(i)}><b>{m.number}</b><small>{m.unlocked?m.stars?'★'.repeat(m.stars):'Baru':'Terkunci'}</small></button>)}</div></>}
           <div className="start-menu-heading"><span>Kecepatan</span><span>Sesuai gayamu</span></div>
           <div className="start-chips" role="group" aria-label="Kecepatan">
             {SPEEDS.map(s => <Chip key={s.k} start on={speed === s.k} onClick={() => onSpeedChange(s.k)}>{s.l}</Chip>)}
           </div>
-          {dm && <p className="start-touch-note" role="status"><ICONS.trophy size={14} /> Rekor ({speedLabel}): {dm.best} skor • {dm.bestDeliveries} terkirim • {dm.wins}/{dm.plays} shift menang</p>}
+          {dm && <p className="start-touch-note" role="status"><ICONS.trophy size={14} /> Rekor ({dm.difficultyLabel} · {speedLabel}): {dm.best} skor • {dm.bestDeliveries} terkirim • {dm.wins}/{dm.plays} shift menang</p>}
         </div>
       )}
       {isRogue && (

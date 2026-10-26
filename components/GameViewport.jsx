@@ -7,7 +7,7 @@ export default function GameViewport({ active, sleeping, mode, touch, lefty, wor
   const [layout, setLayout] = useState(null);
   useEffect(() => {
     const el = space.current;
-    const resize = () => setLayout(arenaLayout(el.clientWidth, el.clientHeight, { touch, actions: mode === 'puzzle' }));
+    const resize = () => setLayout(arenaLayout(el.clientWidth, el.clientHeight, { touch, actions: ['puzzle','delivery'].includes(mode) }));
     const observer = new ResizeObserver(resize); observer.observe(el); resize();
     return () => observer.disconnect();
   }, [touch, mode, active]);

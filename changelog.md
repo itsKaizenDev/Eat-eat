@@ -6,6 +6,102 @@ Seluruh catatan revisi, aturan, hasil verifikasi, prompt aset dan diff Markdown 
 
 Aturan terbaru Dungeon ada pada [revisi Dungeon](#doc-dungeon-revision); pedoman visual terbaru ada pada [konsistensi scene](#doc-asset-consistency). Angka tes dan batasan di bagian arsip adalah hasil pada saat revisi tersebut dikerjakan, bukan pengujian ulang hari ini. Jika aturan arsip berbeda, gunakan revisi yang lebih baru.
 
+## Delivery: Normal lapang dan Hard presisi — 25 Oktober 2026
+
+- **Normal menjadi pilihan awal:** kota diperluas menjadi **25×23**, jalan utama 2–3 petak, persimpangan diperlebar, dan jalur awal memiliki ruang lebih panjang sebelum tembok. Kamera mengikuti ular pada ukuran petak yang sama; peta besar tidak mengecilkan ular saat bermain. Tombol Peta tetap menampilkan overview untuk perencanaan.
+- **Hard** memakai kota sempit **17×15** versi sebelumnya. Bentuk map, posisi awal dan hazard dibandingkan terhadap v18 pada **80 kombinasi seed/fitur**, semuanya sama. Pilihan Normal/Hard ada di bagian **Tata jalan**, terpisah dari Santai/Normal/Ngebut/Konstan; mengganti kesulitan tidak mengubah pilihan kecepatan.
+- Normal menyimpan input belok yang langsung menuju tembok bila bukaan tersedia dalam dua petak ke depan. Input dipakai saat bukaan tercapai; arah lurus dapat membatalkannya. Jeda/ulang membersihkan antrean; menahan rem tidak membuang input tersebut. Bantuan ini bukan autopilot dan tidak menembus tembok, tubuh atau hazard. Hard tidak memakai bantuan belok.
+- Progres lama pada `snake-delivery-mayhem-v2` dipertahankan sebagai progres **Hard**. Normal memakai `snake-delivery-normal-v3`; format checkpoint tetap versi 2. Rekor Normal memakai kunci konfigurasi versi 3, sementara Hard mempertahankan kunci versi 2. Pilihan kesulitan disimpan terpisah. Perpindahan hanya dari menu; checkpoint yang belum tersimpan harus berhasil disimpan sebelum pindah profil.
+- Pesanan sekarang datang per **batch** (maksimal satu di awal atau dua pada misi lanjut). Batch baru menunggu seluruh batch lama selesai/kedaluwarsa. Ini mencegah paket Berat baru muncul mendadak di tengah rute yang sudah direncanakan, lalu mengubah panjang/kecepatan ular.
+- Perluasan matriks tes menemukan cache pencarian rute menyamakan keadaan yang sudah pulih dari guncangan dengan keadaan yang baru terkena guncangan pada sel/waktu sama. Kunci node sekarang mencakup waktu simulasi eksak, sisa delay, cooldown hazard aktif dan kondisi kargo. Regresi khusus memastikan rute dengan menunggu tetap ditemukan.
+- Setelah tombol Peta diklik dengan pointer, fokus dikembalikan dari tombol agar Spasi berikutnya mengerem. Aktivasi tombol melalui keyboard tetap menjaga perilaku fokus keyboard.
+- Source yang berubah: `lib/delivery/city.js`, `turns.js`, `routing.js`, `controller.js`, `progress.js`, `sim.js`, `lib/records.js`, integrasi menu/HUD/canvas/page, teks bantuan, dan tes. Tidak ada route baru, dependency runtime baru, aset audio diganti, atau Markdown baru.
+
+**Verifikasi:** `npm test` **435/435 lulus**, 0 gagal. Matriks Delivery memuat **864 replay** (2 kesulitan × 12 misi × 12 seed × 3 kecepatan), semuanya mencapai target tanpa paket kedaluwarsa. Tes tambahan memeriksa lebar jalan, delapan petak ruang awal, buffer belok dua petak, tabrakan tetap berlaku, pergantian profil, progres/rekor lama, checkpoint gagal simpan, stabilitas batch dan state cooldown pencarian. `npm run build` berhasil; build dijalankan ulang setelah perapian fokus/copy UI. Konfigurasi ESLint tetap belum tersedia, seperti catatan v18.
+
+**Browser:** alur Normal di 390×844, 844×390 dan 1366×768 selesai melalui 92 input nyata, mencapai Rank S/skor 118 yang sama dengan model simulasi. Pindah Hard, persistensi pilihan setelah refresh, kecepatan tetap terpisah, serta kegagalan tabrakan di Hard juga diuji. Progres Normal terbuka sampai misi 2 dan progres Hard lama tetap misi 7/skor 120 pada fixture migrasi; tidak ada page error. Run lintas ukuran menggunakan input keyboard untuk replay; profil touch terpisah benar-benar melaporkan pointer coarse dan maxTouchPoints=1, dengan hold/lepas rem, joystick, overview, serta batas kontrol dan lebar halaman diperiksa pada dua orientasi HP. Capture menu, gameplay, overview, hasil Normal dan kegagalan Hard diperiksa secara visual. Browser emulasi tetap bukan pengujian perangkat fisik.
+
+Batasan: replay otomatis membuktikan kasus yang diuji bisa dituntaskan; bukan jaminan seluruh keputusan pemain akan selamat. Belum ada playtest rasa kesulitan pada Android/iOS fisik. Normal sengaja memberi ruang lebih lega, sementara tekanan pesanan dan paket tetap diperkenalkan bertahap.
+
+## Delivery Mayhem 2.0 & audio global — 25 Oktober 2026
+
+### Hasil implementasi
+
+- Delivery lama diganti kampanye 12 misi di route utama yang sama, dengan empat distrik, seed penempatan yang berubah, dan urutan belajar → perencanaan → tekanan → ahli. Satu antrean di misi awal, maksimal dua berikutnya. Jalur luar selalu tersedia; jalan satu arah, gerbang, roadblock, gundukan dan tram adalah pilihan rute berisiko.
+- Lima paket diperkenalkan bertahap: Reguler, Ekspres (deadline lebih pendek), Rapuh (kondisi turun 35% per guncangan, gagal setelah tiga), Berat (dua slot kapasitas, interval +18%), dan Multi-stop (dua alamat diperiksa terpisah). Semua paket tetap menambah tepat satu segmen ekor agar aturan tabrakan konsisten.
+- Pesanan baru mendapat bukti rute untuk seluruh antrean melalui `stepSim`: arah, tubuh terurut, pertumbuhan, kapasitas, deadline, delay, gerbang, satu arah, dan tram ikut disimulasikan. Pencarian dibatasi; kandidat yang tidak terbukti tidak diterbitkan. Pembuktian memodelkan pelepasan rem, sehingga menahan rem tidak menghabiskan kandidat yang sebenarnya layak. Bukti bukan jaminan untuk sembarang keputusan pemain; menutup jalan dengan tubuh sendiri masih menjadi risiko Snake.
+- Skor memisahkan nilai dasar, cepat, kondisi, efisiensi, combo, objektif dan penalti aktual. Multi-stop baru memberi skor setelah seluruh alamat selesai; hasil disimpan sekali melalui journal yang sudah ada. Menang langsung membuka misi berikutnya; best score/bintang memakai nilai maksimum. Rekor shift versi lama dipertahankan dengan kunci terpisah.
+- HUD menampilkan jenis, status pickup/antar, tujuan, deadline, hadiah, kondisi Rapuh, muatan berbobot dan combo. Canvas memakai seluruh viewport; kamera mengikuti ular, tombol Peta memperlihatkan kota. HP portrait memakai HUD atas; landscape memakai rail kiri. Joystick/swipe/WASD tetap dipakai; tahan Rem/Spasi untuk menunggu tanpa membekukan deadline. Jeda membekukan deadline dan lalu lintas.
+- Tema musik orisinal funk/electronic ringan untuk menu Delivery, normal, rush, menang dan kalah. Rush memakai hysteresis masuk 1 detik/keluar 3,5 detik; hasil diputar satu kali. Delapan cue kurir berbentuk WAV sungguhan ditambahkan untuk pickup, notifikasi, kiriman sempurna, gagal, deadline, combo, kerusakan dan aktivasi rintangan. Cooldown, prioritas, ducking dan batas 20 suara tetap terpusat.
+- Audio tetap memakai satu director/context. Permintaan musik lama dibatalkan saat scene berubah, hasil terlambat diabaikan, dan pemuatan dibatasi 12 detik. Browser yang gagal memuat/dekode FLAC memakai MP3 tema yang sama; gagal total menghentikan lagu lama yang tidak sesuai. Pengaturan menyediakan status dan Coba Lagi, termasuk saat permainan dijeda.
+- Slider Volume utama ditambahkan di atas Musik/Efek; nilai lama pada `snake-audio-v1` tetap dibaca. Model gain: master × kategori × suara × konteks. Limiter bus konservatif melindungi campuran suara bersamaan. Route `/dungeon` yang sudah ada juga memakai director/preferensi yang sama; oscillator/context terpisahnya dihapus dan kehilangan fokus menjeda audio/permainan.
+
+### App Review Council — evaluasi sebelum dan sesudah
+
+Enam peran berikut dijalankan berurutan oleh satu asisten, bukan enam manusia/model independen. Temuan berdasar source, capture browser dan output tes; penilaian visual bukan data studi pengguna.
+
+| Peran / ID | Temuan, bukti, dampak dan akar masalah | Putusan Chair dan perbaikan / verifikasi |
+| --- | --- | --- |
+| UI Judge · UI-01 · Tinggi · terkonfirmasi | Capture HP 390×844 sebelum perubahan: canvas 358×315,875, sekitar 37% tinggi layar. `GameViewport` hanya memberi Dungeon seluruh permukaan; Delivery dipaksa rasio 17:15 dengan ruang HUD/joystick terpisah. Arena dan paket menjadi kecil. | **Upheld, diperbaiki.** Delivery juga mendapat viewport penuh dan transform kamera. Capture/browser setelah perubahan memeriksa portrait 390×844, landscape 844×390, desktop 1366×768. Branding krem/hijau, ilustrasi menu, dan maskot dipertahankan. |
+| UX Judge · UX-01 · Tinggi · terkonfirmasi | HUD lama hanya timer/terkirim/kargo; tujuan dan deadline pesanan baru harus dicari melalui Info. Source `Hud.jsx` + capture bermain/Info membuktikan pemisahan informasi penting saat waktu berjalan. | **Upheld, diperbaiki.** Antrean maksimal dua kartu persisten dengan status, tujuan, waktu dan hadiah. Pengujian browser mengikuti pesanan sampai menang, lanjut misi, gagal, ulang dan jeda. |
+| Logic Judge · LOG-01 · Tinggi · celah validator terkonfirmasi | Generator lama menggunakan BFS statis tanpa tubuh/gate/waktu; komentar dan `makeOrder` di `delivery/sim.js` mengakuinya. Ini tidak membuktikan seluruh misi lama mustahil. | **Revised.** Chair menolak klaim “semua map rusak”; menerima kekurangan validasi. Generator Mayhem kini membuktikan seluruh antrean lewat transisi asli. 432 kombinasi misi/seed/kecepatan direplay sampai menang tanpa kedaluwarsa, ditambah kasus kapasitas, multi-stop, gate, rem, tabrakan dan waktu mundur. |
+| Bug Judge · BUG-01 · Tinggi · terkonfirmasi | `director.prepare` sebelumnya menahan satu permintaan tanpa timeout/pembatalan per scene. Reproduksi sebelum perbaikan: Portal macet lalu pindah Dungeon; dua tes gagal, lagu lama terus aktif. | **Upheld, diperbaiki.** Abort per permintaan, token hasil, timeout dan retry mengganti latch serial. Dua tes reproduksi menjadi hijau; browser menyengaja menahan dua FLAC Portal, mengamati keduanya dibatalkan, lalu musik Dungeon berjalan. |
+| Bug Judge / audio · BUG-02 · Tinggi · terukur | 125 aset awal: musik −33,3…−30,7 LUFS, RMS efek −47,53…−9,79 dBFS. Decode `eits.mp3` mencapai +3,15 dBFS dan poison +0,19 dBFS. Ini menunjukkan overshoot hasil decode, bukan bukti pasti rekaman sumber sudah rusak permanen. Gain musik tambahan ×0,55 memperparah ketimpangan. | **Upheld, istilah clipping direvisi.** Stems dimaster dengan envelope limiter yang sama; rekaman dengan overshoot diturunkan, bukan diboost. Semua 148 aset hasil diukur ulang, tanpa sampel mendekati full scale. Nilai terukur ada di tabel audio berikut. |
+| Bug Judge · BUG-03 · Sedang · ditemukan saat implementasi | Browser dengan clock/RNG terkontrol menunjukkan urutan order berubah ketika pemain menahan rem: clone pembuktian mewarisi `braking=true`, semua jalur kandidat berhenti, RNG terbuang. Tes skor juga memeriksa penalti kedaluwarsa agar rincian hasil sama dengan total. | **Upheld, diperbaiki.** Proof melepas hold input; rem tetap tersedia sebagai langkah W. Regresi membandingkan pesanan dengan/ tanpa hold rem. Breakdown sekarang memuat penalti sebesar skor yang benar-benar dikurangi. |
+| UI/UX Judge · UI-02 · Sedang · ditemukan lewat capture | Iterasi pertama daftar 12 misi tersusun satu kolom dan tip menghalangi ular. Ini bukan kritik berdasarkan nama class saja; capture nyata memperlihatkannya. | **Upheld, diperbaiki.** Grid eksplisit enam kolom, dua baris; arahan singkat masuk HUD dan petunjuk mengambang Delivery dihapus. Capture ulang serta tes geometri memeriksa joystick/rem tetap di layar dan halaman tidak scroll. |
+
+**Chair, tinjau ulang:** isu di atas ditutup berdasarkan tes/capture yang benar-benar dijalankan. Gaya kota berbentuk grid, pemilihan warna, dan keinginan animasi lebih ramai diperlakukan sebagai preferensi, bukan bug. Klaim “sudah optimal untuk semua HP”, “semua seed di dunia pasti dapat dimenangkan”, dan “sudah didengar pada speaker fisik” ditolak karena bukti tidak mencakupnya. Uji simulasi deterministik tidak menggantikan evaluasi rasa permainan manusia.
+
+**Technical Advisor:** perbaikan memakai simulasi, clock, input dan journal existing; tidak ada loop atau audio manager tandingan, route baru, atau dependency runtime tambahan. Urutan pelaksanaan: akar race audio → gain/asset → paket/rute/skor → HUD/kontrol → regresi. Lanjutan yang masih berguna: playtest tingkat tekanan dan kualitas suara di Android fisik serta Safari/iOS; ukur sebelum menambah optimasi atau menulis ulang sistem.
+
+**Keputusan baik yang dipertahankan:** simulasi murni dengan RNG terinjeksi, waktu beku saat jeda, transaksi kepala/ekor/kargo terurut, journal hasil idempoten, kontrol bersama, dua tema decoded dalam cache, loop native dengan frame eksak, dan rendering tanpa mengubah state.
+
+### Audio: proses dan hasil pengukuran
+
+`npm run build:audio` benar-benar dieksekusi ulang. FFmpeg mengukur loudness lalu menerapkan boost terukur dan limiter tertaut pada base, danger, jumlah dan selisihnya; tiga putaran diproses dan putaran tengah dipakai supaya envelope tidak mulai dingin di tepi loop. FLAC mempertahankan jumlah frame. Efek pendek memakai kalibrasi peak sesuai konteks, bukan target LUFS seragam. Lima rekaman lama dikalibrasi terpisah; file yang sudah dekat target tidak di-encode ulang.
+
+| Ukuran | Sebelum | Sesudah |
+| --- | --- | --- |
+| Jumlah aset audio | 125 | 148: 70 FLAC, 35 MP3 musik, 38 WAV cue, 5 rekaman lama |
+| Musik full mix, LUFS integrated | −33,3…−30,7 | −18,7…−17,5 |
+| True peak tertinggi full mix MP3 | tidak dipakai sebagai target semata | −2,0 dBFS |
+| Batas terukur `abs(base)+abs(danger)` | belum diuji seluruh aset | 0,839996, sekitar −1,51 dBFS; 35 aransemen × 4 intensitas diuji |
+| Lompatan sampel terbesar pada sambungan loop | belum diukur menyeluruh | 0,001831; di bawah lompatan sampel internal track yang sama |
+| Sampel decode mendekati full scale (`abs >= 0,9999`) | eits 580, poison 2 | 0 pada seluruh 148 file |
+| RMS SFX (konteks berbeda, bukan target seragam) | −47,53…−9,79 dBFS | −38,65…−19,44 dBFS |
+
+Musik Delivery menang/kalah berdurasi pendek dan tidak loop. MP3 fallback memakai mix tetap, sehingga lapisan danger tidak adaptif saat fallback; status kompatibilitas tampil di pengaturan. Headroom stem tidak menjadi jaminan absolut untuk setiap campuran output hardware. Verifikasi di sini adalah pengukuran file, pemeriksaan seam, native decode/playback browser, routing dan lifecycle; tidak ada klaim audition pada perangkat fisik.
+
+### Verifikasi rilis dan cakupan
+
+- `npm test`: **425/425 lulus**, 0 gagal, sekitar 188 detik pada run rilis. Termasuk replay 400 varian Dungeon, boss, mode Arkade, Ekspedisi, Rebut Arena, storage, input, audio dan Delivery; pengujian 432 kombinasi Delivery ada dalam satu kasus matriks, bukan 432 test-case terpisah.
+- Tinjau akhir audio menambahkan satu regresi cache/status kompatibilitas dan pelepasan node musik hasil yang selesai; ketiga suite audio dijalankan ulang pada source akhir. **27/27 tes audio akhir lulus**, 0 gagal; build produksi dijalankan ulang setelah perbaikan terakhir dan berhasil.
+- `npm run build`: berhasil untuk `/`, route `/dungeon` existing, not-found dan manifest. Tidak ada route baru/dependency runtime baru.
+- `npm run lint`: **belum dapat dijalankan noninteraktif**, karena repo tidak memiliki konfigurasi/dependency ESLint dan `next lint` meminta setup. Tidak dianggap lulus; dependency baru tidak dipasang hanya untuk menutupi keterbatasan ini.
+- Browser: alur Delivery nyata, 75 input per misi pertama, pada 390×844, 844×390, 1366×768 mencapai Rank S/skor 118 yang sama dengan model independen. Dilanjutkan ke misi 2, tabrakan, retry, jeda tanpa deadline berkurang, dan perubahan Master tersimpan. Tidak ada page error yang ditangkap.
+- Profil touch terpisah: pointer coarse/maxTouchPoints=1; hold/rem berhenti dan lepas melanjutkan; joystick serta rem tetap berada dalam viewport portrait/landscape; scrollX/scrollY=0 dan lebar dokumen sama dengan viewport. Capture yang diaudit mencakup menu, bermain, overview, hasil dan pengaturan.
+- Browser audio: seluruh 14 mode yang terlihat di menu berpindah ke tema masing-masing; Portal sengaja ditahan lalu kedua permintaannya dibatalkan saat pindah Dungeon; kegagalan FLAC Portal memutar `portal.mp3`. Semua 70 FLAC berhasil didekode native dengan sample rate/frame count katalog. Satu AudioContext digunakan per halaman. Route `/dungeon` existing juga diverifikasi mute → suspended dan unmute → running.
+- Pemrosesan aset benar-benar diulang dengan script build audio; pengukuran akhir meliputi 148 file. Pemeriksaan headroom dan seam mencakup 35 aransemen × 4 intensitas. MP3 adalah preview/fallback; jalur utama memakai loop native FLAC, tanpa timer restart.
+
+| Scorecard tinjau ulang (subjektif, cakupan teruji) | Nilai / 10 | Batas |
+| --- | --- | --- |
+| UI / keterbacaan | 8 | HUD/capture di tiga viewport; belum studi pembacaan pada perangkat fisik |
+| UX / kontrol | 8 | Keyboard, swipe bersama dan rem/touch teruji; playtest kenyamanan lanjutan masih berguna |
+| Logika gameplay | 8 | Bukti antrean + 432 replay; bukan enumerasi semua seed/input |
+| Reliabilitas | 8 | Race, retry, lifecycle, persistensi dan regresi teruji; lint belum terkonfigurasi |
+| Audio | 8 | Pengukuran, decode, seam dan routing teruji; audition hardware belum |
+| Maintainability | 8 | Modul simulasi/routing/misi terpisah, tanpa manager/loop baru; controller lama tetap dipertahankan |
+| **Keseluruhan** | **8** | Penilaian reviewer, bukan skor objektif atau jaminan bebas bug |
+
+
+### Skill, referensi dan batas cakupan
+
+- **App Review Council**, **Web Dev Workflow**, serta Product Design **Index / Get Context / User Context / Audit / Research** dibaca/dijalankan pada tahap yang sesuai. Preflight Product Design tidak menemukan konteks tersimpan; brief memakai prompt dan source/capture aplikasi. GitHub `itsKaizenDev/Eat-eat` dibaca di commit `d8551af93c55dca40eaf20b0da1fc20f965809e6`; file ZIP bersama cocok dengan blob repo. Tujuh file source repo yang tidak ada di ZIP dipertahankan, termasuk route `/dungeon`; backup ZIP bersarang tidak diduplikasi.
+- Browser cloud tidak menjangkau server lokal (connection refused). Fallback yang dipakai adalah Chromium lokal melalui Playwright, dengan screenshot baru dan profil pointer desktop/touch; tidak ada klaim browser cloud berhasil menjalankan game. Shared resource `critical-overrides` Product Design tidak tersedia pada locator yang dirujuk. Aturan prompt pengguna tetap diikuti.
+- **Ideate** berbasis tiga gambar dan **Design QA** untuk peniruan mockup ditelaah tetapi tidak dipakai sebagai proses persetujuan mockup: tugas ini implementasi pada desain existing dan tidak memiliki mockup baru yang disetujui. Alternatif layout dipertimbangkan pada kode (papan tetap, rail permanen, kamera/HUD adaptif); pilihan kamera/HUD diperiksa lewat audit visual berulang. Tidak diklaim lulus kesetiaan pada gambar rancangan yang tidak ada. Temuan dan perbaikannya disatukan di changelog ini sesuai larangan membuat Markdown tambahan.
+- Prinsip referensi: prioritas antrean/dinamika ruang dari [Overcooked 2](https://www.team17.com/news/introducing-overcooked-2), objektif/lingkungan dari [Moving Out 2](https://www.team17.com/games/moving-out-2), imbalan waktu/rute dari [manual Crazy Taxi](https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/71230/manuals/DC_CT_PC_MG_EFIGS_FINAL_lr.pdf), dan pendekatan solusi alternatif dari [Good Job!](https://www.nintendo.com/us/store/products/good-job-switch/). Musik, level dan UI spesifik game tersebut tidak disalin.
+- Keterbatasan tersisa: belum ada playtest manusia pada Android kelas bawah/Safari iOS, audition speaker/headphone fisik, atau pengujian seluruh kemungkinan seed/input. Uji otomatis tidak menilai apakah kurva kesulitan sudah paling menyenangkan. Roadmap lanjutan: P1 playtest perangkat fisik dan tekanan deadline; P2 kalibrasi skor/bintang memakai hasil playtest; opsional variasi dekorasi kota setelah keterbacaan terbukti.
+
 ## Daftar isi
 
 - [Nama K-Snake dan telaah audit — 20 Oktober 2026](#ksnake-dan-audit)
@@ -5084,3 +5180,72 @@ Pencari bukti kini melewati pickup yang sudah benar-benar terambil dan memiliki 
 ### Batas bukti
 
 Belum diuji pada perangkat fisik Android/iOS Safari atau dinilai melalui pendengaran speaker/headphone. Sintesis, headroom, kontinuitas sampel, loop native dan transisi lifecycle diuji secara teknis; kenyamanan mendengarkan tetap memerlukan playtest manusia. Angka 390 bukan sertifikasi setiap kombinasi seed, pengejaran, alat dan input. Percobaan pencarian seluruh bonus level lanjut dengan batas node/urutan tertentu tidak selalu menemukan rute; kegagalan pencarian bukan bukti map mustahil. Rilis ini tidak mengklaim seluruh bonus level 16–50 sudah tersertifikasi tiga bintang. Batas penyimpanan browser yang ditolak tetap mengikuti mekanisme retry yang sudah dijelaskan pada v15.
+
+## v17 — Musik dan efek suara menjadi file audio (25 Oktober 2026)
+
+Musik latar kini dibaca dari aset fisik. Pemutaran produksi tidak lagi memanggil komposer PCM atau Web Worker musik; `renderer.js` dan `score.worker.js` dilepas. Komposisi v16 tetap menjadi sumber ekspor offline, sehingga identitas musik dan aransemen yang sudah dibuat tetap tersedia.
+
+### Lokasi file
+
+- `public/sounds/music/`: **30 MP3 full mix** untuk didengarkan langsung, serta **60 FLAC** untuk 30 pasang stem `base` dan `danger`. Ada 20 tema; Dungeon dan empat tema boss memiliki tiga aransemen. Contoh: `dungeon.mp3`, `dungeon.base.flac`, `dungeon.danger.flac`, `dungeon-boss-v2.mp3`. MP3 adalah versi siap dengar; game memuat stem FLAC, bukan MP3 pratinjaunya.
+- `public/sounds/effects/`: **30 WAV** untuk portal, langkah, serangan, relik, rune, boss, alat dan cue lainnya.
+- Lima SFX lama tetap berada di `public/sounds/`. Total 35 file efek suara tersedia untuk pemutaran.
+- `lib/audio/catalog.js`: pemetaan tema/aransemen dan alamat file. Frame count, sample rate serta durasi hasil ekspor dicatat di sini.
+
+FLAC 16-bit mono 22.050 Hz dipakai untuk stem karena mempertahankan jumlah sampel dan batas loop tanpa encoder padding dari kompresi lossy. [Panduan codec MDN](https://developer.mozilla.org/en-US/docs/Web/Media/Guides/Formats/Audio_codecs#flac_free_lossless_audio_codec) menjadi acuan pemilihan format; kompatibilitas fisik iOS tidak diklaim sudah diuji. MP3 full mix disediakan agar lagu mudah dibuka di pemutar audio biasa.
+
+### Pemutaran dan penggantian
+
+Loader hanya mengambil dua stem tema yang diminta, mendekodenya lewat AudioContext, lalu menjalankan loop native yang sinkron. Cache tetap dibatasi dua aransemen. Crossfade, perpindahan fase pada posisi musikal yang sama, intensitas, pause/resume, mute dan volume tetap bekerja. File MP3 pratinjau tidak ikut diunduh oleh permainan. Efek WAV memakai BufferSource setelah siap; cue sintetis pendek hanya menjadi fallback ketika aset belum siap atau gagal, dan event lama tidak diputar terlambat.
+
+Untuk mengganti musik, ganti file stem yang dipetakan pada katalog dengan pasangan yang sama durasinya. Bisa pula mengarahkan `base` ke satu file MP3/WAV/FLAC sendiri dan mengatur `danger: null`; loader membuat lapisan kedua hening dan memakai durasi file yang baru. Ini menonaktifkan lapisan intensitas untuk tema tersebut. Jika tema mempunyai beberapa aransemen, perbarui entri tiap aransemen yang hendak diganti. Mengganti MP3 pratinjau saja tidak mengubah musik permainan.
+
+`npm run build:audio` mengekspor ulang seluruh file melalui komposisi orisinal. Perintah ekspor membutuhkan FFmpeg di PATH. Menjalankan `npm run dev` atau `npm run build` tidak membutuhkan FFmpeg karena semua aset sudah disertakan. Tidak ada dependensi npm, halaman, atau Markdown baru.
+
+### Verifikasi
+
+- **27 tes terarah lulus, 0 gagal, 0 dilewati.** Termasuk pemeriksaan 60 header/frame FLAC, 30 WAV tidak hening, keberadaan 30 MP3, request/decode, pasangan stem tidak cocok, file gagal, pembatalan, mode, cue, volume, cache dan lifecycle. Ini bukan klaim seluruh korpus replay Dungeon dijalankan ulang pada v17; hasil 390 tes penuh adalah verifikasi v16 sebelumnya.
+- **Build produksi lulus**, First Load JS halaman utama 175 kB. Aset audio dimuat terpisah sesuai kebutuhan; ukuran ini tidak mencakup seluruh musik.
+- **45 konfigurasi browser produksi lulus:** 15 mode × desktop, ponsel tegak, ponsel mendatar. Setiap mode menunggu `activeTrack` yang sesuai dan loop dari file yang telah dimuat. Tidak ada galat JavaScript atau aset aplikasi 4xx/5xx.
+- Integrasi Chromium mendekode dan memainkan seluruh **30 aransemen/60 stem FLAC**, mendekode seluruh **30 MP3** dengan durasi dan energi audio valid, memuat **35 file efek**, serta memastikan cue portal memakai BufferSource. Tidak ada pekerjaan komposisi musik dalam worker. Pause/resume membekukan/melanjutkan jam audio; mute/unmute dan slider musik 22%/SFX 44% tetap bekerja melalui UI.
+- Paket aset baru berukuran 31.205.470 byte sebelum pengemasan ZIP. Tidak ada perubahan data map, aturan gameplay atau progres pada v17. Batas playtest pendengaran dan perangkat fisik pada v16 tetap berlaku.
+
+## v20 — Aset Delivery: kebun buah dan peternakan (26 Oktober 2026)
+
+Delivery Mayhem kini memakai ilustrasi kebun dan peternakan yang benar-benar dimuat oleh renderer. A Lumbung, B Kandang, C Kios tetap memakai huruf, warna, dan bentuk berbeda. Reguler memakai peti apel, Ekspres keranjang stroberi berpita, Rapuh telur, Berat karung pakan, Multi-stop dua keranjang. Tram tampil sebagai gerobak panen, gerbang memakai pagar kayu buka/tutup, dan guncangan berupa tanah berlumpur. Menu memakai ular bertopi jerami dengan identitas wajah/tubuh yang sama.
+
+### Berkas aset dan integrasi
+
+- `public/assets/delivery/farm-environment.webp`: atlas transparan 768×512, lumbung, kandang, kios, pohon apel, bedeng sayuran, jerami/pakan, pagar mendatar dan tegak.
+- `public/assets/delivery/farm-cargo.webp`: atlas transparan 768×512, lima jenis paket, gerobak, pagar tertutup dan terbuka.
+- `public/assets/delivery/farm-terrain.webp`: 512×512, empat tekstur rumput/jalan/tanah/lumpur. Ketiga atlas sekitar 155 kB total; bukan gambar placeholder.
+- `public/assets/game/bg-delivery.webp` dan `bg-delivery-m.webp`: hero transparan untuk menu desktop dan HP, memakai jalur aset responsif yang sudah ada.
+- `farmAssets.js` memuat atlas bersama satu kali; ikon tujuan tetap terbaca saat berkas gagal atau belum selesai dimuat. `farmPlan.js` mengisi hanya petak rintangan asli dan memilih persegi panjang penuh untuk bangunan. `farmRender.js` menyimpan lapisan statis 48 piksel per petak, memperbaruinya saat map/aset berubah dan melepasnya saat controller dihentikan. Gambar pagar tetap berada di sisi dalam petak terhalang.
+- Normal tetap 25×23, jalan utama 2–3 petak dan bantuan belok awal; Hard tetap 17×15 dengan belok presisi. Simulasi, pembuatan map, perhitungan rute, misi, progres, rekor dan runtime audio sama byte demi byte dengan bagian v19 yang pulih. Penggantian nama/bangunan tidak menambah collision, NPC, timer atau loop permainan.
+
+### Prompt set ilustrasi
+
+Dibuat dengan **imagegen built-in**, bukan CLI/API fallback. Atlas PNG asli dibuat pada giliran desain sebelumnya; rilis ini menggunakan ilustrasi yang sama, dinormalisasi ukuran dan dienkode WebP dengan alpha tetap dipertahankan.
+
+1. **Environment — stylized-concept, atlas sprite game:** 1536×1024 transparan, empat kolom dua baris; urutan lumbung merah, kandang atap biru, kios hasil panen, pohon apel / bedeng sayuran, jerami dan karung, pagar mendatar, pagar tegak. Kartun hangat seperti gambar tangan, outline gelap zaitun, kayu hangat, sudut atas dengan sedikit bagian depan. Objek terpisah, tidak berpotongan, tidak ada huruf, label, garis grid, watermark atau latar adegan.
+2. **Cargo — stylized-concept, atlas pickup dan bahaya:** format dan gaya sama, transparan. Urutan peti apel, keranjang stroberi pita merah, karton tiga telur, karung pakan / dua keranjang tersambung, gerobak jerami menghadap kanan, pagar tertutup, pagar terbuka. Bentuk dan warna harus mudah dibedakan pada ukuran kecil, tanpa tulisan.
+3. **Hero — identity-preserve edit:** referensi hero Delivery sebelumnya dan `mascot-idle.png`. Pertahankan ular hijau, perut krem, mata bulat gelap, pipi merah, tanpa tangan/kaki. Tambahkan topi jerami, muatan apel/telur, kebun apel, lumbung merah, kandang biru, kios dan pagar kayu. Massa ilustrasi di kanan sekitar 60%, kiri sekitar 40% transparan untuk judul; tanpa teks/watermark. Hasil 1672×941, versi HP 960×540.
+4. **Terrain — stylized-concept, atlas tekstur:** empat kuadran sama besar, rumput, jalan tanah krem, tanah tanam cokelat, lumpur. Pandangan atas, detail tenang dengan kontras rendah, tanpa objek atau tulisan, latar opak. Hasil 1254×1254 dinormalisasi menjadi 512×512 untuk runtime.
+
+### Pemulihan arsip dan batas kesetiaan
+
+ZIP v19 yang tersedia terpotong pada `timeattack.danger.flac` dan tidak memiliki central directory. Seluruh **312 entri lengkap** berhasil diekstrak dengan ukuran dan CRC yang sah. **43 berkas bagian akhir** yang tidak tersedia dipulihkan dari arsip unggahan utuh `Eat-eat-main(1).zip`, tanpa menimpa satu pun berkas lengkap v19. Ini mencakup konfigurasi Tailwind, skrip offline, tes dan tiga berkas audio. Tidak mengklaim bahwa tes tambahan dari sesi kerja yang hilang dapat dipulihkan persis.
+
+`poison-death.mp3` diambil dari unggahan utuh. Stem danger Time Attack direkonstruksi dari komposisi yang sama dan envelope mastering stem base v19 yang masih utuh; 463.104 frame pertama memakai PCM asli yang masih dapat didekode dari fragmen. Sisa 198.396 frame direkonstruksi; MP3 pratinjau dibuat kembali dari pasangan ini. Bagian pembanding yang dapat dipulihkan memiliki selisih RMS sekitar 0,000017 sebelum PCM asli dipasang kembali. **Ini pemulihan perkiraan untuk bagian yang hilang, bukan klaim identik bit dengan audio v19 penuh.** Seluruh 145 berkas audio lengkap v19 tetap identik. Runtime audio, katalog, routing tema, loop, gain, retry dan transisi tidak diubah. Skrip ekspor offline yang dipulihkan mempertahankan flag `loop:false` bagi sting hasil; skrip lama ini tidak diklaim mereproduksi mastering seluruh rilis v19 secara identik.
+
+Fixture tes dari arsip lama disesuaikan dengan kontrak yang memang sudah ada pada source v19: lima tema Delivery, 35 aransemen, gain master, request audio yang dibatalkan, fallback MP3 serta durasi misi. Tes shift lama menggunakan konfigurasi legacy eksplisit; tes Mayhem baru memeriksa perilaku default dan pemisahan Normal/Hard. Aturan game tidak dilonggarkan agar tes lulus.
+
+### Bukti pemeriksaan rilis
+
+- Suite awal: **396 tes**, 389 lulus dan 7 fixture lama gagal. Tujuh kegagalan tersebut diperbaiki pada fixture/harapan tes sesuai kontrak v19, lalu **74 tes terarah final lulus, 0 gagal, 0 dilewati** (audio, Delivery, aset baru, registry, regresi overhaul). Ini bukan klaim satu eksekusi ulang penuh `npm test` setelah seluruh penyesuaian fixture.
+- Seluruh **400 varian Dungeon** beserta replay/idle dan kasus mulai terlambat pada suite awal lulus. Source Dungeon tidak diubah. Pengujian ulang terarah bukan pengganti klaim semua kemungkinan seed/input telah dimainkan manusia.
+- Tes farm memeriksa **192 kombinasi** 12 misi × dua kesulitan × delapan seed: dekorasi hanya di rintangan, tiga alamat berbeda, data arena tidak dimutasi. Render tidak mengubah state, memakai cache tunggal dan membersihkannya saat selesai. Alpha, dimensi atlas dan UV sprite diperiksa.
+- **288 konfigurasi Delivery** = 12 misi × dua kesulitan × tiga interval × empat seed memutar ulang bukti antrean pesanan awal yang diterima, dengan tubuh, muatan, fitur map dan deadline asli. Ini bukti antrean awal, bukan klaim seluruh misi ditamatkan untuk setiap seed.
+- **Build produksi Next 15.5.28 berhasil.** Tidak ada dependensi baru, halaman baru, Markdown baru, atau perubahan kode mode lain.
+- Chromium produksi pada 1366×768, 390×844 dan 844×390: menu, follow camera, overview, misi 1 dan 12, serta Hard; atlas benar-benar selesai didekode, dua kartu pesanan tidak overflow, Rem sentuh bekerja pada profil touch asli, tidak ada page error atau aset aplikasi 4xx/5xx. Audio Time Attack yang dipulihkan (kedua stem serta MP3) dan efek poison didekode native dengan durasi/energi valid; pasangan stem tetap tepat 30 detik.
+- Belum diuji pada HP fisik Android/iOS atau dinilai lewat pendengaran manusia. Tidak ada klaim pengujian menyeluruh setiap interaksi pada seluruh mode. Paket akhir diperiksa CRC dan kelengkapan seluruh berkas.

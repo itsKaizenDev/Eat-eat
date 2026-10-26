@@ -21,14 +21,14 @@ const GameCanvas = forwardRef(function GameCanvas({ mode, onUpdate, speedPref, t
   const prefsRef = useRef({ speedPref, taDuration });
   const kindRef = useRef('arcade');
   const inputRef = useRef(null);
-  const sounds = useSounds(audioPrefs);
+  const sounds = useSounds(audioPrefs, audioStatus => onUpdate({audioStatus}));
   const updateRef = useRef(onUpdate), sceneRef = useRef({ mode });
   updateRef.current = patch => { sceneRef.current = { ...sceneRef.current, ...patch }; sounds.updateScene(sceneRef.current); onUpdate({ ...patch, recordSave: patch.recordSave || { pending: pendingRecords.current.pending } }); };
 
   const kind = kindOf(mode); // 'arcade' (engine lama), 'puzzle' (stealth real-time), atau 'delivery' (kurir)
   prefsRef.current = { speedPref, taDuration };
   kindRef.current = kind;
-  useEffect(() => { inputRef.current?.clear(); modeRef.current = mode; if (engineRef.current) engineRef.current.setMode(mode); }, [mode]);
+  useEffect(() => { inputRef.current?.clear(); modeRef.current = mode; sceneRef.current = {mode}; sounds.updateScene(sceneRef.current); if (engineRef.current) engineRef.current.setMode(mode); }, [mode]);
 
   // Satu controller aktif per jenis mode. Berpindah jenis (arkade <-> puzzle) menghancurkan yang lama
   // (timer/RAF/tween ikut dibersihkan) dan membuat yang baru; berpindah antar mode arkade memakai engine yang sama.
@@ -37,7 +37,7 @@ const GameCanvas = forwardRef(function GameCanvas({ mode, onUpdate, speedPref, t
     onUpdate({ engineReady: false, engineError: '' });
     LOADERS[kind]().then(make => {
       if (cancelled) return;
-      engine = make({ canvas: canvasRef.current, sounds, onUpdate: patch => updateRef.current(patch) });
+      engine = make({ canvas: canvasRef.current, sounds, onUpdate: patch => { if (!cancelled) updateRef.current(patch); } });
       engine.setMode(modeRef.current);
       if (prefsRef.current.speedPref) engine.setSpeedPref(prefsRef.current.speedPref);
       if (prefsRef.current.taDuration) engine.setTaDuration(prefsRef.current.taDuration);
@@ -49,6 +49,7 @@ const GameCanvas = forwardRef(function GameCanvas({ mode, onUpdate, speedPref, t
   }, [kind]);
 
   useImperativeHandle(ref, () => ({
+    retryAudio: () => sounds.retryMusic(),
     startRun: () => !!(engineRef.current && engineRef.current.startRun()),
     pauseRun: (r) => { inputRef.current?.clear(); return !!(engineRef.current && engineRef.current.pauseRun(r)); },
     resumeRun: () => !!(engineRef.current && engineRef.current.resumeRun()),
@@ -67,9 +68,10 @@ const GameCanvas = forwardRef(function GameCanvas({ mode, onUpdate, speedPref, t
     chooseUpgrade: (id) => !!(engineRef.current && engineRef.current.chooseUpgrade && engineRef.current.chooseUpgrade(id)),
     reviveRun: () => engineRef.current && engineRef.current.reviveRun ? engineRef.current.reviveRun() : false,
     undo: () => { inputRef.current?.clear(); return !!(engineRef.current && engineRef.current.undo && engineRef.current.undo()); },
-    restartRun: () => { inputRef.current?.clear(); const e = engineRef.current; if (!e) return false; if (kindRef.current === 'puzzle') return e.restartLevel(); e.returnToMenu(); return e.startRun(); },
+    restartRun: () => { inputRef.current?.clear(); const e = engineRef.current; if (!e) return false; if (e.restartRun) return e.restartRun(); if (kindRef.current === 'puzzle') return e.restartLevel(); e.returnToMenu(); return e.startRun(); },
     restartLevel: () => { inputRef.current?.clear(); return !!(engineRef.current && engineRef.current.restartLevel && engineRef.current.restartLevel()); },
     retrySave: () => { const ok = engineRef.current?.retrySave?.(); const all = pendingRecords.current.retry(); onUpdate({ recordSave: { pending: pendingRecords.current.pending } }); return ok ?? all; },
+    setDeliveryDifficulty: value => !!engineRef.current?.setDifficulty?.(value),
     setLevel: (i) => !!(engineRef.current && engineRef.current.setLevel && engineRef.current.setLevel(i)),
     isRunning: () => !!(engineRef.current && engineRef.current.isRunning()),
     getState: () => (engineRef.current ? engineRef.current.getState() : 'menu'),
@@ -105,7 +107,7 @@ const GameCanvas = forwardRef(function GameCanvas({ mode, onUpdate, speedPref, t
       }
       // Spasi/Enter milik kontrol UI yang sedang fokus; jangan dicuri. Spasi di luar kontrol hanya dicegah agar halaman tidak scroll.
       if (k === ' ' || k === 'enter') {
-        if (k === ' ' && !onControl(e.target)) { e.preventDefault(); if (!e.repeat && modeRef.current === 'puzzle') engine.setDir(0, 0); }
+        if (k === ' ' && !onControl(e.target)) { e.preventDefault(); if (kindRef.current === 'delivery') engine.action('brake-on'); }
         return;
       }
       if (k === 'escape') { e.preventDefault(); if (!e.repeat) { input.clear(); engine.togglePause(); } return; }
@@ -125,7 +127,7 @@ const GameCanvas = forwardRef(function GameCanvas({ mode, onUpdate, speedPref, t
       const k = e.key.toLowerCase(); input.release('key:' + k);
       engineRef.current?.cancelHeldInput?.('key:' + k);
       if (k === 'shift') engineRef.current?.setModifier?.('sneak', false);
-      if (k === ' ') engineRef.current?.setModifier?.('run', false);
+      if (k === ' ') { engineRef.current?.setModifier?.('run', false); if (kindRef.current === 'delivery') engineRef.current?.action?.('brake-off'); }
     };
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
@@ -188,7 +190,7 @@ const GameCanvas = forwardRef(function GameCanvas({ mode, onUpdate, speedPref, t
       const rect = canvas.getBoundingClientRect(), width = rect.width;
       if (width < 1) return;
       const ratio = Math.min(2, window.devicePixelRatio || 1);
-      const w = kind === 'puzzle' ? Math.max(1, Math.round(width * ratio)) : Math.max(17, Math.round(width * ratio / 17) * 17), h = kind === 'puzzle' ? Math.max(1, Math.round(rect.height * ratio)) : w * 15 / 17;
+      const w = ['puzzle','delivery'].includes(kind) ? Math.max(1, Math.round(width * ratio)) : Math.max(17, Math.round(width * ratio / 17) * 17), h = ['puzzle','delivery'].includes(kind) ? Math.max(1, Math.round(rect.height * ratio)) : w * 15 / 17;
       if (canvas.width === w && canvas.height === h) return;
       canvas.width = w; canvas.height = h;
       engineRef.current?.resize?.();
@@ -197,7 +199,7 @@ const GameCanvas = forwardRef(function GameCanvas({ mode, onUpdate, speedPref, t
     return () => observer.disconnect();
   }, [kind]);
 
-  return <canvas ref={canvasRef} id="c" width="680" height="600" aria-label={kind === 'puzzle' ? 'Dungeon Shadow Heist. WASD bergerak, Shift mengendap, E berinteraksi.' : 'Arena K-Snake'} style={{ background: kind === 'puzzle' ? '#152c33' : '#a2d149', aspectRatio: kind === 'puzzle' ? 'auto' : '680 / 600' }} />;
+  return <canvas ref={canvasRef} id="c" width="680" height="600" aria-label={kind === 'puzzle' ? 'Dungeon Shadow Heist. WASD bergerak, Shift mengendap, E berinteraksi.' : 'Arena K-Snake'} style={{ background: kind === 'puzzle' ? '#152c33' : '#a2d149', aspectRatio: ['puzzle','delivery'].includes(kind) ? 'auto' : '680 / 600' }} />;
 });
 
 export default GameCanvas;

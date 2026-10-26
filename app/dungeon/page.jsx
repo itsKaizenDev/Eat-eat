@@ -5,6 +5,8 @@ import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, BookOpen, Check, ChevronRigh
 import { MISSIONS } from '@/lib/heist/missions.mjs';
 import { grade, initialState, sees, step, tileAt, visibleCells } from '@/lib/heist/engine.mjs';
 import { createDirectionInput } from '@/lib/input.js';
+import { useSounds } from '@/hooks/useSounds';
+import { DEFAULT_AUDIO, loadAudio, saveAudio } from '@/lib/audio/preferences';
 import './style.css';
 
 const STORAGE='ksnake-heist-v2';
@@ -90,9 +92,13 @@ export default function DungeonPage() {
   const gameRef=useRef(game);
   const [paused,setPaused]=useState(false);
   const [drawer,setDrawer]=useState(false);
-  const [sound,setSound]=useState(true);
+  const [audioPrefs,setAudioPrefs]=useState(DEFAULT_AUDIO);
+  const sound=!audioPrefs.muted;
+  const sounds=useSounds(audioPrefs);
+  const setSound=enabled=>setAudioPrefs(p=>{const next={...p,muted:!enabled};saveAudio(next);return next;});
+  useEffect(()=>setAudioPrefs(loadAudio()),[]);
   const [toast,setToast]=useState('');
-  const audioRef=useRef(null);
+
   const [runId,setRunId]=useState(0);
   const [settled,setSettled]=useState(false);
   const liveRef=useRef({});
@@ -100,15 +106,8 @@ export default function DungeonPage() {
   useEffect(()=>{const data=loadProgress();setProgress(data);},[]);
   const mission=MISSIONS[index], state=game.state;
   const openLevel=useCallback((i)=>{if(i<0||i>=MISSIONS.length)return;const reset={state:initialState(MISSIONS[i]),history:[]};gameRef.current=reset;setIndex(i);setRunId(n=>n+1);setGame(reset);setPaused(false);setDrawer(false);setToast('');},[]);
-  const playSound=useCallback((freq=420)=>{
-    if(!sound)return;
-    try{ const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
-      if(!audioRef.current)audioRef.current=new AC(); const ctx=audioRef.current;
-      const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type='sine';osc.frequency.setValueAtTime(freq,ctx.currentTime);
-      gain.gain.setValueAtTime(.045,ctx.currentTime);gain.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.09);
-      osc.connect(gain);gain.connect(ctx.destination);osc.start();osc.stop(ctx.currentTime+.10);
-    }catch{}
-  },[sound]);
+  const playSound=useCallback(freq=>sounds.playEvent(freq===740?'win':freq===185?'hurt':'anticipate'),[sounds]);
+  useEffect(()=>{sounds.updateScene({mode:'puzzle',running:state.status==='playing',paused:paused||drawer,puzzle:{environment:'ruins',suspicion:state.exposure?90:0}});},[sounds,state.status,state.exposure,paused,drawer]);
   const act=useCallback((action)=>{
     if(paused||drawer)return;
     const current=gameRef.current;
@@ -157,9 +156,11 @@ export default function DungeonPage() {
       else if(e.key==='Escape'&&!e.repeat){e.preventDefault();if(drawer)setDrawer(false);else setPaused(v=>!v);}
     };
     const onUp=e=>{const k=norm(e);if(KEY_DIR[k])releaseDir(`key:${k}`);};
-    const onBlur=()=>inputRef.current.clear();
+    const onBlur=()=>{inputRef.current.clear();setPaused(true);};
+    const onHidden=()=>{if(document.hidden)onBlur();};
+    document.addEventListener('visibilitychange',onHidden);
     window.addEventListener('keydown',onKey);window.addEventListener('keyup',onUp);window.addEventListener('blur',onBlur);
-    return()=>{window.removeEventListener('keydown',onKey);window.removeEventListener('keyup',onUp);window.removeEventListener('blur',onBlur);inputRef.current?.clear();};
+    return()=>{document.removeEventListener('visibilitychange',onHidden);window.removeEventListener('keydown',onKey);window.removeEventListener('keyup',onUp);window.removeEventListener('blur',onBlur);inputRef.current?.clear();};
   },[act,undo,restart,drawer,pressDir,releaseDir]);
   useEffect(()=>{if(paused||drawer||state.status!=='playing')inputRef.current?.clear();},[paused,drawer,state.status]);
   // Beri jeda singkat agar langkah terakhir (tertangkap / keluar) sempat terlihat sebelum panel hasil muncul.
@@ -211,3 +212,4 @@ export default function DungeonPage() {
     {drawer&&<div className="heist-overlay heist-drawer-overlay" role="dialog" aria-modal="true" aria-label="Pemilihan misi"><div className="heist-drawer"><div className="heist-drawer-heading"><div><div className="heist-eyebrow">DUNGEON HEIST</div><h2>Pilih Misi</h2></div><button onClick={()=>setDrawer(false)} aria-label="Tutup"><X/></button></div><div className="heist-missions">{MISSIONS.map((m,i)=>{const locked=i>=progress.unlocked,rec=progress.records[m.id];return <button key={m.id} disabled={locked} className={`heist-mission-card ${i===index?'active':''}`} onClick={()=>openLevel(i)}><div className="heist-mission-num">{locked?<LockKeyhole size={20}/>:String(i+1).padStart(2,'0')}</div><div><small>{m.chapter}</small><strong>{m.title}</strong><span>{locked?'Selesaikan misi sebelumnya':rec?'Terbaik: '+rec.best+' giliran':'Belum dimainkan'}</span></div><div className="heist-mission-stars">{rec?Array.from({length:3},(_,j)=><Star key={j} size={13} fill={j<rec.stars?'currentColor':'none'}/>):<ChevronRight size={18}/>}</div></button>})}</div><p className="heist-drawer-note">Misi terbuka secara berurutan. Progress disimpan di browser ini.</p></div></div>}
   </main>;
 }
+

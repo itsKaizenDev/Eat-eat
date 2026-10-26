@@ -277,7 +277,7 @@ test('controller: lifecycle — mulai sekali, arah memulai, pause menahan, block
 });
 
 test('controller: HUD memuat waktu shift, terkirim/target, tiga slot kargo, pesanan', () => {
-  const w = makeDeliveryWorld(); w.eng.startRun();
+  const w = makeDeliveryWorld({config:{shiftMs:120000,target:5}}); w.eng.startRun();
   const h = w.last('delivery');
   assert.equal(h.timeText, '2:00'); assert.equal(h.target, 5); assert.equal(h.delivered, 0);
   assert.equal(h.cargo.length, 3); assert.ok(h.cargo.every(c => c === null));
@@ -328,7 +328,7 @@ test('controller: shift habis tanpa target = kalah; menang bila target tercapai;
 });
 
 test('controller: tabrakan mengakhiri shift sekali dengan suara kematian; rekor tersimpan di konfigurasi kecepatan yang dipakai', () => {
-  const w = makeDeliveryWorld({ speed: 'santai' }); w.eng.startRun(); w.advance(4000);
+  const w = makeDeliveryWorld({ speed: 'santai', config:{shiftMs:120000,target:5} }); w.eng.startRun(); w.advance(4000);
   assert.equal(w.eng.getState(), 'lost'); assert.equal(w.calls.death, 1); assert.equal(w.overlays('gameover').length, 1);
   assert.match(w.overlays('gameover')[0].overlay.title, /Tabrakan/);
   assert.equal(w.saves.length, 1);

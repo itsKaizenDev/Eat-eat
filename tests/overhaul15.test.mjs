@@ -13,7 +13,7 @@ test('audio: original finite stems share exact length, do not clip, and wrap wit
  const identities = [];
  for (const key of Object.keys(SCORES)) { const s=composeScore(key); identities.push(s.base.slice(5000,5100).join(',')); assert.equal(s.base.length,s.danger.length); for(const samples of [s.base,s.danger]) { let energy=0; for(const n of samples){assert.ok(Number.isFinite(n)&&Math.abs(n)<.8);energy+=n*n;} assert.ok(energy/samples.length>.000001); assert.ok(Math.abs(samples[0]-samples.at(-1))<.035,key); } }
  assert.equal(new Set(identities).size,Object.keys(SCORES).length);
- assert.deepEqual(parseAudio('{"music":9,"sfx":-1,"muted":true}'),{music:1,sfx:0,muted:true});
+ assert.deepEqual(parseAudio('{"music":9,"sfx":-1,"muted":true}'),{music:1,sfx:0,master:1,muted:true});
  assert.equal(audioScene({mode:'puzzle',running:true,puzzle:{boss:{phase:3},suspicion:0}}).key,'dungeonBoss');
  assert.equal(audioScene({mode:'roguelite',running:true,boss:{isBoss:true,variant:'vine',phase:2}}).key,'expeditionVine');
 });
@@ -25,7 +25,7 @@ function fakeAudio(){
  a.resume=()=>{a.state='running';return Promise.resolve()};a.suspend=()=>{a.state='suspended';return Promise.resolve()};a.close=()=>{a.closed++;return Promise.resolve()};return a;
 }
 test('audio: gesture unlock, synchronized stems, pause/resume without restart, bounded cache, idempotent cleanup',()=>{
- const ac=fakeAudio(), d=createAudioDirector({contextFactory:()=>ac}); d.setScene({key:'dungeon'});assert.equal(ac.sources.length,0);d.unlock();assert.equal(ac.sources.length,2);assert.equal(ac.sources[0].started,ac.sources[1].started);assert.ok(ac.sources.every(s=>s.loop));
+ const ac=fakeAudio(), d=createAudioDirector({contextFactory:()=>ac,loadMusic:()=>[ac.createBuffer(1,20,20),ac.createBuffer(1,20,20)]}); d.setScene({key:'dungeon'});assert.equal(ac.sources.length,0);d.unlock();assert.equal(ac.sources.length,2);assert.equal(ac.sources[0].started,ac.sources[1].started);assert.ok(ac.sources.every(s=>s.loop));
  d.setScene({paused:true});assert.equal(ac.state,'suspended');d.setScene({paused:false,intensity:.8});assert.equal(ac.sources.length,2);
  for(const key of ['dungeonBoss','expedition','expeditionBoss','adventure'])d.setScene({key});assert.equal(d.inspect().cacheSize,2);
  d.setPreferences({muted:true});assert.equal(ac.state,'suspended');d.destroy();d.destroy();assert.equal(ac.closed,1);assert.equal(d.inspect().stems,0);assert.ok(ac.sources.every(s=>s.stopped!==undefined));

@@ -75,13 +75,13 @@ test('konsistensi: background WebP memiliki header valid dan budget ukuran', () 
   }
 });
 
-test('registry: mode petualangan punya tujuan, pratinjau aturan, kontrol; Delivery menampilkan durasi tetap (bukan pilihan palsu)', () => {
+test('registry: mode petualangan punya tujuan, pratinjau aturan, kontrol; Delivery menggunakan durasi per misi', () => {
   for (const m of modesInGroup('adventure')) {
     assert.ok(typeof m.goal === 'string' && m.goal.length > 10, m.id + '.goal');
     assert.ok(Array.isArray(m.preview) && m.preview.length >= 3, m.id + '.preview');
     assert.ok(m.controls.length > 5);
   }
-  assert.deepEqual(getMode('delivery').duration, { fixedSec: 120, label: '120 detik (tetap)' });
+  assert.equal(getMode('delivery').duration, undefined);assert.match(getMode('delivery').description,/12 misi/);
   assert.equal(getMode('puzzle').duration, undefined);
 });
 

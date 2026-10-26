@@ -114,3 +114,4 @@ test('ikon Map di UI tidak menimpa constructor Map bawaan JavaScript',()=>{
   assert.match(source,/<MapIcon(?:\s|\/>)/, 'Ikon navigasi memakai nama alias');
   assert.doesNotMatch(source,/<Map(?:\s|\/>)/, 'Jangan pakai identifier Map untuk ikon');
 });
+

@@ -1,15 +1,13 @@
 'use client';
 import { useRef, useMemo, useEffect } from 'react';
 import { createAudioDirector } from '@/lib/audio/director';
-import { createScoreRenderer } from '@/lib/audio/renderer';
 import { audioScene } from '@/lib/audio/score';
 
-export function useSounds(preferences) {
-  const director = useRef(null);
+export function useSounds(preferences, onStatus) {
+  const director = useRef(null), statusRef = useRef(onStatus); statusRef.current = onStatus;
   const getDirector = () => {
     if (!director.current) {
-      const renderer = createScoreRenderer();
-      director.current = createAudioDirector({renderScore:renderer.render,disposeRenderer:renderer.destroy});
+      director.current = createAudioDirector({onStatus:value => statusRef.current?.(value)});
     }
     return director.current;
   };
@@ -20,6 +18,7 @@ export function useSounds(preferences) {
   }, []);
   useEffect(() => { getDirector().setPreferences(preferences); }, [preferences]);
   return useMemo(() => ({
+    retryMusic: () => getDirector().retryMusic(),
     updateScene: hud => getDirector().setScene(audioScene(hud)),
     playEvent: name => getDirector().event(name),
     playChomp: () => getDirector().sample('chomp'), playMove: () => getDirector().sample('move'),

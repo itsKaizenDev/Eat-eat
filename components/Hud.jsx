@@ -45,6 +45,7 @@ function DeliveryStats({ d, cols }) {
         <span><PkgI size={14} />Terkirim {d.delivered}/{d.target}</span>
         {d.stale > 0 && <span><ICONS.poison size={14} />Basi {d.stale}</span>}
       </div>
+      {d.units != null && <p>Muatan {d.units}/{d.capacity} slot · Combo {d.streak}</p>}
       <div className="deliv-slots" role="list" aria-label="Kargo">
         {d.cargo.map((c, i) => {
           if (!c) return <div key={i} role="listitem" className="deliv-slot" data-filled="false" aria-label={`Slot ${i + 1}: kosong`}><span>—</span><span>kosong</span></div>;
@@ -59,7 +60,7 @@ function DeliveryStats({ d, cols }) {
       </div>
       <div className="hud-col">
       <div className="deliv-orders">
-        {d.orders.map(o => <span key={o.id}>{o.type} {o.label}: {o.picked ? `antar ke rumah ${o.type}` : 'ambil di titik pickup'}</span>)}
+        {d.orders.map(o => <span key={o.id}>{o.kindLabel || o.label} {o.type}: {o.picked ? `antar ke ${(o.stops || [o.type]).join(' → ')}` : 'ambil di titik pickup'}{o.secs != null ? ` · ${o.secs}d · +${o.reward}` : ''}{o.kind === 'fragile' && o.picked ? ` · kondisi ${o.integrity}%` : ''}</span>)}
       </div>
       <div className="puzzle-msg" role="status" aria-live="polite" aria-atomic="true">{d.message}</div>
       </div>
@@ -162,6 +163,22 @@ export function GameDetails({ mode, hud: h }) {
   </div>;
 }
 
+function CourierHud({d,onInfo,onPause,canPause,onCamera}) {
+ return <div className="game-hud courier-hud">
+  <div className="courier-readout">
+   <div className="courier-summary"><span><small>MISI {d.mission} · {d.difficultyLabel || 'Normal'}</small><b>{d.delivered}/{d.target} kiriman</b></span><span data-danger={d.remainingMs<20000}><small>WAKTU</small><b>{d.timeText}</b></span><span><small>SKOR</small><b>{d.score}</b></span></div>
+   <div className="courier-manifest" aria-label="Pesanan aktif">{d.orders.map(o=><article key={o.id} data-danger={o.secs<=7} className="courier-order" aria-label={`${o.kindLabel}, ${o.picked?'dibawa':'ambil'}, tujuan ${o.stops.join(', ')}, ${o.secs} detik`}>
+    <div><b>{o.kindLabel}</b><strong>{o.secs}d</strong></div><p><span className="order-state">{o.picked?'ANTAR':'AMBIL'}</span> <b>{o.stops.length===1 ? `${o.stops[0]} ${d.sites?.[o.stops[0]] || ''}` : o.stops.join(' → ')}</b> <span>+{o.reward}</span></p>
+    <small>{o.picked?o.kind==='fragile'?`Kondisi ${o.integrity}%`:'Dalam kargo':`Pickup (${o.pickup.x+1},${o.pickup.y+1})`}{o.kind==='heavy'?' · 2 slot':o.kind==='multi'?' · 2 alamat':''}</small>
+   </article>)}</div>
+   <div className="courier-cargo"><span>Muatan <b>{d.units}/{d.capacity}</b></span><span>{d.braking?'REM AKTIF':d.streak>1?`Combo ×${d.streak}`:d.district}</span></div>
+   <p className="courier-notice" role="status" aria-live="polite">{d.message||'Ikuti huruf paket. Rem / Spasi untuk menunggu; Peta untuk rute.'}</p>
+  </div>
+  <nav className="hud-tools" aria-label="Menu permainan"><button onClick={onInfo} aria-label="Info misi dan pengaturan"><ICONS.info size={20}/></button>{canPause&&<button onClick={onPause} aria-label="Jeda"><ICONS.pause size={20}/></button>}</nav>
+  <nav className="camera-tools" aria-label="Kamera Delivery"><button onClick={e=>{onCamera?.('toggle');if(e.detail>0)e.currentTarget.blur();}} aria-label={d.overview?'Ikuti ular':'Lihat seluruh peta'} aria-pressed={!!d.overview}>{d.overview?<ICONS.locate size={19}/>:<ICONS.map size={19}/>}</button></nav>
+ </div>;
+}
+
 export default function Hud({ mode, hud, onInfo, onPause, canPause, onCamera }) {
   const view = gameView(mode, hud);
   const [notice, setNotice] = useState('');
@@ -170,6 +187,7 @@ export default function Hud({ mode, hud, onInfo, onPause, canPause, onCamera }) 
     const timer = setTimeout(() => setNotice(''), 5000);
     return () => clearTimeout(timer);
   }, [view.message]);
+  if (mode === 'delivery' && hud.delivery?.revision === 2) return <CourierHud d={hud.delivery} onInfo={onInfo} onPause={onPause} canPause={canPause} onCamera={onCamera}/>;
   return <div className="game-hud">
     <div className="hud-readout">
       <div className="hud-values">{view.stats.map((s, i) => {

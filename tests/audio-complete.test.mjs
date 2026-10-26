@@ -5,7 +5,10 @@ import { root, registry, makePuzzleWorld, puzzle, validation } from './helpers/e
 import { room, pt } from './puzzle.fixtures.mjs';
 const load = file => import(pathToFileURL(root+'/node_modules/.cache/snake-tests/'+file+'.mjs'));
 const {SCORES,composeScore,audioScene} = await load('audio/score');
-const {createAudioDirector} = await load('audio/director');
+const {createAudioDirector:createFileDirector} = await load('audio/director');
+const {EFFECT_FILES} = await load('audio/catalog');
+const bufferScore=(score,ac)=>[score.base,score.danger].map(s=>{const b=ac.createBuffer(1,s.length,score.sampleRate);b.copyToChannel(s,0);return b});
+function createAudioDirector(options){const {compose=smallScore,renderScore,disposeRenderer,...rest}=options;return createFileDirector({...rest,loadMusic:(track,ac,signal)=>renderScore?renderScore(track.key,22050,track.variation).then(s=>bufferScore(s,ac)):bufferScore(compose(track.key),ac)});}
 const {battleAudioEvent} = await load('audio/events');
 function fakeAudio() {
   const ac={currentTime:2,state:'suspended',sources:[],oscillators:[],closed:0};
@@ -18,7 +21,7 @@ function fakeAudio() {
   ac.decodeAudioData=async()=>({duration:1});return ac;
 }
 const smallScore=()=>({base:new Float32Array(20),danger:new Float32Array(20),sampleRate:20});
-const flush=async()=>{for(let i=0;i<12;i++)await Promise.resolve()};
+const flush=async()=>{for(let i=0;i<200;i++)await Promise.resolve()};
 
 test('audio: every registered mode has an intentional musical route; arcade modes have ten distinct identities',()=>{
  const arcade=[];
@@ -34,7 +37,7 @@ test('audio: every registered mode has an intentional musical route; arcade mode
 });
 test('audio: adventure environments and urgent encounters follow actual progress, time, lives and territory',()=>{
  const courier=timeText=>audioScene({mode:'delivery',running:true,delivery:{timeText}});
- assert.equal(courier('2:00').key,'adventure');assert.equal(courier('1:00').key,'adventureMarket');assert.equal(courier('0:20').key,'adventureDanger');
+ assert.equal(courier('2:00').key,'delivery');assert.equal(courier('1:00').key,'delivery');assert.equal(courier('0:20').key,'deliveryRush');
  assert.equal(audioScene({mode:'territory',running:true,territory:{timeText:'1:00',players:[{lives:3,pct:20}]}}).key,'adventureArena');
  assert.equal(audioScene({mode:'territory',running:true,territory:{timeText:'1:00',players:[{lives:1,pct:20}]}}).key,'adventureDanger');
  assert.equal(audioScene({mode:'timeattack',running:true,timerText:'0:10'}).intensity,.95);
@@ -60,11 +63,11 @@ test('audio: portal and gadget action cues play immediately, once, and survive t
 test('audio: original SFX unlock into one context, use synth while loading, and never replay a stale event',async()=>{
  const ac=fakeAudio(),resolvers=[];
  const d=createAudioDirector({contextFactory:()=>ac,compose:smallScore,fetchAudio:()=>new Promise(resolve=>resolvers.push(resolve))});
- d.sample('chomp');assert.equal(ac.oscillators.length,0);d.unlock();await flush();assert.equal(resolvers.length,5);
- d.sample('chomp');assert.equal(ac.oscillators.length,1);for(const resolve of resolvers)resolve({ok:true,arrayBuffer:async()=>new ArrayBuffer(1)});await flush();
- assert.equal(d.inspect().assets,5);assert.equal(ac.sources.filter(s=>!s.loop).length,0);
- ac.currentTime+=1;d.sample('chomp');assert.equal(ac.sources.filter(s=>!s.loop).length,1);
- d.setScene({paused:true});ac.currentTime+=1;d.sample('death');assert.equal(ac.sources.filter(s=>!s.loop).length,1);d.destroy();assert.equal(ac.closed,1);
+ d.sample('chomp');assert.equal(ac.oscillators.length,0);d.unlock();await flush();assert.equal(resolvers.length,4);
+ d.sample('chomp');assert.equal(ac.oscillators.length,1);for(let i=0;i<12;i++){for(const resolve of resolvers.splice(0))resolve({ok:true,arrayBuffer:async()=>new ArrayBuffer(1)});await flush();}
+ assert.equal(d.inspect().assets,5+Object.keys(EFFECT_FILES).length);assert.equal(ac.sources.filter(s=>!s.loop).length,0);
+ ac.currentTime+=1;d.sample('chomp');assert.equal(ac.sources.filter(s=>!s.loop).length,1);const oscillators=ac.oscillators.length;d.event('portal');assert.equal(ac.sources.filter(s=>!s.loop).length,2);assert.equal(ac.oscillators.length,oscillators);
+ d.setScene({paused:true});ac.currentTime+=1;d.sample('death');assert.equal(ac.sources.filter(s=>!s.loop).length,2);d.destroy();assert.equal(ac.closed,1);
 });
 test('audio: low-priority voices are bounded; fatal audio interrupts warning; mute and zero SFX prevent playback',()=>{
  const ac=fakeAudio(),d=createAudioDirector({contextFactory:()=>ac,compose:smallScore,fetchAudio:null});d.unlock();
@@ -74,17 +77,17 @@ test('audio: low-priority voices are bounded; fatal audio interrupts warning; mu
  const count=ac.oscillators.length;d.setPreferences({sfx:0});ac.currentTime++;d.event('phase');assert.equal(ac.oscillators.length,count);
  d.setPreferences({sfx:1,muted:true});d.sample('chomp');assert.equal(ac.oscillators.length,count);d.destroy();
 });
-test('audio: asynchronous music coalesces mode switches, preserves current playhead and ignores completion after destroy',async()=>{
- const ac=fakeAudio(),pending=[];let disposed=0;
- const d=createAudioDirector({contextFactory:()=>ac,renderScore:(key)=>new Promise(resolve=>pending.push({key,resolve})),disposeRenderer:()=>disposed++,fetchAudio:null});
- d.unlock();await flush();assert.equal(pending.length,1);d.setScene({key:'dungeon'});d.setScene({key:'expeditionSpore'});assert.equal(pending.length,1);
- pending.shift().resolve(smallScore());await flush();assert.equal(pending.length,1);assert.equal(pending[0].key,'expeditionSpore');pending.shift().resolve(smallScore());await flush();
+test('audio: asynchronous music file loading coalesces mode switches, preserves current playhead and ignores completion after destroy',async()=>{
+ const ac=fakeAudio(),pending=[];
+ const d=createAudioDirector({contextFactory:()=>ac,renderScore:(key)=>new Promise(resolve=>pending.push({key,resolve})),fetchAudio:null});
+ d.unlock();await flush();assert.equal(pending.length,1);d.setScene({key:'dungeon'});d.setScene({key:'expeditionSpore'});assert.equal(pending.length,3);
+ pending.shift().resolve(smallScore());pending.shift().resolve(smallScore());await flush();assert.equal(d.inspect().stems,0);assert.equal(pending.length,1);assert.equal(pending[0].key,'expeditionSpore');pending.shift().resolve(smallScore());await flush();assert.equal(d.inspect().activeTrack,'expeditionSpore:0');
  const sources=ac.sources.length;d.setScene({intensity:.9});assert.equal(ac.sources.length,sources);d.setScene({paused:true});assert.equal(ac.state,'suspended');d.setScene({paused:false});assert.equal(ac.sources.length,sources);
- d.setScene({key:'portal'});await flush();d.destroy();pending.shift().resolve(smallScore());await flush();assert.equal(d.inspect().cacheSize,0);assert.equal(disposed,1);
+ d.setScene({key:'portal'});await flush();d.destroy();pending.shift().resolve(smallScore());await flush();assert.equal(d.inspect().cacheSize,0);assert.equal(ac.closed,1);
 });
 test('audio: failed original asset loads keep an immediate audible fallback without late retries',async()=>{
  const ac=fakeAudio(),d=createAudioDirector({contextFactory:()=>ac,compose:smallScore,fetchAudio:async()=>({ok:false})});d.unlock();await flush();
- assert.equal(d.inspect().assetErrors.length,5);d.sample('chomp');assert.equal(ac.oscillators.length,1);d.destroy();
+ assert.equal(d.inspect().assetErrors.length,5+Object.keys(EFFECT_FILES).length);d.sample('chomp');assert.equal(ac.oscillators.length,1);d.destroy();
 });
 
 test('audio: boss phase changes alter the arrangement while preserving its musical position',()=>{
