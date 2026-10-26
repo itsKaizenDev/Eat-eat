@@ -7,7 +7,11 @@ export function useSounds(preferences, onStatus) {
   const director = useRef(null), statusRef = useRef(onStatus); statusRef.current = onStatus;
   const getDirector = () => {
     if (!director.current) {
+<<<<<<< HEAD
       director.current = createAudioDirector({onStatus:value => statusRef.current?.(value)});
+=======
+      director.current = createAudioDirector();
+>>>>>>> d8551af93c55dca40eaf20b0da1fc20f965809e6
     }
     return director.current;
   };

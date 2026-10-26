@@ -5209,6 +5209,7 @@ Untuk mengganti musik, ganti file stem yang dipetakan pada katalog dengan pasang
 - **45 konfigurasi browser produksi lulus:** 15 mode × desktop, ponsel tegak, ponsel mendatar. Setiap mode menunggu `activeTrack` yang sesuai dan loop dari file yang telah dimuat. Tidak ada galat JavaScript atau aset aplikasi 4xx/5xx.
 - Integrasi Chromium mendekode dan memainkan seluruh **30 aransemen/60 stem FLAC**, mendekode seluruh **30 MP3** dengan durasi dan energi audio valid, memuat **35 file efek**, serta memastikan cue portal memakai BufferSource. Tidak ada pekerjaan komposisi musik dalam worker. Pause/resume membekukan/melanjutkan jam audio; mute/unmute dan slider musik 22%/SFX 44% tetap bekerja melalui UI.
 - Paket aset baru berukuran 31.205.470 byte sebelum pengemasan ZIP. Tidak ada perubahan data map, aturan gameplay atau progres pada v17. Batas playtest pendengaran dan perangkat fisik pada v16 tetap berlaku.
+<<<<<<< HEAD
 
 ## v20 — Aset Delivery: kebun buah dan peternakan (26 Oktober 2026)
 
@@ -5249,3 +5250,5 @@ Fixture tes dari arsip lama disesuaikan dengan kontrak yang memang sudah ada pad
 - **Build produksi Next 15.5.28 berhasil.** Tidak ada dependensi baru, halaman baru, Markdown baru, atau perubahan kode mode lain.
 - Chromium produksi pada 1366×768, 390×844 dan 844×390: menu, follow camera, overview, misi 1 dan 12, serta Hard; atlas benar-benar selesai didekode, dua kartu pesanan tidak overflow, Rem sentuh bekerja pada profil touch asli, tidak ada page error atau aset aplikasi 4xx/5xx. Audio Time Attack yang dipulihkan (kedua stem serta MP3) dan efek poison didekode native dengan durasi/energi valid; pasangan stem tetap tepat 30 detik.
 - Belum diuji pada HP fisik Android/iOS atau dinilai lewat pendengaran manusia. Tidak ada klaim pengujian menyeluruh setiap interaksi pada seluruh mode. Paket akhir diperiksa CRC dan kelengkapan seluruh berkas.
+=======
+>>>>>>> d8551af93c55dca40eaf20b0da1fc20f965809e6

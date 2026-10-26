@@ -80,8 +80,13 @@ test('audio: low-priority voices are bounded; fatal audio interrupts warning; mu
 test('audio: asynchronous music file loading coalesces mode switches, preserves current playhead and ignores completion after destroy',async()=>{
  const ac=fakeAudio(),pending=[];
  const d=createAudioDirector({contextFactory:()=>ac,renderScore:(key)=>new Promise(resolve=>pending.push({key,resolve})),fetchAudio:null});
+<<<<<<< HEAD
  d.unlock();await flush();assert.equal(pending.length,1);d.setScene({key:'dungeon'});d.setScene({key:'expeditionSpore'});assert.equal(pending.length,3);
  pending.shift().resolve(smallScore());pending.shift().resolve(smallScore());await flush();assert.equal(d.inspect().stems,0);assert.equal(pending.length,1);assert.equal(pending[0].key,'expeditionSpore');pending.shift().resolve(smallScore());await flush();assert.equal(d.inspect().activeTrack,'expeditionSpore:0');
+=======
+ d.unlock();await flush();assert.equal(pending.length,1);d.setScene({key:'dungeon'});d.setScene({key:'expeditionSpore'});assert.equal(pending.length,1);
+ pending.shift().resolve(smallScore());await flush();assert.equal(pending.length,1);assert.equal(pending[0].key,'expeditionSpore');pending.shift().resolve(smallScore());await flush();
+>>>>>>> d8551af93c55dca40eaf20b0da1fc20f965809e6
  const sources=ac.sources.length;d.setScene({intensity:.9});assert.equal(ac.sources.length,sources);d.setScene({paused:true});assert.equal(ac.state,'suspended');d.setScene({paused:false});assert.equal(ac.sources.length,sources);
  d.setScene({key:'portal'});await flush();d.destroy();pending.shift().resolve(smallScore());await flush();assert.equal(d.inspect().cacheSize,0);assert.equal(ac.closed,1);
 });
