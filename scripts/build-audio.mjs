@@ -26,11 +26,7 @@ try {
   for(let i=0;i<mix.length;i++)mix[i]=score.base[i]+score.danger[i]*intensity;
   const input=path.join(temp,'mix.wav'),preview=path.join(output,name+'.mp3');fs.writeFileSync(input,wav(mix));
   ffmpeg(['-i',input,'-map_metadata','-1','-c:a','libmp3lame','-b:a','80k','-metadata','artist=K-Snake','-metadata','title='+name,preview]);bytes+=fs.statSync(preview).size;
-<<<<<<< HEAD
   catalog[key+':'+variation]={key,variation,...files,preview:'/sounds/music/'+path.basename(preview),sampleRate:rate,frames:score.base.length,duration:score.duration,loop:SCORES[key].loop!==false};
-=======
-  catalog[key+':'+variation]={key,variation,...files,preview:'/sounds/music/'+path.basename(preview),sampleRate:rate,frames:score.base.length,duration:score.duration};
->>>>>>> d8551af93c55dca40eaf20b0da1fc20f965809e6
   console.log('MUSIC',name,Math.round(score.duration*100)/100+'s');
  }
  const cueFiles={};

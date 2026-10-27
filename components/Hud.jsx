@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { gameView } from '@/lib/gameView';
 import { getMode } from '@/lib/modes/registry';
 import { ICONS } from '@/lib/icons';
+import ExpeditionHud from './ExpeditionHud';
 
 function Hearts({ count }) {
   const HeartIcon = ICONS.heart;
@@ -155,7 +156,7 @@ export function GameDetails({ mode, hud: h }) {
     <p className="eyebrow">K-SNAKE / {meta?.label}</p>
     {h.puzzle && <><h3>Ruang {h.puzzle.levelNo} · {h.puzzle.name}</h3><PuzzleStats p={h.puzzle} /><p>Rekor: {h.puzzle.best || '—'} · Acuan: {h.puzzle.par} · Denah: {h.puzzle.shape}</p><details><summary>Cara mendapat 3 bintang</summary><p>{h.puzzle.boss ? 'Boss: lima nyawa untuk tiga bintang; tiga atau empat nyawa untuk dua bintang. Waktu tidak menentukan bintang.' : 'Tanpa alarm, ambil semua koin bonus, dan keluar sebelum waktu acuan.'}</p></details></>}
     {h.delivery && <DeliveryStats d={h.delivery} />}
-    {h.roguelite && <RogueStats r={h.roguelite} />}
+    {h.roguelite && (h.roguelite.expedition ? <><h3>{h.roguelite.regionName}</h3><p>{h.roguelite.objective}</p><p>HP {h.roguelite.hp}/{h.roguelite.maxHp} · Bekal {h.roguelite.food} · Penawar {h.roguelite.antidote}</p><p>Miniboss {h.roguelite.totalMinis}/6 · Boss {h.roguelite.totalBosses}/3 · Kembali ke checkpoint {h.roguelite.deaths} kali</p><p>{h.roguelite.message}</p><ul>{h.roguelite.upgrades.map(a=><li key={a.id}>{a.name} ×{a.stacks}</li>)}</ul></> : <RogueStats r={h.roguelite} />)}
     {h.boss && <BossStats b={h.boss} />}
     {h.territory && <TerritoryStats t={h.territory} />}
     {meta?.kind === 'arcade' && <p>Skor {h.score} · Rekor arkade bersama {h.best}</p>}
@@ -179,7 +180,7 @@ function CourierHud({d,onInfo,onPause,canPause,onCamera}) {
  </div>;
 }
 
-export default function Hud({ mode, hud, onInfo, onPause, canPause, onCamera }) {
+export default function Hud({ mode, hud, onInfo, onPause, canPause, onCamera, onRetry }) {
   const view = gameView(mode, hud);
   const [notice, setNotice] = useState('');
   useEffect(() => {
@@ -187,6 +188,7 @@ export default function Hud({ mode, hud, onInfo, onPause, canPause, onCamera }) 
     const timer = setTimeout(() => setNotice(''), 5000);
     return () => clearTimeout(timer);
   }, [view.message]);
+  if (mode === 'roguelite' && hud.roguelite?.expedition) return <ExpeditionHud data={hud.roguelite} onInfo={onInfo} onPause={onPause} canPause={canPause} onCamera={onCamera} onRetry={onRetry}/>;
   if (mode === 'delivery' && hud.delivery?.revision === 2) return <CourierHud d={hud.delivery} onInfo={onInfo} onPause={onPause} canPause={canPause} onCamera={onCamera}/>;
   return <div className="game-hud">
     <div className="hud-readout">

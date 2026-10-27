@@ -49,8 +49,8 @@ export default function UpgradeDialog({ data, onChoose }) {
   return (
     <div role="dialog" aria-modal="true" aria-labelledby="upg-title" aria-describedby="upg-desc" className="no-swipe fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.72)' }}>
       <div className="focus-dialog bg-[#1f2a22] rounded-2xl p-4 sm:p-5 w-full max-w-[640px] max-h-[92dvh] overflow-y-auto text-white">
-        <h3 id="upg-title" className="text-lg font-bold flex items-center gap-2"><ICONS.trophy size={18} className="text-[#f5b942]" /> Ronde {c.round} tuntas!</h3>
-        <p id="upg-desc" className="text-[13px] text-[#c9d6bd] mb-3">Skor ronde {c.roundScore} • Total {c.total}. Pilih satu upgrade (tekan 1, 2, atau 3). Game berhenti sampai kamu memilih.</p>
+        <h3 id="upg-title" className="text-lg font-bold flex items-center gap-2"><ICONS.trophy size={18} className="text-[#f5b942]" /> {data.expedition ? 'Bekal perjalanan baru' : `Ronde ${c.round} tuntas!`}</h3>
+        <p id="upg-desc" className="text-[13px] text-[#c9d6bd] mb-3">{data.expedition ? `Kemajuan tersimpan setelah memilih. Total ${c.total} skor.` : `Skor ronde ${c.roundScore} • Total ${c.total}.`} Pilih satu upgrade (tekan 1, 2, atau 3). Game berhenti sampai kamu memilih.</p>
         <div className="grid gap-2.5 sm:grid-cols-3" role="group" aria-label="Pilihan upgrade">
           {data.offer.map((u, i) => {
             const Icon = ICONS[u.icon] || ICONS.help;

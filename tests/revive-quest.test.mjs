@@ -39,43 +39,6 @@ test('revive: Web Lock yang tersedia membungkus baca dan tulis jatah', async () 
   finally { if (old) Object.defineProperty(globalThis, 'navigator', old); else delete globalThis.navigator; }
 });
 
-const kill = w => {
-  w.x.sim.shield = 0; w.x.sim.reviveUntil = 0;
-  w.x.setSnake([[16, 7], [15, 7], [14, 7]], 'R'); w.eng.setDir(1, 0); w.advance(200);
-  assert.equal(w.eng.getState(), 'lost');
-};
-test('revive rute: lanjut skor/upgrade, menunggu arah, klik ganda hanya satu jatah, run tercatat sekali', async () => {
-  storage();
-  const w = makeRogueWorld({ wallNow: () => start }); w.eng.startRun();
-  w.x.sim.roundScore = 12; w.x.run.upgrades.thick = 1;
-  const foods = JSON.stringify(w.x.sim.foods), bombs = JSON.stringify(w.x.sim.bombs);
-  kill(w);
-  const first = w.eng.reviveRun(), duplicate = w.eng.reviveRun();
-  assert.equal(w.eng.startRun(), false, 'retry saat penyimpanan masih berjalan ditolak');
-  assert.equal(await duplicate, false); assert.equal(await first, true);
-  assert.equal(R.loadRevives(start).left, 2);
-  assert.equal(w.x.sim.roundScore, 12); assert.equal(w.x.run.upgrades.thick, 1);
-  assert.equal(JSON.stringify(w.x.sim.foods), foods); assert.equal(JSON.stringify(w.x.sim.bombs), bombs);
-  assert.equal(w.x.awaiting, true);
-  const clock = w.x.simNow; w.advance(10000); assert.equal(w.x.simNow, clock);
-  kill(w);
-  const record = Object.values(w.x.records.records)[0]; assert.equal(record.plays, 1);
-  w.eng.returnToMenu(); w.eng.startRun(); assert.equal(w.x.run.round, 1); assert.equal(R.loadRevives(start).left, 2);
-  w.eng.destroy();
-});
-
-test('revive rute: habis dan kegagalan simpan tetap di layar kalah tanpa mengubah posisi', async () => {
-  const w = makeRogueWorld({ reviveIO: { load: () => ({ left: 0, resetAt: start + 100 }), consume: async () => ({ ok: false, reason: 'empty', quota: { left: 0, resetAt: start + 100 } }) }, wallNow: () => start });
-  w.eng.startRun(); kill(w); const before = JSON.stringify(w.x.sim.snake);
-  assert.equal(await w.eng.reviveRun(), false); assert.equal(w.eng.getState(), 'lost');
-  assert.equal(JSON.stringify(w.x.sim.snake), before);
-  assert.match(w.last('rogueMenu').revive.error, /habis/);
-  w.eng.destroy();
-  storage(true); const x = makeRogueWorld({ wallNow: () => start }); x.eng.startRun(); kill(x);
-  assert.equal(await x.eng.reviveRun(), false); assert.equal(x.eng.getState(), 'lost');
-  assert.match(x.last('rogueMenu').revive.error, /gagal disimpan/); x.eng.destroy();
-});
-
 test('revive boss: HP/fase/shield/buff tetap, 3 hati dan aman; menang tidak bisa di-revive', () => {
   const s = B.createState({ arena: B.parseArena(B.ARENA_MAP, B.START, B.WEAK_TILES), rng: createRng(12) });
   Object.assign(s, { status: 'lost', lives: 0, round: 10, phase: 3, hp: 6, phaseHp: 6, shield: 40, energy: 5, damageStacks: 2 });
@@ -88,17 +51,7 @@ test('revive boss: HP/fase/shield/buff tetap, 3 hati dan aman; menang tidak bisa
   s.status = 'won'; assert.equal(B.reviveBattle(s, 1001), false);
 });
 
-test('revive controller di kebun melanjutkan boss yang sama dan tetap membeku sampai arah pertama', async () => {
-  storage(); const w = makeRogueWorld({ wallNow: () => start, config: { rounds: 1, targets: [4], baseBombs: [0] } });
-  w.eng.startRun(); w.x.sim.foods = [{ x: 9, y: 7, kind: 'normal' }]; w.eng.setDir(1, 0); w.advance(150);
-  w.eng.chooseUpgrade(w.last('roguelite').offer[0].id);
-  const s = w.x.battle; Object.assign(s, { round: 10, phase: 3, hp: 6, phaseHp: 6, shield: 30, damageStacks: 2, lives: 1 });
-  w.x.setSnake([[16, 7], [15, 7], [14, 7]], 'R'); w.eng.setDir(1, 0); w.advance(200);
-  assert.equal(w.eng.getState(), 'lost'); assert.equal(await w.eng.reviveRun(), true);
-  assert.deepEqual([w.x.battle.phase, w.x.battle.phaseHp, w.x.battle.shield, w.x.battle.damageStacks, w.x.battle.lives], [3, 6, 30, 2, 3]);
-  const time = w.x.simNow; w.advance(20000); assert.equal(w.x.simNow, time); assert.equal(w.x.awaiting, true);
-  w.eng.destroy();
-});
+// Expedition's quota revival contract was replaced by checkpoint rollback; see expedition.test.mjs.
 
 test('koin: hadiah hanya selisih rekor koleksi, undo/replay tidak menggandakan, migrasi rekor tidak menghapus saldo', () => {
   let p = S.parseProgress(null);

@@ -1,10 +1,87 @@
 # Changelog — K-Snake
 
-Diperbarui: 25 Oktober 2026.
+Diperbarui: 27 Oktober 2026.
 
 Seluruh catatan revisi, aturan, hasil verifikasi, prompt aset dan diff Markdown disatukan dalam berkas ini. `README.md` tetap menjadi panduan menjalankan proyek. Catatan rinci disimpan dalam bagian buka-tutup agar riwayat tetap tersedia tanpa memenuhi halaman utama.
 
 Aturan terbaru Dungeon ada pada [revisi Dungeon](#doc-dungeon-revision); pedoman visual terbaru ada pada [konsistensi scene](#doc-asset-consistency). Angka tes dan batasan di bagian arsip adalah hasil pada saat revisi tersebut dikerjakan, bukan pengujian ulang hari ini. Jika aturan arsip berbeda, gunakan revisi yang lebih baru.
+
+## Ekspedisi Rimba v22 — 27 Oktober 2026
+
+- **Redesign visual yang senada dengan K-Snake.** Garis tepi zaitun, bentuk kartun, bayangan pendek, warna tanah/daun yang lembut dan wajah ular bersama dipertahankan. Hutan Akar, Rawa Spora dan Reruntuhan Sulur memakai palet berbeda dalam keluarga warna yang sama. Hero menu yang sudah sesuai tetap dipakai.
+- Lantai mendapat tekstur ringan; batas rintangan terbaca dari rim di sisi dalam petak. Hutan mempunyai kanopi besar hanya pada blok 2×2 yang seluruhnya terhalang; air rawa, alang-alang, batu dan sulur mengikuti petak collision asli. Lingkaran aus menggantikan kotak arena putus-putus dan di-clip pada lantai. Dekorasi tidak menambah tembok atau mempersempit jalan.
+- Enam miniboss, tiga boss, crawler dan spitter mempunyai ilustrasi tubuh yang lebih jelas: zirah/taring boar, sabit mantis, tunggul akar, kaki katak, tudung jamur, pelindung kelabang, kepompong serta kelopak Jantung Sulur. Bayangan tetap di lantai ketika tubuh melompat. Gerak kaki dan api mengikuti preferensi reduced motion; posisi penerbangan tetap ditampilkan sebagai informasi serangan.
+- Camp, bendera checkpoint, bekal buah, herbal, peti, tuas, altar, gerbang, portal dan simpul pelindung digambar dalam gaya yang sama. Ular memakai wajah bersama dan hijau yang selaras dengan Delivery. Indikator celah muncul pada encounter aktif, sehingga monster yang belum diajak bertarung tidak dipenuhi cincin status.
+- HUD memakai panel hijau tua, kartu boss krem, indikator tiga fase dan HP rendah. Kartu perjalanan/boss disusun mengikuti tinggi isi agar tidak menimpa ketika teks membungkus. Tombol aksi pada layar di bawah 360 piksel dipersempit menjadi 48 piksel agar terpisah dari joystick. Tombol coba simpan lagi menerima input pointer dan mempunyai tinggi minimal 44 piksel.
+- Kamera tetap mengikuti area aman di antara HUD dan kontrol. Pemandangan di luar batas dunia memakai ulang bagian cache rintangan, sehingga tepi map tidak memperlihatkan bidang kosong tanpa harus mendorong ular ke bawah panel/tombol.
+- **Koreksi visual area bahaya:** serangan ring kini menggambar seluruh pita damage beserta batas dalam/luarnya. Implementasi lama memakai helper circle yang menimpa ketebalan garis menjadi hairline. Radius, timing dan damage simulasi tidak diubah. Leap dan charge tetap memakai timing/kontak aktual dari v21.2.
+- Pemisahan artwork berada di `lib/expedition/art.js`; terrain tetap disimpan pada satu cache per wilayah dan dilepas ketika wilayah berubah atau renderer dihentikan. Tidak ada request aset bitmap tambahan atau dependency baru. `world.js`, simulasi, navigasi, combat, progres/save, controller, seluruh source Dungeon/Delivery dan seluruh aset publik tetap identik dengan v21.2. Semua **148 file audio** tetap disertakan tanpa perubahan byte. Tidak ada route, halaman atau Markdown baru.
+
+### Verifikasi v22
+
+- Batch regresi terkait **96/96 lulus** setelah implementasi artwork; setelah susunan HUD/ruang kamera diperbaiki, **43/43 tes Ekspedisi dan integrasi tampilan lulus**. Tidak mengklaim menjalankan ulang seluruh suite aplikasi pada revisi visual ini. Tidak ada test source lama yang diubah/dilonggarkan.
+- **Build produksi bersih pada source akhir berhasil**, route utama sekitar 182 kB First Load JS. Lint terpisah belum dikonfigurasi, mengikuti baseline.
+- **28 skenario browser produksi lulus**: desktop 1366×768, HP 390×844, 844×390, 320×568 dan 360×640; enam miniboss dan sembilan fase boss; checkpoint, upgrade, simpan/lanjut, tiga boss pada layar 320 piksel, serta smoke Dungeon/Delivery/Classic. Tidak ada page error atau aset aplikasi 4xx/5xx. Gerak/lepas berhenti, joystick pointer, batas kontrol, jarak joystick/tombol dan pemutaran stem musik sesuai encounter ikut diperiksa. Capture tampilan tiga biome dan sembilan jenis encounter diperiksa.
+- Pada build akhir setelah koreksi target retry, alur quota storage yang sengaja ditolak lalu dipulihkan berhasil: tombol setinggi 44 piksel menerima klik nyata dan peringatan hilang setelah penyimpanan berhasil. Rotasi 844×390 → 390×844 → 320×568 tidak overflow dan seluruh tombol tetap di dalam viewport.
+- Pemeriksaan native Canvas memastikan draw tidak memutasi state, terrain tidak dibuat ulang pada draw berikutnya, cache lama dilepas, destroy melepas cache terakhir, dan ring radius 2,7 memakai pita ketebalan 0,6 sesuai simulasi. Ini pemeriksaan renderer dan browser emulasi; belum ada playtest atau pengukuran performa pada HP fisik.
+
+## Ekspedisi Rimba v21.2 — 27 Oktober 2026
+
+- **Gerak dan damage serangan disatukan.** Lompatan kini mempunyai windup → penerbangan → pendaratan; circle baru memberi damage ketika monster sampai di titik pendaratan. Target dibatasi oleh lintasan bebas dan jangkauan enam petak, sehingga serangan tidak berhenti sebelum titik yang diumumkan atau menembus pilar. Hop pendek tetap memiliki waktu penerbangan minimum 0,12 detik. Bayangan tetap di lantai, tubuh naik pada animasi, dan HUD menampilkan status Melompat. Cue strike diputar saat mendarat.
+- Terjangan tetap pada arah awal, memakai swept contact tubuh aktual untuk damage, dan berhenti ketika terhalang batu tanpa meluncur menyamping. Garis penuh adalah peringatan lintasan; saat bergerak, indikator bahaya mengikuti tubuh. Serangan tidak lagi mengenai pemain yang masih jauh hanya karena berdiri pada garis warning.
+- **Navigasi musuh biasa:** camp yang tersedia dan tubuh NPC lain masuk perencanaan rute. Reservasi waypoint mencegah dua aktor memperebutkan titik yang sama; aktor menunggu bila belum ada rute aman dan mencoba kembali saat jalur tersedia. Posisi/facing mengikuti perpindahan aktual. Musuh yang terlanjur berada di radius camp ketika camp terbuka mendapat jalan keluar yang tetap mematuhi dinding serta jarak antar NPC. Tidak ada teleport atau respawn untuk menyelesaikan macet.
+- Memulai encounter membersihkan windup/hazard musuh biasa. Pemuatan simpanan lama yang sudah berada dalam encounter juga membersihkan serangan luar yang masih tertunda, tanpa menghidupkan kembali NPC mati. Hazard biasa tidak ikut memberi damage selama encounter aktif.
+- Line of sight untuk serangan garis diperiksa ke bagian tubuh yang terkena, sehingga kepala di balik pilar tidak membuat ekor terbuka ikut kebal. Simpul pelindung juga menahan damage balasan Duri; duri tetap berfungsi ketika simpul sudah dihancurkan.
+- **Simpanan v21/v21.1 dipertahankan.** Kunci/versi perjalanan dan rekor tetap sama. `combatRevision: 2` menandai aturan baru; serangan gerak yang belum selesai pada save lama diberi timing warning/penerbangan baru. HP, fase, bekal, kemampuan, checkpoint, loot dan kemajuan tidak direset. Save baru di tengah penerbangan melanjutkan posisi/timing yang sama.
+- Tujuh reproduksi awal terbukti gagal pada v21.1 dan lulus setelah koreksi: impact leap terlalu dini, landing jauh tidak tercapai, charge mendahului tubuh, camp menghalangi AI, dua NPC deadlock, windup biasa masuk miniboss, dan ekor di garis serangan terlindungi hanya karena kepala bersembunyi. Regresi tambahan memeriksa kompatibilitas save, midair reload, camp baru terbuka, tabrakan diagonal, hop pendek dan simpul pelindung.
+- **Verifikasi:** 38/38 tes Ekspedisi pada source akhir lulus; batch regresi terkait **96/96 lulus** (TAP, exit 0). Regresi penuh **430/430 lulus** sebelum tambahan guard simpul pelindung terakhir; penutupan guard tersebut diverifikasi kembali pada batch 96 tes akhir. `npm run build` bersih pada source akhir berhasil. Browser production build terbaru: **26 skenario lulus**, tanpa page error atau aset lokal 4xx/5xx; termasuk enam miniboss, sembilan fase boss, kontrol portrait/landscape/desktop, checkpoint/upgrade, smoke Dungeon/Delivery/Classic, serta pembuktian HP tetap 100 saat penerbangan/charge masih jauh dan menjadi 90 setelah landing/kontak. Save v21.1 dari implementasi lama dimuat di browser baru dengan HP, kemampuan, segel dan encounter tetap. Capture midair dan landing diperiksa; seluruh kampanye juga direplay melalui input/aksi simulasi asli. Belum ada pengujian perangkat HP fisik. Lint terpisah masih belum dikonfigurasi, mengikuti baseline. Dungeon/Delivery, layout map, dependency, route dan seluruh 148 file audio tidak diubah. Tidak ada Markdown baru; perubahan dicatat di sini.
+
+## Ekspedisi Rimba v21.1 — 27 Oktober 2026
+
+- **Perbaikan autosave portal balik:** tanda serangan musuh dari wilayah lama sebelumnya tetap tersimpan setelah pemain kembali ke wilayah sebelumnya. Validator dengan benar menolak hazard yang region-nya berbeda, sehingga autosave sementara gagal. Reproduksi memakai pergerakan biasa untuk memancing crawler di Rawa Spora, mundur lewat jalur bawah, lalu berinteraksi dengan portal ketika serangan masih dalam windup; save valid sebelum pindah dan tidak valid sesudahnya.
+- Pergantian wilayah sekarang membersihkan hazard/simpul sementara serta membatalkan windup musuh biasa di wilayah yang ditinggalkan. HP, posisi musuh, musuh yang sudah mati, loot, bekal, kemampuan, dan kemajuan tetap dipertahankan. Validator tidak dilonggarkan.
+- Tiga regresi tambahan memeriksa round trip portal dengan autosave dan rollback checkpoint yang valid, lanjut dari transisi fase kedua untuk ketiga boss tanpa HP pemain pulih, serta kembali ke menu ketika upgrade pending tanpa menggandakan pilihan.
+- **Verifikasi patch:** 24/24 tes Ekspedisi lulus. Regresi terkait (adapter mode, revive/journal, audio, HUD dan registry): **82/82 lulus**, termasuk 24 tes Ekspedisi. `npm run build` bersih berhasil. Angka 414 tes dan 23 skenario browser di bawah adalah verifikasi rilis v21 sebelumnya, bukan klaim pengujian ulang seluruh suite pada patch ini.
+- Tidak ada perubahan UI, audio, map, Dungeon, Delivery, dependency, atau route baru. Seluruh 148 file audio tetap identik dengan v21.
+
+## Ekspedisi Rimba v21 — 27 Oktober 2026
+
+### Perjalanan dan pertarungan
+
+- Ekspedisi diganti menjadi satu perjalanan tersimpan melalui **Hutan Akar → Rawa Spora → Reruntuhan Sulur**. Tiap wilayah memiliki dua miniboss dan satu boss. Gerbang boss membutuhkan kedua segel; perpindahan wilayah berikutnya membutuhkan kemenangan boss. Pemain dapat kembali ke wilayah sebelumnya.
+- Ketiga map berukuran 48×38, dengan ruang tempur yang jelas, koridor utama tiga petak, clearing bekal, jalur tuas/peti rahasia, dan checkpoint. Rawa memberi rute alternatif ke miniboss kedua; reruntuhan membuka loop setelah kedua segel didapat. Arena ditutup selama encounter agar pertarungan tidak dilewati melalui loop.
+- **Gerak bebas seperti Dungeon:** joystick analog / WASD / panah, diagonal dinormalisasi, lepas untuk berhenti, bisa berbalik, ekor mengikuti jalur kepala. Tidak ada kematian karena menabrak tubuh sendiri. Kepala tetap ditahan dinding dengan collision Dungeon yang sudah ada. Spasi dash (3 detik), Q bisa (8 detik), E interaksi, F bekal, X penawar, M peta, Esc jeda.
+- Gigitan dekat otomatis memperhitungkan jarak, arah, line of sight, armour dan simpul pelindung. HP awal 100, satu pelindung, dua makanan dan satu penawar. HP/bekal berkurang lewat pertarungan, trap dan racun, bukan pengurangan statistik otomatis berdasarkan waktu. Makanan, penawar, serta lima kemampuan bertingkat dapat diperoleh sepanjang perjalanan.
+
+| Wilayah | Miniboss | Boss dan perkembangan fase |
+| --- | --- | --- |
+| Hutan Akar | Babi Hutan Berzirah: terjang lurus, celah pemulihan. Belalang Pemburu: lompatan bertanda dan tebasan area. | Penjaga Akar: terjang → tambah barisan akar → tambah lompatan. HP fase **140 / 165 / 190**. |
+| Rawa Spora | Katak Rawa: lidah lurus dan lompatan beracun. Jamur Parasit: dua simpul pelindung, kolam spora dan cincin. | Ratu Spora: kolam → tambah lidah dan simpul fase 2 → tambah cincin. HP fase **165 / 190 / 215**. |
+| Reruntuhan Sulur | Kelabang Batu: terjang/tebas, bagian belakang juga rentan di luar pemulihan. Kepompong Sulur: simpul, barisan dan cincin. | Jantung Sulur: barisan → tambah tebasan → tambah cincin. HP fase **190 / 215 / 240**. |
+
+- **HP setiap fase terpisah:** ketika habis, boss masuk transisi 1,6 detik lalu mengisi HP fase berikutnya. Damage berlebih tidak melompati fase; boss tidak menerima damage saat transisi, dan HP pemain tidak dipulihkan pada pergantian fase. Kemenangan encounter memberi hadiah tersendiri.
+- Serangan memiliki telegraph, periode aktif dan celah pemulihan. Arah terjangan dikunci; dinding membatasi lintasannya dan menghentikannya. Simpul ditautkan secara visual ke pemilik; ekor lemah Kelabang ditandai. Musuh biasa memakai collision/pathfinding existing, menjaga jarak antar sesama, dan tidak memasuki api singgah yang tersedia.
+- **Delapan strip trap dibuat manual**, menutup penuh row/column koridor yang dipilih. Siklus 10 detik: aman 7,65 detik, peringatan 1,5 detik, aktif 0,85 detik. Ada lantai untuk menunggu pada kedua sisi. Kepala dan seluruh ekor dihitung; satu jendela perlindungan mencegah damage berlipat dari beberapa sel sekaligus. Scout yang sebelumnya terlalu dekat dengan staging jembatan dipindah ke clearing bekal.
+
+### Checkpoint, tampilan dan audio
+
+- Singgah menyimpan keadaan dunia dan mempertahankan HP minimal 50%; stok makanan tidak diisi ulang. Mati mengembalikan **dunia, loot, kemampuan, musuh dan bekal bersama-sama** ke checkpoint, tanpa kuota retry. Autosave melanjutkan posisi dan encounter aktual; waktu offline tidak memajukan simulasi.
+- Format baru `snake-expedition-journey-v21` terpisah dari progres lama. Simpanan memvalidasi geometri, aktor/fase, kemampuan, daftar objek, hazard, simpul dan data charge yang diperlukan sebelum memuat. Kegagalan simpan terlihat dan dapat dicoba lagi. Pilihan kemampuan dibekukan, tersimpan saat pending, dan tidak bisa dipilih dua kali. Dialog pending hanya tampil setelah menekan Lanjutkan, sehingga tidak mengunci menu ketika reload.
+- Rekor kemenangan memakai `roguelite|journey:21` dan journal hasil existing. Perjalanan baru memerlukan konfirmasi ketika ada progres berjalan; progres dan rekor mode lain tetap tersimpan. Berkas utilitas/simulasi Ekspedisi lama masih ada untuk kompatibilitas historis, tetapi entry mode sekarang menunjuk controller baru.
+- Canvas memakai seluruh viewport, HUD HP/bekal/tujuan dan bar HP fase aktif, kontrol kontekstual, overview, zoom serta kamera mengikuti ular. Saat encounter kamera mengarah di antara boss dan ular serta menyesuaikan zoom. Portrait/landscape memakai tata kontrol berbeda. Visual tiga biome dan sembilan encounter digambar dengan Canvas mengikuti gaya Dungeon; tidak ada aset bitmap hasil generasi baru.
+- Musik eksplorasi memakai `expedition`, miniboss `adventureDanger`, dan boss memakai tema Akar/Spora/Sulur dengan tiga arrangement fase. Tetap satu audio director/context. **Seluruh 148 file di `public/sounds/` identik byte demi byte dengan ZIP v20**, tidak diekspor ulang. Dungeon, Delivery farm, simulasi arcade, dependency runtime, dan route aplikasi tidak dirombak.
+
+### Verifikasi v21
+
+- `npm test`: **414/414 lulus**, 0 gagal. Pengujian mencakup regresi mode existing dan 21 kasus Ekspedisi baru. Setelah perbaikan flag dialog pending, 21 kasus Ekspedisi dijalankan ulang dan semuanya lulus. Kasus controller lima ronde/revive berkuota yang sudah tidak sesuai diganti dengan kontrak perjalanan baru; tes utilitas/simulasi historis yang masih disimpan bukan bukti gameplay baru.
+- Replay Ekspedisi memakai input gerak kontinu, interaksi, bekal, kemampuan dan jendela serangan asli untuk menuntaskan **ketiga wilayah, enam miniboss, dan sembilan fase boss**. Tidak ada teleport, perubahan HP atau penonaktifan musuh pada replay ini. Tes lain memeriksa HP fase/overflow, dinding, simpul, cooldown, checkpoint rollback, save rusak/gagal, satu RAF, pilihan modal dan pencatatan kemenangan sekali.
+- Seluruh delapan strip trap direplay dengan seluruh ekor melewati strip dalam jendela aman, termasuk perlambatan rawa. Penempatan musuh di luar staging, lantai kedua sisi dan siklus trap ikut diperiksa.
+- `npm run build` bersih berhasil; bundle awal route utama sekitar **181 kB**. Tidak ada dependency runtime atau route baru. Lint terpisah belum dikonfigurasi, mengikuti baseline; kompilasi dan pemeriksaan bawaan build berhasil.
+- Browser Chromium pada production build terbaru: **23 skenario lulus**, tanpa page error atau respons aset lokal 4xx/5xx. Tiga profil 1366×768, 390×844 dan 844×390 memeriksa gerak diagonal, lepas berhenti, pause, overview, batas canvas/kontrol dan overflow. Profil HP benar-benar melaporkan pointer coarse/touch; joystick diuji dengan input pointer. Enam fixture miniboss dan sembilan fixture fase boss memeriksa HUD/render serta FLAC tema yang benar benar didekode dan mulai diputar melalui Web Audio.
+- Alur browser tambahan: hazard menyebabkan mati lalu retry checkpoint, konfirmasi/batal perjalanan baru, fokus dialog/Tab/Esc/pilihan kemampuan, simpan dan lanjut setelah memuat ulang, serta smoke test Dungeon, Delivery farm dan Classic. Capture contoh portrait/landscape, overview dan pertarungan diperiksa secara visual. Audio terverifikasi lewat decode/start sumber, bukan penilaian pendengaran fisik.
+- ZIP mencakup semua source/aset; `node_modules`, `.next`, dan berkas QA sementara tidak disertakan. Seluruh aset `public/`, source `lib/puzzle/` dan `lib/delivery/` dibandingkan byte demi byte dengan v20 dan tetap sama. Jumlah berkas Markdown tidak bertambah; catatan perubahan hanya masuk berkas ini.
+
+Batasan: replay otomatis memakai keputusan gerak yang terencana dan bukan ukuran durasi/tingkat kesulitan pemain manusia. Fixture browser memeriksa tampilan dan alur tertentu, bukan bukti penyelesaian kampanye. Belum dilakukan playtest pada Android/iOS fisik atau evaluasi audio lewat speaker perangkat fisik.
 
 ## Delivery: Normal lapang dan Hard presisi — 25 Oktober 2026
 
@@ -5209,7 +5286,6 @@ Untuk mengganti musik, ganti file stem yang dipetakan pada katalog dengan pasang
 - **45 konfigurasi browser produksi lulus:** 15 mode × desktop, ponsel tegak, ponsel mendatar. Setiap mode menunggu `activeTrack` yang sesuai dan loop dari file yang telah dimuat. Tidak ada galat JavaScript atau aset aplikasi 4xx/5xx.
 - Integrasi Chromium mendekode dan memainkan seluruh **30 aransemen/60 stem FLAC**, mendekode seluruh **30 MP3** dengan durasi dan energi audio valid, memuat **35 file efek**, serta memastikan cue portal memakai BufferSource. Tidak ada pekerjaan komposisi musik dalam worker. Pause/resume membekukan/melanjutkan jam audio; mute/unmute dan slider musik 22%/SFX 44% tetap bekerja melalui UI.
 - Paket aset baru berukuran 31.205.470 byte sebelum pengemasan ZIP. Tidak ada perubahan data map, aturan gameplay atau progres pada v17. Batas playtest pendengaran dan perangkat fisik pada v16 tetap berlaku.
-<<<<<<< HEAD
 
 ## v20 — Aset Delivery: kebun buah dan peternakan (26 Oktober 2026)
 
@@ -5250,5 +5326,3 @@ Fixture tes dari arsip lama disesuaikan dengan kontrak yang memang sudah ada pad
 - **Build produksi Next 15.5.28 berhasil.** Tidak ada dependensi baru, halaman baru, Markdown baru, atau perubahan kode mode lain.
 - Chromium produksi pada 1366×768, 390×844 dan 844×390: menu, follow camera, overview, misi 1 dan 12, serta Hard; atlas benar-benar selesai didekode, dua kartu pesanan tidak overflow, Rem sentuh bekerja pada profil touch asli, tidak ada page error atau aset aplikasi 4xx/5xx. Audio Time Attack yang dipulihkan (kedua stem serta MP3) dan efek poison didekode native dengan durasi/energi valid; pasangan stem tetap tepat 30 detik.
 - Belum diuji pada HP fisik Android/iOS atau dinilai lewat pendengaran manusia. Tidak ada klaim pengujian menyeluruh setiap interaksi pada seluruh mode. Paket akhir diperiksa CRC dan kelengkapan seluruh berkas.
-=======
->>>>>>> d8551af93c55dca40eaf20b0da1fc20f965809e6

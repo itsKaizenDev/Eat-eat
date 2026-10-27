@@ -45,7 +45,7 @@ const CONFETTI_POS = '6px 10px, 34px 46px, 54px 8px, 20px 70px';
 const DESCRIPTION = {
   puzzle: 'Shadow Heist · Amati patroli, curi relik, dan keluar tanpa jejak.',
   delivery: 'Antar hasil panen lewat kebun dan peternakan.',
-  roguelite: 'Kumpulkan bekal. Tembus antek. Taklukkan boss.',
+  roguelite: 'Jelajahi tiga wilayah. Cari bekal. Hadapi penjaga rimba.',
   boss: 'Tembus 9 ronde antek, lalu taklukkan boss tiga fase.',
   territory: 'Gambar jejak dan rebut wilayah dari lawan.',
 };
@@ -227,14 +227,13 @@ export default function Overlay({ engineReady, engineError, recordSave, keyboard
         </div>
       )}
       {isRogue && (
-        <div className="start-settings">
-          <div className="start-menu-heading"><span>Struktur</span><span>5 rute → 9 gelombang → boss</span></div>
-          <ReviveInfo data={rm && rm.revive} />
-          <div className="start-menu-heading"><span>Kecepatan</span><span>Sesuai gayamu</span></div>
-          <div className="start-chips" role="group" aria-label="Kecepatan">
-            {SPEEDS.map(s => <Chip key={s.k} start on={speed === s.k} onClick={() => onSpeedChange(s.k)}>{s.l}</Chip>)}
-          </div>
-          {rm && <p className="start-touch-note" role="status"><ICONS.trophy size={14} /> Rekor ({speedLabel}): {rm.best} skor • ronde tertinggi {rm.bestRounds}/{rm.rounds} • {rm.wins}/{rm.plays} run tuntas</p>}
+        <div className="start-settings expedition-menu">
+          <div className="start-menu-heading"><span>Satu perjalanan</span><span>3 wilayah · 6 miniboss · 3 boss</span></div>
+          <p>Hutan Akar, Rawa Spora, dan Reruntuhan Sulur saling terhubung. Checkpoint menyimpan bekal, kemampuan, serta keadaan dunia.</p>
+          {rm?.hasSave && <p role="status"><b>{rm.completed?'Perjalanan selesai':`Lanjut di ${rm.regionName}`}</b> · {rm.defeated}/9 penjaga tumbang · {rm.deaths} kali kembali ke checkpoint</p>}
+          <p>Gerak bebas seperti Dungeon. Gigitan dekat otomatis; gunakan dash dan bisa saat perlu.</p>
+          {rm?.savePending && <p role="status">Simpanan belum tersimpan. <button onClick={onRetrySave}>Coba simpan lagi</button></p>}
+          {rm?.hasSave && !rm.completed && <button className="secondary-button" onClick={onRestart}>Mulai perjalanan baru…</button>}
         </div>
       )}
       {isBoss && (
@@ -259,7 +258,7 @@ export default function Overlay({ engineReady, engineError, recordSave, keyboard
       )}
       <p className="start-touch-note"><ICONS.steps size={14} /> {am.controls}</p>
       {isTouch && <p className="start-touch-note"><ICONS.multiplayer size={14} /> Rebut Arena (2 pemain) memerlukan keyboard.</p>}
-      <button onClick={handlePlay} disabled={engineReady === false || (isPuzzleMode ? !lv : isDelivery ? !dm : isRogue ? !rm : isTerritory ? !tm : isBoss ? !bm : false)} className="start-play">{busy ? 'Bersiap…' : 'Mulai main'}<ICONS.right size={20} aria-hidden="true" /></button>
+      <button onClick={handlePlay} disabled={engineReady === false || (isPuzzleMode ? !lv : isDelivery ? !dm : isRogue ? !rm : isTerritory ? !tm : isBoss ? !bm : false)} className="start-play">{busy ? 'Bersiap…' : isRogue ? rm?.completed ? 'Perjalanan baru' : rm?.hasSave ? 'Lanjutkan perjalanan' : 'Mulai perjalanan' : 'Mulai main'}<ICONS.right size={20} aria-hidden="true" /></button>
       </div>
       </div>
     </div>
@@ -310,14 +309,14 @@ export default function Overlay({ engineReady, engineError, recordSave, keyboard
         )}
       </div>
       {isTouch && <p className="start-touch-note"><ICONS.multiplayer size={14} /> Mode 2P Lokal memerlukan keyboard.</p>}
-      <button onClick={handlePlay} disabled={engineReady === false} className="start-play">{busy ? 'Bersiap…' : 'Mulai main'}<ICONS.right size={20} aria-hidden="true" /></button>
+      <button onClick={handlePlay} disabled={engineReady === false} className="start-play">{busy ? 'Bersiap…' : isRogue ? rm?.completed ? 'Perjalanan baru' : rm?.hasSave ? 'Lanjutkan perjalanan' : 'Mulai perjalanan' : 'Mulai main'}<ICONS.right size={20} aria-hidden="true" /></button>
       </div>
       </div>
     </div>
   ) : (
     <div className="result-actions">
       {recordSave?.pending && <div className="save-notice" role="status"><p>Rekor belum tersimpan.</p><button onClick={onRetrySave}>Coba simpan lagi</button></div>}{isPuzzleMode && lv?.savePending && <div className="save-notice" role="status"><p>Progres belum tersimpan.</p><button onClick={onRetrySave}>Coba simpan lagi</button></div>}
-      {phase === 'gameover' && rm && rm.revive.eligible && <>
+      {phase === 'gameover' && rm?.revive?.eligible && <>
         <button ref={rm.revive.left ? primaryRef : null} onClick={onRevive} disabled={!rm.revive.left || rm.revive.busy} className="revive-button"><ICONS.heart size={18} />{rm.revive.busy ? 'Menyiapkan…' : `Hidup lagi · ${rm.revive.left}/3`}</button>
         <p className="revive-detail">Lanjut dari rute atau fase ini. Upgrade tetap dibawa.</p>
         <ReviveInfo data={rm.revive} />

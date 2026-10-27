@@ -439,3 +439,72 @@ body[data-playing=true] { overflow:hidden; overscroll-behavior:none; }
  .courier-hud .camera-tools { top:60px; }
  .game-viewport[data-mode=delivery] .controls-hint { left:auto; right:10px; top:112px; bottom:auto; transform:none; max-width:170px; }
 }
+
+/* Expedition: continuous world and thumb controls share the full canvas surface. */
+.viewport-active[data-mode=roguelite] .arena-space { inset:0; }
+.viewport-active[data-mode=roguelite] .world-frame { aspect-ratio:auto; border-radius:0; box-shadow:none; }
+.expedition-hud { padding:8px; }
+.expedition-status { display:flex; flex-direction:column; align-items:flex-start; gap:8px; width:max-content; max-width:100%; }
+.expedition-readout { width:min(350px,calc(100vw - 112px)); background:#173b2eed; color:#f7efd6; border:1px solid #9eae7b; border-radius:16px; padding:9px 12px; box-shadow:0 3px 0 #102c2852,inset 0 1px 0 #d2ddac26; }
+.expedition-region,.expedition-vitals { display:flex; gap:9px; align-items:center; }
+.expedition-region { font-size:12px; }
+.expedition-region>span:last-child { margin-left:auto; font-size:10px; white-space:nowrap; color:#d3dcaf; }
+.expedition-compass { width:24px; height:24px; flex:none; display:grid; place-items:center; border:1px solid #9eae7b88; border-radius:50%; color:#e4c78b; background:#d6d8aa12; }
+.expedition-region>b { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.expedition-vitals { margin-top:5px; font-size:13px; }
+.expedition-vitals>span { display:inline-flex; align-items:center; gap:4px; }
+.expedition-vitals>span+span { color:#e8d7ab; }
+.expedition-vitals [data-danger] { color:#ffd0a6; }
+.expedition-health,.expedition-enemy-health { height:6px; margin-top:6px; border-radius:8px; background:#081c24; overflow:hidden; }
+.expedition-health i { display:block; height:100%; background:linear-gradient(90deg,#91ba60,#c7df91); }
+.expedition-readout[data-low-health=true] .expedition-health i { background:#e7a17b; }
+.expedition-readout[data-low-health=true] .expedition-vitals>span:first-child { color:#ffd1a7; }
+.expedition-objective { font-size:11px; line-height:1.4; margin:7px 0 0; padding-top:5px; border-top:1px solid #afbc8733; color:#e5e2bd; }
+.expedition-readout>small { display:block; font-size:9px; margin-top:4px; }
+.expedition-save { pointer-events:auto; display:block; min-height:44px; margin-top:5px; font-size:11px; color:#ffdda1; text-align:left; text-decoration:underline; }
+.expedition-bossbar { pointer-events:none; width:min(500px,calc(100vw - 90px)); padding:8px 11px; background:#f0e4bff5; color:#344a38; border:1px solid #a99d73; border-radius:13px; box-shadow:0 3px 0 #233c3538,inset 0 1px 0 #fff5d7; }
+.expedition-bossbar>div:first-child { display:flex; justify-content:space-between; gap:8px; font-size:12px; }
+.expedition-bossbar b { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.expedition-bossbar strong { font-size:9px; white-space:nowrap; color:#756344; letter-spacing:.03em; }
+.expedition-phases { display:flex; gap:4px; margin-top:6px; }
+.expedition-phases i { width:18px; height:3px; border-radius:3px; background:#b9b89c; }
+.expedition-phases i[data-complete=true] { background:#7d9867; }
+.expedition-phases i[data-active=true] { background:#a87350; }
+.expedition-bossbar[data-stage=windup] { border-color:#b38645; }
+.expedition-bossbar[data-stage=recover] { border-color:#6c8b5c; }
+.expedition-enemy-health { background:#c8c5a6; }
+.expedition-enemy-health i { display:block; height:100%; background:linear-gradient(90deg,#ad755b,#d8a071); }
+.expedition-bossbar small { display:block; font-size:10px; margin-top:4px; }
+.expedition-note { position:absolute; bottom:155px; left:8px; max-width:min(460px,calc(100% - 16px)); border-radius:10px; padding:7px 10px; background:#203d31ed; color:#f7efd6; border:1px solid #9eae7b55; font-size:11px; line-height:1.4; pointer-events:none; }
+.expedition-controls { display:grid; grid-template-columns:repeat(3,58px); gap:6px; width:max-content; right:max(12px,env(safe-area-inset-right)); bottom:max(12px,env(safe-area-inset-bottom)); }
+.expedition-controls button { width:auto; min-width:0; min-height:58px; border-radius:17px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; background:#e9e6c8f5; border:2px solid #879a73; color:#254536; padding:5px; box-shadow:0 3px 0 #163b3166,inset 0 1px 0 #fff8dc; }
+.expedition-controls button:disabled { opacity:.68; box-shadow:inset 0 1px 3px #233f3526; }
+.expedition-controls button:active:not(:disabled) { box-shadow:inset 0 2px 3px #233f3533; }
+.expedition-hud .hud-tools button,.expedition-hud .camera-tools button { background:#173b2eed; border-color:#9eae7b88; color:#f2eacb; box-shadow:0 2px 0 #102c2840; }
+.expedition-hud button:focus-visible,.expedition-controls button:focus-visible { outline:3px solid #f2ce84; outline-offset:3px; }
+.expedition-controls button small { font-size:10px; font-weight:750; }
+.expedition-controls .expedition-interact { grid-column:span 2; background:#f4dfab; }
+.game-viewport[data-mode=roguelite] .joystick-anchor { left:max(12px,env(safe-area-inset-left)); bottom:max(12px,env(safe-area-inset-bottom)); }
+.game-viewport[data-mode=roguelite][data-lefty=true] .joystick-anchor { left:auto; right:12px; }
+.game-viewport[data-mode=roguelite][data-lefty=true] .expedition-controls { right:auto; left:12px; }
+.game-viewport[data-mode=roguelite] .camera-tools { top:108px; right:8px; }
+.game-viewport[data-mode=roguelite] .controls-hint { top:118px; }
+.expedition-menu { font-size:12px; line-height:1.6; }
+.expedition-menu p { margin:8px 0; }
+@media (max-height:550px) and (min-width:600px) {
+ .expedition-status { display:contents; }
+ .expedition-readout { width:200px; padding:8px; }
+ .expedition-region { gap:5px; font-size:11px; }
+ .expedition-compass { width:20px; height:20px; }
+ .expedition-objective { font-size:10px; }
+ .expedition-bossbar { position:absolute; top:12px; left:224px; width:min(460px,calc(100% - 310px)); }
+ .expedition-note { top:156px; left:8px; bottom:auto; max-width:200px; }
+ .game-viewport[data-mode=roguelite] .camera-tools { top:60px; }
+ .game-viewport[data-mode=roguelite] .controls-hint { top:130px; left:220px; max-width:300px; }
+}
+.game-viewport[data-mode=roguelite] .camera-tools { display:flex; flex-direction:column; align-items:center; gap:5px; }
+.expedition-readout { width:min(350px,calc(100vw - 112px)); }
+@media (max-width:359px) {
+ .expedition-controls { grid-template-columns:repeat(3,48px); }
+}
+@media (max-height:550px) and (min-width:600px) { .expedition-readout { width:200px; } }

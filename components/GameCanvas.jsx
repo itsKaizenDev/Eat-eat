@@ -58,7 +58,7 @@ const GameCanvas = forwardRef(function GameCanvas({ mode, onUpdate, speedPref, t
     returnToMenu: () => { inputRef.current?.clear(); return engineRef.current && engineRef.current.returnToMenu(); },
     setDir: (x, y) => engineRef.current && engineRef.current.setDir(x, y),
     setDirMP: (which, x, y) => engineRef.current && engineRef.current.setDirMP(which, x, y),
-    setHeldDir: (x, y) => kindRef.current === 'puzzle' ? engineRef.current?.setDir(x, y, { source: 'pad' }) : inputRef.current?.press('pad', 0, x, y),
+    setHeldDir: (x, y) => ['puzzle','roguelite'].includes(kindRef.current) ? engineRef.current?.setDir(x, y, { source: 'pad' }) : inputRef.current?.press('pad', 0, x, y),
     releaseHeldDir: () => { inputRef.current?.release('pad'); engineRef.current?.cancelHeldInput?.('pad'); },
     action: (type) => engineRef.current?.action?.(type),
     setCamera: (value) => engineRef.current?.setCamera?.(value),
@@ -93,11 +93,17 @@ const GameCanvas = forwardRef(function GameCanvas({ mode, onUpdate, speedPref, t
       const k = e.key.toLowerCase();
       const engine = engineRef.current;
       if (!engine) return;
-      if (kindRef.current === 'puzzle') {
+      if (['puzzle','roguelite'].includes(kindRef.current)) {
         if (k === 'escape') { e.preventDefault(); if (!e.repeat) engine.togglePause(); return; }
         if (engine.getState() !== 'playing') return;
         const direction = DIRS[k] || WASD[k];
         if (direction) { e.preventDefault(); if (!e.repeat) engine.setDir(...direction, { source: 'key:' + k }); return; }
+        if (kindRef.current === 'roguelite') {
+          const actions = { e:'interact', q:'skill', f:'food', x:'antidote', ' ':'dash' };
+          if (k === 'm') { e.preventDefault(); if (!e.repeat) engine.setCamera('toggle'); return; }
+          if (actions[k] && !(k === ' ' && onControl(e.target))) { e.preventDefault(); if (!e.repeat) engine.action(actions[k]); }
+          return;
+        }
         if (k === 'shift') { e.preventDefault(); engine.setModifier('sneak', true); return; }
         if (k === ' ' && !onControl(e.target)) { e.preventDefault(); engine.setModifier('run', true); return; }
         const actions = { e: 'interact', f: 'hide', q: 'gadget', x: 'cycle' };
@@ -157,7 +163,7 @@ const GameCanvas = forwardRef(function GameCanvas({ mode, onUpdate, speedPref, t
     let sx = 0, sy = 0, tracking = false;
     const ignore = (el) => el && el.closest && el.closest('.no-swipe, button, a, input');
     function onStart(e) {
-      if (kindRef.current === 'puzzle' || ignore(e.target) || e.touches.length !== 1 || dialogOpen()) { tracking = false; return; }
+      if (['puzzle','roguelite'].includes(kindRef.current) || ignore(e.target) || e.touches.length !== 1 || dialogOpen()) { tracking = false; return; }
       sx = e.touches[0].clientX; sy = e.touches[0].clientY; tracking = true;
     }
     function onMove(e) {
@@ -190,7 +196,7 @@ const GameCanvas = forwardRef(function GameCanvas({ mode, onUpdate, speedPref, t
       const rect = canvas.getBoundingClientRect(), width = rect.width;
       if (width < 1) return;
       const ratio = Math.min(2, window.devicePixelRatio || 1);
-      const w = ['puzzle','delivery'].includes(kind) ? Math.max(1, Math.round(width * ratio)) : Math.max(17, Math.round(width * ratio / 17) * 17), h = ['puzzle','delivery'].includes(kind) ? Math.max(1, Math.round(rect.height * ratio)) : w * 15 / 17;
+      const w = ['puzzle','delivery','roguelite'].includes(kind) ? Math.max(1, Math.round(width * ratio)) : Math.max(17, Math.round(width * ratio / 17) * 17), h = ['puzzle','delivery','roguelite'].includes(kind) ? Math.max(1, Math.round(rect.height * ratio)) : w * 15 / 17;
       if (canvas.width === w && canvas.height === h) return;
       canvas.width = w; canvas.height = h;
       engineRef.current?.resize?.();
@@ -199,7 +205,7 @@ const GameCanvas = forwardRef(function GameCanvas({ mode, onUpdate, speedPref, t
     return () => observer.disconnect();
   }, [kind]);
 
-  return <canvas ref={canvasRef} id="c" width="680" height="600" aria-label={kind === 'puzzle' ? 'Dungeon Shadow Heist. WASD bergerak, Shift mengendap, E berinteraksi.' : 'Arena K-Snake'} style={{ background: kind === 'puzzle' ? '#152c33' : '#a2d149', aspectRatio: ['puzzle','delivery'].includes(kind) ? 'auto' : '680 / 600' }} />;
+  return <canvas ref={canvasRef} id="c" width="680" height="600" aria-label={kind === 'puzzle' ? 'Dungeon Shadow Heist. WASD bergerak, Shift mengendap, E berinteraksi.' : 'Arena K-Snake'} style={{ background: kind === 'puzzle' ? '#152c33' : '#a2d149', aspectRatio: ['puzzle','delivery','roguelite'].includes(kind) ? 'auto' : '680 / 600' }} />;
 });
 
 export default GameCanvas;

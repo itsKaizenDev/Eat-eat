@@ -78,15 +78,8 @@ test('lima apel Ekspedisi terpisah dari 2..9 bom, posisi unik, refill tidak meng
   }
 });
 
-test('bekal upgrade terbawa ke kebun dan kekalahan kebun mengakhiri seluruh run sekali', () => {
-  const w=makeRogueWorld({config:{rounds:1,targets:[4],baseBombs:[2]}});w.eng.startRun();
-  w.x.run.upgrades={...U.emptyCounts(),thick:1,antidote:1,sweet:1,breath:1};w.x.run.stats=U.deriveStats(w.x.run.upgrades);
-  w.x.sim.bombs=[];w.x.sim.foods=[{x:9,y:7,kind:'normal'}];w.eng.setDir(1,0);w.advance(150);
-  const id=w.last('roguelite').offer[0].id;w.eng.chooseUpgrade(id);
-  const expected=U.expeditionSupplies(w.x.run.upgrades);assert.equal(w.x.battle.lives,expected.config.lives);assert.equal(w.x.battle.energy,expected.energy);assert.equal(w.x.battle.cfg.invulnMs,expected.config.invulnMs);
-  w.x.battle.lives=1;w.x.setSnake([[16,7],[15,7],[14,7]],'R');w.eng.setDir(1,0);w.advance(200);
-  assert.equal(w.eng.getState(),'lost');assert.equal(w.saves.length,1);w.advance(5000);assert.equal(w.saves.length,1);
-  w.eng.startRun();assert.equal(w.x.battle,null);assert.deepEqual(w.x.run.upgrades,U.emptyCounts());
+test('Ekspedisi entry point now owns a continuous saved journey and no quota revive', () => {
+ const w=makeRogueWorld();w.eng.startRun();assert.equal(w.last('roguelite').expedition,true);assert.equal(w.last('rogueMenu').revive,undefined);assert.equal(w.x.world.region,0);w.eng.returnToMenu();w.eng.startRun();assert.equal(w.x.world.region,0);w.eng.destroy();
 });
 
 test('revisi level: buka-kunci lama tetap, rekor baru tidak dibandingkan dengan peta lama', () => {

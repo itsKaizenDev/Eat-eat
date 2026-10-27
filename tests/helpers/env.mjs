@@ -124,7 +124,7 @@ export function makeRogueWorld({ seed = 1, speed, records, config, reviveIO, wal
   const sounds = { playMove: () => w.calls.move++, playChomp: () => w.calls.chomp++, playEits: () => w.calls.eits++, playDeath: () => w.calls.death++, playBump: () => w.calls.bump++, playWin: () => w.calls.win++, playLocked: noop, playDeliver: noop };
   const io = { load: () => w.records, save: (r) => { w.saves.push(r); w.records = r; } };
   let hook;
-  w.eng = createRogueliteGame({ canvas, sounds, onUpdate: p => w.emits.push(p), seed, now: () => w.t, raf: cb => { w.raf.push(cb); return 1; }, caf: () => { w.raf = []; }, io, config, reviveIO, wallNow, inspect: h => { hook = h; } });
+  w.eng = createRogueliteGame({ canvas, sounds, onUpdate: p => w.emits.push(p), seed, now: () => w.t, raf: cb => { w.raf.push(cb); return 1; }, caf: () => { w.raf = []; }, io, journeyIO: { load: () => null, save: value => { w.journey = JSON.parse(JSON.stringify(value)); return true; } }, config, reviveIO, wallNow, inspect: h => { hook = h; } });
   w.x = hook;
   if (speed) w.eng.setSpeedPref(speed);
   w.advance = (ms) => { const end = w.t + ms; while (w.t < end) { w.t = Math.min(end, w.t + 16); const q = w.raf; w.raf = []; q.forEach(cb => cb(w.t)); } };
