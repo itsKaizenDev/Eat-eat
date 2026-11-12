@@ -5,7 +5,7 @@ import { useSounds } from '@/hooks/useSounds';
 import { createResultWriter, loadRecords, saveRecords } from '@/lib/records';
 import { createDirectionInput } from '@/lib/input';
 
-const LOADERS = { arcade: () => import('@/lib/gameEngine').then(m => m.createSnakeGame), puzzle: () => import('@/lib/puzzle/controller').then(m => m.createPuzzleGame), delivery: () => import('@/lib/delivery/controller').then(m => m.createDeliveryGame), roguelite: () => import('@/lib/roguelite/controller').then(m => m.createRogueliteGame), territory: () => import('@/lib/territory/controller').then(m => m.createTerritoryGame), boss: () => import('@/lib/boss/controller').then(m => m.createBossGame) };
+const LOADERS = { story: () => import('@/lib/story/controller').then(m => m.createStoryGame), arcade: () => import('@/lib/gameEngine').then(m => m.createSnakeGame), puzzle: () => import('@/lib/puzzle/controller').then(m => m.createPuzzleGame), delivery: () => import('@/lib/delivery/controller').then(m => m.createDeliveryGame), roguelite: () => import('@/lib/roguelite/controller').then(m => m.createRogueliteGame), territory: () => import('@/lib/territory/controller').then(m => m.createTerritoryGame), boss: () => import('@/lib/boss/controller').then(m => m.createBossGame) };
 
 const isMPMode = (m) => isTwoPlayer(m);
 const typingTarget = (t) => !!(t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable));
@@ -28,6 +28,7 @@ const GameCanvas = forwardRef(function GameCanvas({ mode, onUpdate, speedPref, t
   const kind = kindOf(mode); // 'arcade' (engine lama), 'puzzle' (stealth real-time), atau 'delivery' (kurir)
   prefsRef.current = { speedPref, taDuration };
   kindRef.current = kind;
+  const playKind = () => engineRef.current?.chapterKind?.() || kindRef.current;
   useEffect(() => { inputRef.current?.clear(); modeRef.current = mode; sceneRef.current = {mode}; sounds.updateScene(sceneRef.current); if (engineRef.current) engineRef.current.setMode(mode); }, [mode]);
 
   // Satu controller aktif per jenis mode. Berpindah jenis (arkade <-> puzzle) menghancurkan yang lama
@@ -58,11 +59,13 @@ const GameCanvas = forwardRef(function GameCanvas({ mode, onUpdate, speedPref, t
     returnToMenu: () => { inputRef.current?.clear(); return engineRef.current && engineRef.current.returnToMenu(); },
     setDir: (x, y) => engineRef.current && engineRef.current.setDir(x, y),
     setDirMP: (which, x, y) => engineRef.current && engineRef.current.setDirMP(which, x, y),
-    setHeldDir: (x, y) => ['puzzle','roguelite'].includes(kindRef.current) ? engineRef.current?.setDir(x, y, { source: 'pad' }) : inputRef.current?.press('pad', 0, x, y),
+    setHeldDir: (x, y) => ['puzzle','roguelite'].includes(playKind()) ? engineRef.current?.setDir(x, y, { source: 'pad' }) : inputRef.current?.press('pad', 0, x, y),
     releaseHeldDir: () => { inputRef.current?.release('pad'); engineRef.current?.cancelHeldInput?.('pad'); },
     action: (type) => engineRef.current?.action?.(type),
     setCamera: (value) => engineRef.current?.setCamera?.(value),
-    setGait: (gait) => engineRef.current?.setGait?.(gait),
+    setSprint: (held, source) => {
+      if (playKind() === 'puzzle') engineRef.current?.setModifier?.('run', held, source);
+    },
     setSpeedPref: (v) => engineRef.current && engineRef.current.setSpeedPref(v),
     setTaDuration: (s) => engineRef.current && engineRef.current.setTaDuration(s),
     chooseUpgrade: (id) => !!(engineRef.current && engineRef.current.chooseUpgrade && engineRef.current.chooseUpgrade(id)),
@@ -72,6 +75,7 @@ const GameCanvas = forwardRef(function GameCanvas({ mode, onUpdate, speedPref, t
     restartLevel: () => { inputRef.current?.clear(); return !!(engineRef.current && engineRef.current.restartLevel && engineRef.current.restartLevel()); },
     retrySave: () => { const ok = engineRef.current?.retrySave?.(); const all = pendingRecords.current.retry(); onUpdate({ recordSave: { pending: pendingRecords.current.pending } }); return ok ?? all; },
     setDeliveryDifficulty: value => !!engineRef.current?.setDifficulty?.(value),
+    setStoryChapter: chapter => engineRef.current?.setStoryChapter?.(chapter),
     setLevel: (i) => !!(engineRef.current && engineRef.current.setLevel && engineRef.current.setLevel(i)),
     isRunning: () => !!(engineRef.current && engineRef.current.isRunning()),
     getState: () => (engineRef.current ? engineRef.current.getState() : 'menu'),
@@ -93,22 +97,21 @@ const GameCanvas = forwardRef(function GameCanvas({ mode, onUpdate, speedPref, t
       const k = e.key.toLowerCase();
       const engine = engineRef.current;
       if (!engine) return;
-      if (['puzzle','roguelite'].includes(kindRef.current)) {
+      if (['puzzle','roguelite'].includes(playKind())) {
         if (k === 'escape') { e.preventDefault(); if (!e.repeat) engine.togglePause(); return; }
         if (engine.getState() !== 'playing') return;
         const direction = DIRS[k] || WASD[k];
         if (direction) { e.preventDefault(); if (!e.repeat) engine.setDir(...direction, { source: 'key:' + k }); return; }
-        if (kindRef.current === 'roguelite') {
+        if (playKind() === 'roguelite') {
           const actions = { e:'interact', q:'skill', f:'food', x:'antidote', ' ':'dash' };
           if (k === 'm') { e.preventDefault(); if (!e.repeat) engine.setCamera('toggle'); return; }
           if (actions[k] && !(k === ' ' && onControl(e.target))) { e.preventDefault(); if (!e.repeat) engine.action(actions[k]); }
           return;
         }
-        if (k === 'shift') { e.preventDefault(); engine.setModifier('sneak', true); return; }
-        if (k === ' ' && !onControl(e.target)) { e.preventDefault(); engine.setModifier('run', true); return; }
-        const actions = { e: 'interact', f: 'hide', q: 'gadget', x: 'cycle' };
+        if (k === 'shift') { e.preventDefault(); if (!e.repeat) engine.setModifier('run', true, e.code || 'Shift'); return; }
+        const actions = { e: 'interact', q: 'gadget', x: 'cycle' };
         if (actions[k]) { e.preventDefault(); if (!e.repeat) engine.action(actions[k]); return; }
-        if (k === 'r') { e.preventDefault(); if (!e.repeat) engine.restartLevel(); }
+        if (k === 'r') { e.preventDefault(); if (!e.repeat) engine.restartLevel?.(); }
         return;
       }
       // Spasi/Enter milik kontrol UI yang sedang fokus; jangan dicuri. Spasi di luar kontrol hanya dicegah agar halaman tidak scroll.
@@ -132,8 +135,8 @@ const GameCanvas = forwardRef(function GameCanvas({ mode, onUpdate, speedPref, t
     const onKeyUp = e => {
       const k = e.key.toLowerCase(); input.release('key:' + k);
       engineRef.current?.cancelHeldInput?.('key:' + k);
-      if (k === 'shift') engineRef.current?.setModifier?.('sneak', false);
-      if (k === ' ') { engineRef.current?.setModifier?.('run', false); if (kindRef.current === 'delivery') engineRef.current?.action?.('brake-off'); }
+      if (k === 'shift') engineRef.current?.setModifier?.('run', false, e.code || 'Shift');
+      if (k === ' ' && kindRef.current === 'delivery') engineRef.current?.action?.('brake-off');
     };
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
@@ -163,7 +166,7 @@ const GameCanvas = forwardRef(function GameCanvas({ mode, onUpdate, speedPref, t
     let sx = 0, sy = 0, tracking = false;
     const ignore = (el) => el && el.closest && el.closest('.no-swipe, button, a, input');
     function onStart(e) {
-      if (['puzzle','roguelite'].includes(kindRef.current) || ignore(e.target) || e.touches.length !== 1 || dialogOpen()) { tracking = false; return; }
+      if (['puzzle','roguelite'].includes(playKind()) || ignore(e.target) || e.touches.length !== 1 || dialogOpen()) { tracking = false; return; }
       sx = e.touches[0].clientX; sy = e.touches[0].clientY; tracking = true;
     }
     function onMove(e) {
@@ -196,7 +199,7 @@ const GameCanvas = forwardRef(function GameCanvas({ mode, onUpdate, speedPref, t
       const rect = canvas.getBoundingClientRect(), width = rect.width;
       if (width < 1) return;
       const ratio = Math.min(2, window.devicePixelRatio || 1);
-      const w = ['puzzle','delivery','roguelite'].includes(kind) ? Math.max(1, Math.round(width * ratio)) : Math.max(17, Math.round(width * ratio / 17) * 17), h = ['puzzle','delivery','roguelite'].includes(kind) ? Math.max(1, Math.round(rect.height * ratio)) : w * 15 / 17;
+      const w = ['story','puzzle','delivery','roguelite'].includes(kind) ? Math.max(1, Math.round(width * ratio)) : Math.max(17, Math.round(width * ratio / 17) * 17), h = ['story','puzzle','delivery','roguelite'].includes(kind) ? Math.max(1, Math.round(rect.height * ratio)) : w * 15 / 17;
       if (canvas.width === w && canvas.height === h) return;
       canvas.width = w; canvas.height = h;
       engineRef.current?.resize?.();
@@ -205,7 +208,7 @@ const GameCanvas = forwardRef(function GameCanvas({ mode, onUpdate, speedPref, t
     return () => observer.disconnect();
   }, [kind]);
 
-  return <canvas ref={canvasRef} id="c" width="680" height="600" aria-label={kind === 'puzzle' ? 'Dungeon Shadow Heist. WASD bergerak, Shift mengendap, E berinteraksi.' : 'Arena K-Snake'} style={{ background: kind === 'puzzle' ? '#152c33' : '#a2d149', aspectRatio: ['puzzle','delivery','roguelite'].includes(kind) ? 'auto' : '680 / 600' }} />;
+  return <canvas ref={canvasRef} id="c" width="680" height="600" aria-label={kind === 'puzzle' ? 'Dungeon Shadow Heist. WASD bergerak, tahan Shift untuk sprint, E berinteraksi.' : 'Arena K-Snake'} style={{ background: kind === 'puzzle' ? '#152c33' : '#a2d149', aspectRatio: ['story','puzzle','delivery','roguelite'].includes(kind) ? 'auto' : '680 / 600' }} />;
 });
 
 export default GameCanvas;

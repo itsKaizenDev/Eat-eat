@@ -67,7 +67,7 @@ function ReviveInfo({ data }) {
   return <div className="revive-info"><span><ICONS.heart size={15} />Revive <b>{data.left}/3</b></span><small>{data.resetAt ? `Pulih penuh dalam ${days ? days + ' hari ' : ''}${hours ? hours + ' jam ' : ''}${mins} menit` : 'Pulih penuh 72 jam setelah revive pertama'}</small></div>;
 }
 
-export default function Overlay({ engineReady, engineError, recordSave, keyboardAvailable, onInfo, onSettings, onRestart, visible, phase, mood, title, sub, btnText, mode, onModeChange, onPlay, onRevive, onRetrySave, onMenu, speed, onSpeedChange, taSecs, onTaChange, puzzleMenu, onSelectLevel, deliveryMenu, onDeliveryDifficulty, rogueMenu, territoryMenu, bossMenu, onHelp }) {
+export default function Overlay({ engineReady, engineError, recordSave, storyChapter, storyUnlocked, onStoryChapter, keyboardAvailable, onInfo, onSettings, onRestart, visible, phase, mood, title, sub, btnText, cinematic, cinematicFrame, fromArena, mode, onModeChange, onPlay, onRevive, onRetrySave, onMenu, speed, onSpeedChange, taSecs, onTaChange, puzzleMenu, onSelectLevel, deliveryMenu, onDeliveryDifficulty, rogueMenu, territoryMenu, bossMenu, onHelp }) {
   const [busy, setBusy] = useState(false);
   const isTouch = useIsTouch();
   const touchOnly = isTouch && !keyboardAvailable;
@@ -139,9 +139,9 @@ export default function Overlay({ engineReady, engineError, recordSave, keyboard
     onModeChange(SUBS[g.key][0].mode);
   }
 
-  if (!visible) return null;
+  if (!visible || phase === 'arrival') return null;
   if (phase === 'cutscene') {
-    return <InfernoComic title={title} sub={sub} btnText={btnText} onPlay={onPlay} onMenu={onMenu}
+    return <InfernoComic cinematic={cinematic} frame={cinematicFrame} fromArena={fromArena} onPlay={onPlay} onMenu={onMenu}
       onRetrySave={onRetrySave} savePending={puzzleMenu?.savePending} />;
   }
 
@@ -150,10 +150,11 @@ export default function Overlay({ engineReady, engineError, recordSave, keyboard
   const selLevel = lv ? lv.levels[lv.selected] : null;
 
   const am = getMode(mode) || {};
-  const isPuzzleMode = kindOf(mode) === 'puzzle';
+  const isStory = mode === 'story';
+  const isPuzzleMode = kindOf(mode) === 'puzzle' || isStory && storyChapter === 'dungeon';
   const isDelivery = kindOf(mode) === 'delivery';
   const dm = isDelivery && deliveryMenu ? deliveryMenu : null;
-  const isRogue = kindOf(mode) === 'roguelite';
+  const isRogue = kindOf(mode) === 'roguelite' || isStory && storyChapter === 'expedition';
   const rm = isRogue && rogueMenu ? rogueMenu : null;
   const isTerritory = kindOf(mode) === 'territory';
   const tm = isTerritory && territoryMenu ? territoryMenu : null;
@@ -176,6 +177,11 @@ export default function Overlay({ engineReady, engineError, recordSave, keyboard
           );
         })}
       </div>
+      {isStory && <div className="chapter-tabs story-chapters" role="group" aria-label="Bab Story">
+        <button type="button" onClick={() => onStoryChapter('dungeon')} aria-pressed={storyChapter === 'dungeon'}>Dungeon · 100 level</button>
+        <button type="button" onClick={() => onStoryChapter('expedition')} aria-pressed={storyChapter === 'expedition'} disabled={!storyUnlocked}>Ekspedisi · 20 level</button>
+        {!storyUnlocked && <small>Selesaikan Dungeon level 100 untuk membuka Ekspedisi.</small>}
+      </div>}
       <div className="adv-cols">
       <div className="adv-info">
       <p className="start-description" role="status" aria-live="polite" aria-atomic="true">{DESCRIPTION[mode] || am.description}</p>
@@ -196,7 +202,7 @@ export default function Overlay({ engineReady, engineError, recordSave, keyboard
           {lv.levels.some(level => level.chapter === 'inferno') && (
             <div className="chapter-tabs" role="group" aria-label="Pilih bab Dungeon">
               <button type="button" aria-pressed={lvPage < 5} onClick={() => setLvPage(selIdx < 50 ? Math.floor(selIdx / LEVEL_PAGE) : 0)}>Dungeon · 1–50</button>
-              <button type="button" aria-pressed={lvPage >= 5} onClick={() => setLvPage(selIdx >= 50 ? Math.floor(selIdx / LEVEL_PAGE) : 5)}>Neraka · 51–99</button>
+              <button type="button" aria-pressed={lvPage >= 5} onClick={() => setLvPage(selIdx >= 50 ? Math.floor(selIdx / LEVEL_PAGE) : 5)}>Neraka · 51–100</button>
             </div>
           )}
           {lvPage >= 5 && !lv.levels[50]?.unlocked && <p className="chapter-locked">Kalahkan Penjaga Relik Agung di level 50 untuk membuka Neraka.</p>}
@@ -238,7 +244,14 @@ export default function Overlay({ engineReady, engineError, recordSave, keyboard
           {dm && <p className="start-touch-note" role="status"><ICONS.trophy size={14} /> Rekor ({dm.difficultyLabel} · {speedLabel}): {dm.best} skor • {dm.bestDeliveries} terkirim • {dm.wins}/{dm.plays} shift menang</p>}
         </div>
       )}
-      {isRogue && (
+      {isStory && isRogue && rm && (
+        <div className="start-settings">
+          <div className="start-menu-heading"><span>{rm.regionName}</span><span>Level {rm.storyLevel}/20</span></div>
+          <p className="start-description">{rm.stageName}</p>
+          {rm.completed && <p className="start-touch-note">Apel emas sudah kembali.</p>}
+        </div>
+      )}
+      {!isStory && isRogue && (
         <div className="start-settings expedition-menu">
           <div className="start-menu-heading"><span>Satu perjalanan</span><span>3 wilayah · 6 miniboss · 3 boss</span></div>
           <p>Hutan Akar, Rawa Spora, dan Reruntuhan Sulur saling terhubung. Checkpoint menyimpan bekal, kemampuan, serta keadaan dunia.</p>
@@ -270,7 +283,7 @@ export default function Overlay({ engineReady, engineError, recordSave, keyboard
       )}
       <p className="start-touch-note"><ICONS.steps size={14} /> {am.controls}</p>
       {isTouch && <p className="start-touch-note"><ICONS.multiplayer size={14} /> Rebut Arena (2 pemain) memerlukan keyboard.</p>}
-      <button onClick={handlePlay} disabled={engineReady === false || (isPuzzleMode ? !lv : isDelivery ? !dm : isRogue ? !rm : isTerritory ? !tm : isBoss ? !bm : false)} className="start-play">{busy ? 'Bersiap…' : isRogue ? rm?.completed ? 'Perjalanan baru' : rm?.hasSave ? 'Lanjutkan perjalanan' : 'Mulai perjalanan' : 'Mulai main'}<ICONS.right size={20} aria-hidden="true" /></button>
+      <button onClick={handlePlay} disabled={engineReady === false || (isStory && rm?.completed) || (isPuzzleMode ? !lv : isDelivery ? !dm : isRogue ? !rm : isTerritory ? !tm : isBoss ? !bm : false)} className="start-play">{busy ? 'Bersiap…' : isRogue ? rm?.completed ? isStory ? 'Story selesai' : 'Perjalanan baru' : rm?.hasSave ? 'Lanjutkan perjalanan' : 'Mulai perjalanan' : 'Mulai main'}<ICONS.right size={20} aria-hidden="true" /></button>
       </div>
       </div>
     </div>
@@ -346,7 +359,7 @@ export default function Overlay({ engineReady, engineError, recordSave, keyboard
         <div className="brand" aria-label="K-Snake"><img src={MASCOTS.idle} alt="" width="38" height="38" />K<span>-</span>Snake</div>
         <nav className="menu-tabs" aria-label="Jenis permainan">
           <button disabled={busy} aria-pressed={!adv} onClick={() => onModeChange(lastArcade.current)}>Arkade</button>
-          <button disabled={busy} aria-pressed={adv} onClick={() => onModeChange('puzzle')}>Petualangan</button>
+          <button disabled={busy} aria-pressed={adv} onClick={() => onModeChange('story')}>Petualangan</button>
         </nav>
         <button disabled={busy} className="icon-button" onClick={onHelp} aria-label="Bantuan"><ICONS.help size={21} /></button>
       </header>

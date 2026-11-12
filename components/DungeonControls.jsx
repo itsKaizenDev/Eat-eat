@@ -1,17 +1,55 @@
 'use client';
+import { useEffect, useRef } from 'react';
 import GameButton from './GameButton';
+import SkillButton from './SkillButton';
 import { ICONS } from '@/lib/icons';
+import { DUNGEON_TOOLS } from '@/lib/puzzle/powers';
 
-export default function DungeonControls({ data: p, onAction, onGait, editing = false, dragProps = {} }) {
+export default function DungeonControls({ data: p, onAction, onSprint, editing = false, dragProps = {} }) {
+  const pointer = useRef(null);
+  const release = () => {
+    pointer.current = null;
+    onSprint(false, 'sprint-touch');
+    onSprint(false, 'sprint-button-key');
+  };
+  useEffect(() => () => {
+    onSprint(false, 'sprint-touch');
+    onSprint(false, 'sprint-button-key');
+  }, [onSprint]);
   if (!p) return null;
-  const gait = { walk: ['Jalan', 'steps', 'run'], run: ['Lari', 'fast', 'sneak'], sneak: ['Mengendap', 'slow', 'walk'] }[p.gait] || ['Jalan', 'steps', 'run'];
-  const GaitIcon = ICONS[gait[1]], ToolIcon = p.gadget === 'trap' ? ICONS.plate : p.gadget === 'stone' ? ICONS.stone : ICONS.flask;
-  const tool = { stone: 'Batu', smoke: 'Asap', trap: 'Jebakan' }[p.gadget];
-  return <div className={`dungeon-controls no-swipe ${editing ? 'editing' : ''}`} {...dragProps} role="group" aria-label="Aksi Dungeon">
-    <GameButton immediate className="action-small gait-button" onActivate={() => onGait(gait[2])} aria-label={`Gerak: ${gait[0]}. Ganti ke ${{ run: 'lari', walk: 'jalan', sneak: 'mengendap' }[gait[2]]}`} title="Ganti cara bergerak"><GaitIcon size={19} /><small>{gait[0]}</small></GameButton>
+
+  const tool = DUNGEON_TOOLS[p.gadget] || DUNGEON_TOOLS.stone;
+  const ToolIcon = ICONS[tool.icon];
+  const holdKey = event => event.key === ' ' || event.key === 'Enter';
+  return <div className={`dungeon-controls no-swipe ${editing ? 'editing' : ''}`} {...dragProps}>
+    <button type="button" className="action-small sprint-button" aria-pressed={p.sprinting} aria-label="Tahan untuk sprint (Shift)" disabled={editing}
+      onPointerDown={event => {
+        if (event.button !== 0 || pointer.current !== null) return;
+        event.preventDefault();
+        pointer.current = event.pointerId;
+        event.currentTarget.setPointerCapture(event.pointerId);
+        onSprint(true, 'sprint-touch');
+      }}
+      onPointerUp={event => { if (event.pointerId === pointer.current) release(); }}
+      onPointerCancel={event => { if (event.pointerId === pointer.current) release(); }}
+      onLostPointerCapture={event => { if (event.pointerId === pointer.current) release(); }}
+      onBlur={release}
+      onKeyDown={event => {
+        if (!holdKey(event)) return;
+        event.preventDefault();
+        if (!event.repeat) onSprint(true, 'sprint-button-key');
+      }}
+      onKeyUp={event => {
+        if (!holdKey(event)) return;
+        event.preventDefault();
+        onSprint(false, 'sprint-button-key');
+      }}>
+      <ICONS.fast size={19} /><small>Tahan Lari</small>
+    </button>
     <GameButton immediate className="action-small" onActivate={() => onAction('cycle')} aria-label="Ganti alat (X)" title="Ganti alat (X)"><ICONS.swap size={19} /><small>Alat</small></GameButton>
-    <GameButton immediate className="action-main gadget-button" disabled={p.gadgetWait > 0} onActivate={() => onAction('gadget')} aria-label={`${tool}: ${p.gadgetWait > 0 ? `pulih ${p.gadgetWait} detik` : 'siap (Q)'}`} title={`${tool} (Q). Pulih 10 detik.`} style={{ '--cooldown': `${Math.min(100, (p.gadgetWait || 0) * 10)}%` }}><ToolIcon size={23} /><small>{p.gadgetWait > 0 ? `${p.gadgetWait}d` : tool}</small></GameButton>
-    <GameButton immediate className="action-main" disabled={!p.canHide && !p.hidden} aria-pressed={p.hidden} onActivate={() => onAction('hide')} aria-label={p.hidden ? 'Keluar dari persembunyian (F)' : 'Sembunyi (F)'} title="Sembunyi / keluar (F)"><ICONS.dark size={21} /><small>{p.hidden ? 'Keluar' : 'Sembunyi'}</small></GameButton>
-    <GameButton immediate className="action-main interact-button" disabled={!p.interaction} onActivate={() => onAction('interact')} aria-label={p.interaction || 'Interaksi: dekati pintu, tuas, atau portal (E)'} title={p.interaction || 'Dekati objek lalu tekan E'}><ICONS.key size={23} /><small>Interaksi</small></GameButton>
+    <SkillButton icon={ToolIcon} label={tool.name} hotkey="Q" wait={p.gadgetWait}
+      cooldown={tool.cooldown} className="gadget-button" onActivate={() => onAction('gadget')} />
+    <GameButton immediate className="action-main interact-button" disabled={!p.interaction} onActivate={() => onAction('interact')}
+      aria-label={p.interaction ? `${p.interaction} (E)` : 'Interaksi (E)'} title={p.interaction || 'Interaksi (E)'}><ICONS.key size={21} /><small>Interaksi</small></GameButton>
   </div>;
 }

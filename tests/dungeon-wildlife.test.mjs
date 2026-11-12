@@ -26,14 +26,28 @@ test('powers: independent ten-second cooldowns, no depletion, pause freezes reco
   const s=P.createState(room());assert.equal(P.action(s,'gadget'),true);assert.equal(P.action(s,'gadget'),false);
   P.action(s,'cycle');assert.equal(s.gadget,'smoke');assert.equal(P.action(s,'gadget'),true);
   P.action(s,'cycle');assert.equal(s.gadget,'trap');assert.equal(P.action(s,'gadget'),true);assert.equal(s.traps.length,1);
-  P.action(s,'cycle');assert.equal(s.gadget,'stone');advance(s,9.9);assert.equal(P.action(s,'gadget'),false);advance(s,.2);assert.equal(P.action(s,'gadget'),true);
+  for (const gadget of ['stealthPotion', 'ward', 'frost', 'stone']) { P.action(s, 'cycle'); assert.equal(s.gadget, gadget); }
+  advance(s,9.9);assert.equal(P.action(s,'gadget'),false);advance(s,.2);assert.equal(P.action(s,'gadget'),true);
   const w=makePuzzleWorld({levels:[room()]});w.eng.startRun();w.eng.action('gadget');w.advance(1000);w.eng.pauseRun();const wait=w.last('puzzle').gadgetWait;w.advance(15000);assert.equal(w.last('puzzle').gadgetWait,wait);
   w.eng.resumeRun();w.advance(9100);assert.equal(w.last('puzzle').gadgetWait,0);w.eng.restartLevel();assert.deepEqual(w.x.world.cooldowns,{stone:0,smoke:0,trap:0});w.eng.destroy();
 });
 test('failed tool placement/throw does not start cooldown and player traps are safe for the snake',()=>{
   const s=P.createState(withWall(room({spawn:{x:3.75,y:2.5}}),4,2));assert.equal(P.action(s,'gadget'),false);assert.equal(P.gadgetWait(s),0);
-  s.gadget='trap';assert.equal(P.action(s,'gadget'),true);advance(s,2);assert.equal(s.status,'playing');assert.equal(s.traps.length,1);
-  s.cooldowns.trap=0;assert.equal(P.action(s,'gadget'),false);assert.equal(s.cooldowns.trap,0);advance(s,29);assert.equal(s.traps.length,0);
+  s.gadget = 'trap';
+  assert.equal(P.action(s, 'gadget'), false);
+  assert.equal(P.gadgetWait(s), 0);
+  s.player.facing = Math.PI / 2;
+  assert.equal(P.action(s, 'gadget'), true);
+  const landing = s.traps[0];
+  assert.ok(landing.y > s.player.y + 2);
+  assert.ok(landing.landAt < landing.armedAt);
+  advance(s, 2);
+  Object.assign(s.player, { x: landing.x, y: landing.y });
+  P.step(s);
+  assert.equal(s.status, 'playing');
+  assert.equal(s.traps.length, 1);
+  advance(s, 29);
+  assert.equal(s.traps.length, 0);
   const expired=P.createState(room({guards:[guard(5,4,{range:0,pause:10})]}));expired.traps.push({...pt(5,4),armedAt:0,until:0,spent:false});P.step(expired);assert.equal(expired.guards[0].stunnedUntil,0);assert.equal(expired.traps.length,0);
 });
 test('dog: wide detection and barking alerts nearby guards but not distant guards or guards behind stone',()=>{
@@ -47,8 +61,8 @@ test('dog: tether strictly limits pursuit; an unleashed dog moves faster than ru
   const s=P.createState(room({spawn:pt(3,4),dogs:[dog()]})),d=s.dogs[0];
   for(let i=0;i<450;i++){P.step(s);assert.ok(G.distance(d,d.home)<=d.leash+1e-8);assert.ok(G.fits(s,d.x,d.y,.21));}
   assert.equal(s.status,'playing');assert.equal(s.alerts,1);
-  const free=P.createState(room({spawn:pt(3,4),dogs:[dog(7,4,{tethered:false})]}));advance(free,.55);const x=free.dogs[0].x;advance(free,.2);
-  assert.ok(x-free.dogs[0].x>P.SPEEDS.run*.2);advance(free,2);assert.equal(free.status,'lost');assert.match(free.lossReason,/anjing/);
+  const free=P.createState(room({spawn:pt(3,4),dogs:[dog(8,4,{range:6,tethered:false})]}));advance(free,.55);const x=free.dogs[0].x;advance(free,.2);
+  assert.ok(x-free.dogs[0].x>P.SPEEDS.run*.2);advance(free,2);assert.equal(free.status,'lost');assert.match(free.lossReason,/goblin/i);
 });
 test('dog: walls, closed doors and smoke block detection; it follows last-known position after losing sight',()=>{
   for(const kind of ['wall','door','smoke']){
@@ -81,7 +95,7 @@ test('player trap: holds guards and dogs then releases them; stops a shadow befo
   const s=P.createState(room({spawn:pt(6,4),beasts:[beast()]}));s.traps.push({...pt(4,4),armedAt:0,until:30,spent:false});advance(s,1.6);
   assert.ok(s.beasts[0].stunnedUntil>s.time);assert.equal(s.beasts[0].state,'RETURN');assert.equal(s.status,'playing');assert.ok(s.beasts[0].x<=4.5);advance(s,5);assert.equal(s.status,'playing');
 });
-test('a charging dog hits an armed trap before biting a player standing on it',()=>{
+test('a charging dog hits a thrown trap before reaching the player',()=>{
   const s=P.createState(room({spawn:pt(3,4),dogs:[dog(7,4,{tethered:false})]}));s.gadget='trap';P.action(s,'gadget');
   advance(s,1.6);assert.equal(s.status,'playing');assert.ok(s.dogs[0].stunnedUntil>s.time);assert.equal(s.traps.length,0);
 });

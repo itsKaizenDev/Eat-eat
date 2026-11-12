@@ -13,7 +13,7 @@ test('registry: id unik dan stabil; sepuluh mode lama tetap dengan urutan & grup
   assert.deepEqual(modesInGroup('mayhem').map(m => m.id), ['mayhem', 'mayhemplus', 'mayhemhard', 'impossible']);
   assert.deepEqual(modesInGroup('mp').map(m => m.id), ['multiplayer', 'mayhemduo']);
   assert.deepEqual(arcadeModes().map(m => m.id).sort(), ['classic', 'classicnight', 'impossible', 'mayhem', 'mayhemduo', 'mayhemhard', 'mayhemplus', 'multiplayer', 'portal', 'timeattack']);
-  assert.deepEqual(modesInGroup('adventure').map(m => m.id), ['puzzle', 'delivery', 'roguelite', 'territory']);
+  assert.deepEqual(modesInGroup('adventure').map(m => m.id), ['story', 'delivery', 'territory']);
 });
 
 test('registry: teks menu arkade tetap; label Time Attack ditulis lengkap', () => {
@@ -31,7 +31,7 @@ test('registry: field wajib terisi dan bernilai valid', () => {
   for (const m of MODES) {
     for (const f of ['id', 'label', 'short', 'group', 'kind', 'description', 'controls', 'finish', 'speedMode']) assert.ok(typeof m[f] === 'string' && m[f].length > 0, `${m.id}.${f}`);
     assert.ok(GROUPS.some(g => g.key === m.group), `${m.id}: grup ${m.group}`);
-    assert.ok(['arcade', 'puzzle', 'delivery', 'roguelite', 'boss', 'territory'].includes(m.kind));
+    assert.ok(['arcade', 'story', 'puzzle', 'delivery', 'roguelite', 'boss', 'territory'].includes(m.kind));
     assert.ok([1, 2].includes(m.players));
     assert.equal(typeof m.touch, 'boolean');
     assert.ok(['pref', 'locked', 'pref+duration', 'none'].includes(m.speedMode), m.id);

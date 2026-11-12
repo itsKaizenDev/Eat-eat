@@ -16,6 +16,7 @@ import LoadingScreen from '@/components/LoadingScreen';
 import UpgradeDialog from '@/components/UpgradeDialog';
 import { ICONS } from '@/lib/icons';
 import { getMode, kindOf, needsKeyboard } from '@/lib/modes/registry';
+import { CINEMATICS } from '@/lib/puzzle/cinematics';
 import { loadSpeed, saveSpeed, loadDuration, saveDuration } from '@/lib/storage';
 import { DEFAULT_AUDIO, loadAudio, saveAudio } from '@/lib/audio/preferences';
 import { DEFAULT_CONTROLS, loadControls, saveControls, controlVars } from '@/lib/controlPrefs';
@@ -44,13 +45,28 @@ export default function Page() {
   const [hud, setHud] = useState({ score: 0, best: 0, effects: [], running: false, paused: false });
   const [overlay, setOverlay] = useState({ visible: true, phase: 'start', mood: 'idle', title: 'K-Snake', sub: 'Pilih mode, lalu tekan Main', btnText: 'PLAY' });
   const menuOpen = overlay.visible && overlay.phase === 'start';
-  const comicOpen = overlay.visible && overlay.phase === 'cutscene';
+  const holdSprint = useCallback((held, source) => gameRef.current?.setSprint(held, source), []);
+  const comicOpen = overlay.visible && ['cutscene', 'arrival'].includes(overlay.phase);
   const upgrade = !!hud.roguelite?.offer?.length && (!hud.roguelite.expedition || hud.roguelite.choosingUpgrade);
   const active = !menuOpen && (hud.running || hud.paused || upgrade);
   const externalModal = helpOpen || !!panel || upgrade;
   const controls = active && !overlay.visible && !externalModal;
   const keyboardAvailable = finePointer || keyboardUsed;
-  const kind = kindOf(mode);
+  const storyChapter = mode === 'story' ? hud.storyChapter || 'dungeon' : null;
+  const visualMode = storyChapter ? storyChapter === 'expedition' ? 'roguelite' : 'puzzle' : mode;
+  const kind = kindOf(visualMode);
+  const puzzleLevel = hud.puzzle?.levelNo;
+  useEffect(() => {
+    if (mode !== 'puzzle' && mode !== 'story') return;
+    const movie = puzzleLevel === 100 ? mode === 'story' ? CINEMATICS.ascentStory : CINEMATICS.ascent
+      : [50, 51].includes(puzzleLevel) ? CINEMATICS.descent : mode === 'story' ? CINEMATICS.opening : null;
+    if (!movie) return;
+    for (const shot of movie.frames) {
+      const image = new Image();
+      image.src = shot.image;
+    }
+  }, [mode, puzzleLevel]);
+
 
   useEffect(() => {
     try { setLefty(localStorage.getItem('snake-lefty') === '1'); } catch {}
@@ -93,9 +109,9 @@ export default function Page() {
     return () => { delete document.body.dataset.playing; };
   }, [active, comicOpen]);
   useEffect(() => {
-    if (!controls) { setHint(false); return; }
+    if (!controls || mode === 'story') { setHint(false); return; }
     try { setHint(localStorage.getItem(`snake-controls-hint-${kind}`) !== '1'); } catch { setHint(true); }
-  }, [controls, kind]);
+  }, [controls, kind, mode]);
 
   useEffect(() => {
     if (!touch || (!controls && !layoutEdit)) return;
@@ -155,16 +171,16 @@ export default function Page() {
         {!helpOpen && <GameSheet panel={panel} mode={mode} hud={hud} onClose={closePanel} onPanel={setPanel} lefty={lefty} onSwap={swap} fullscreen={fullscreen} canFullscreen={canFullscreen} onFullscreen={toggleFullscreen} fullscreenMessage={fullscreenMessage} onHelp={openHelp} onRestart={restart} audioPrefs={audioPrefs} onRetryAudio={() => gameRef.current?.retryAudio()} onAudio={patch => setAudioPrefs(prev => { const next = { ...prev, ...patch }; saveAudio(next); return next; })} touch={touch} ctl={ctl} onCtl={updateCtl} onEditLayout={() => { setPanel(null); setLayoutEdit(true); }} onResetCtl={() => updateCtl({ ...DEFAULT_CONTROLS })} />}
       </>}
     </>
-    <main data-mode={mode} inert={externalModal ? '' : undefined} aria-hidden={externalModal || undefined} className={`stage ${menuOpen ? 'focus-stage' : 'playing-stage'} ${active ? 'game-active' : ''}`}>
-      <GameViewport active={active} sleeping={menuOpen} mode={mode} touch={touch} lefty={lefty} world={<GameCanvas ref={gameRef} mode={mode} onUpdate={onUpdate} speedPref={speed} taDuration={taSecs} audioPrefs={audioPrefs} />}>
-        {!menuOpen && !comicOpen && <Hud mode={mode} hud={hud} onInfo={() => openPanel('info')} canPause={controls} onPause={() => gameRef.current?.pauseRun('user')} onCamera={v => gameRef.current?.setCamera(v)} onRetry={()=>gameRef.current?.retrySave()} />}
+    <main data-mode={visualMode} data-story={storyChapter || undefined} data-cinematic={comicOpen || undefined} inert={externalModal ? '' : undefined} aria-hidden={externalModal || undefined} className={`stage ${menuOpen ? 'focus-stage' : 'playing-stage'} ${active || comicOpen ? 'game-active' : ''}`}>
+      <GameViewport active={active || comicOpen} sleeping={menuOpen} mode={visualMode} touch={touch} lefty={lefty} world={<GameCanvas ref={gameRef} mode={mode} onUpdate={onUpdate} speedPref={speed} taDuration={taSecs} audioPrefs={audioPrefs} />}>
+        {!menuOpen && !comicOpen && <Hud mode={visualMode} hud={hud} onInfo={() => openPanel('info')} canPause={controls} onPause={() => gameRef.current?.pauseRun('user')} onCamera={v => gameRef.current?.setCamera(v)} onRetry={()=>gameRef.current?.retrySave()} />}
         {(controls || layoutEdit) && touch && getMode(mode)?.touch && <div className={`joystick-anchor ${layoutEdit ? 'editing' : ''}`} {...dragProps('pad')}><DPad key={`${ctl.floating}-${ctl.smooth}`} analog={['puzzle','roguelite'].includes(kind)} smooth={['puzzle','roguelite'].includes(kind) && ctl.smooth} dead={ctl.dead} floating={ctl.floating && !layoutEdit} onMove={(x, y) => gameRef.current?.setHeldDir(x, y)} onRelease={() => gameRef.current?.releaseHeldDir()} /></div>}
-        {(controls || layoutEdit) && kind === 'puzzle' && <DungeonControls editing={layoutEdit} dragProps={dragProps('btn')} data={hud.puzzle} onAction={type => gameRef.current?.action(type)} onGait={g => gameRef.current?.setGait(g)} />}
+        {(controls || layoutEdit) && kind === 'puzzle' && <DungeonControls editing={layoutEdit} dragProps={dragProps('btn')} data={hud.puzzle} onAction={type => gameRef.current?.action(type)} onSprint={holdSprint} />}
         {(controls || layoutEdit) && kind === 'roguelite' && <ExpeditionControls editing={layoutEdit} dragProps={dragProps('btn')} data={hud.roguelite} onAction={type => gameRef.current?.action(type)} />}
         {layoutEdit && <div className="layout-editor no-swipe" role="dialog" aria-label="Atur posisi kontrol"><p>Geser joystick dan tombol ke posisi yang nyaman.</p><div><button className="secondary-button" onClick={() => updateCtl({ padOff: { x: 0, y: 0 }, btnOff: { x: 0, y: 0 } })}>Atur ulang</button><button className="start-play" onClick={() => setLayoutEdit(false)}>Selesai</button></div></div>}
         {(controls || layoutEdit) && kind === 'delivery' && <DeliveryControls editing={layoutEdit} dragProps={dragProps('btn')} braking={hud.delivery?.braking} onAction={type => gameRef.current?.action(type)} />}
-        {hint && controls && kind !== 'delivery' && <div className="controls-hint no-swipe"><p>{kind === 'delivery' ? 'Panah / WASD atau joystick untuk belok. Tahan Rem / Spasi untuk menunggu. Tombol peta menampilkan seluruh kota.' : kind === 'roguelite' ? 'Gerak bebas: joystick / WASD, lepas untuk berhenti. Gigitan dekat otomatis. Q bisa, Spasi dash, F bekal, X penawar, E interaksi, M peta.' : kind === 'puzzle' ? 'Joystick analog: dorong lebih jauh untuk lebih cepat. +/−: zoom. Peta: lihat denah; ikon bidik kembali ke ular. Alat pulih 10 detik.' : touch ? 'Geser joystick atau layar untuk berbelok. Info menyimpan aturan dan pengaturan.' : 'Panah / WASD untuk bergerak. Esc menjeda. Info menyimpan aturan dan pengaturan.'}</p><button aria-label="Tutup petunjuk" onClick={dismissHint}><ICONS.close size={16} /></button></div>}
-        <Overlay {...overlay} visible={overlay.visible && !externalModal && !layoutEdit} engineReady={hud.engineReady} engineError={hud.engineError} recordSave={hud.recordSave} mode={mode} keyboardAvailable={keyboardAvailable} onModeChange={setMode} speed={speed} onSpeedChange={v => { if (saveSpeed(v)) setSpeed(v); }} taSecs={taSecs} onTaChange={v => { if (saveDuration(v)) setTaSecs(v); }} onPlay={handlePlay} onHelp={openHelp} onInfo={() => openPanel('info')} onSettings={() => openPanel('settings')} onRestart={() => openPanel('restart')} onRevive={() => gameRef.current?.reviveRun()} onRetrySave={() => gameRef.current?.retrySave()} onMenu={returnToMenu} puzzleMenu={hud.puzzleMenu} deliveryMenu={hud.deliveryMenu} onDeliveryDifficulty={v => gameRef.current?.setDeliveryDifficulty(v)} rogueMenu={hud.rogueMenu} territoryMenu={hud.territoryMenu} bossMenu={hud.bossMenu} onSelectLevel={i => gameRef.current?.setLevel(i)} />
+        {hint && controls && kind !== 'delivery' && <div className="controls-hint no-swipe"><p>{kind === 'delivery' ? 'Panah / WASD atau joystick untuk belok. Tahan Rem / Spasi untuk menunggu. Tombol peta menampilkan seluruh kota.' : kind === 'roguelite' ? 'Gerak bebas: joystick / WASD, lepas untuk berhenti. Gigitan dekat otomatis. Q bisa, Spasi dash, F bekal, X penawar, E interaksi, M peta.' : kind === 'puzzle' ? 'Tahan Shift atau tombol Lari untuk sprint. Stealth aktif otomatis di bayangan. +/− untuk zoom, Peta untuk lihat denah.' : touch ? 'Geser joystick atau layar untuk berbelok. Info menyimpan aturan dan pengaturan.' : 'Panah / WASD untuk bergerak. Esc menjeda. Info menyimpan aturan dan pengaturan.'}</p><button aria-label="Tutup petunjuk" onClick={dismissHint}><ICONS.close size={16} /></button></div>}
+        <Overlay {...overlay} visible={overlay.visible && !externalModal && !layoutEdit} engineReady={hud.engineReady} engineError={hud.engineError} recordSave={hud.recordSave} storyChapter={storyChapter} storyUnlocked={hud.storyUnlocked} onStoryChapter={chapter => gameRef.current?.setStoryChapter(chapter)} mode={mode} keyboardAvailable={keyboardAvailable} onModeChange={setMode} speed={speed} onSpeedChange={v => { if (saveSpeed(v)) setSpeed(v); }} taSecs={taSecs} onTaChange={v => { if (saveDuration(v)) setTaSecs(v); }} onPlay={handlePlay} onHelp={openHelp} onInfo={() => openPanel('info')} onSettings={() => openPanel('settings')} onRestart={() => openPanel('restart')} onRevive={() => gameRef.current?.reviveRun()} onRetrySave={() => gameRef.current?.retrySave()} onMenu={returnToMenu} puzzleMenu={hud.puzzleMenu} deliveryMenu={hud.deliveryMenu} onDeliveryDifficulty={v => gameRef.current?.setDeliveryDifficulty(v)} rogueMenu={hud.rogueMenu} territoryMenu={hud.territoryMenu} bossMenu={hud.bossMenu} onSelectLevel={i => gameRef.current?.setLevel(i)} />
       </GameViewport>
     </main>
   </>;

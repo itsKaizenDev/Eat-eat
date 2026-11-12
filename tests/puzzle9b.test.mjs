@@ -7,7 +7,7 @@ import { root } from './helpers/env.mjs';
 import {room,pt} from './puzzle.fixtures.mjs';
 
 test('campaign: 50 stable IDs, 400 reproducible variants, six nonrectangular footprints per level',()=>{
- const levels=campaign.DUNGEON_MAPS;assert.equal(campaign.CAMPAIGN_LEVELS.length,99);assert.equal(campaign.CAMPAIGN_LEVELS[49].special,true);assert.equal(levels.length,50);assert.equal(campaign.CAMPAIGN_SPECS.length,45);
+ const levels=campaign.DUNGEON_MAPS;assert.equal(campaign.CAMPAIGN_LEVELS.length,100);assert.equal(campaign.CAMPAIGN_LEVELS[49].special,true);assert.equal(levels.length,50);assert.equal(campaign.CAMPAIGN_SPECS.length,45);
  assert.deepEqual(levels.slice(0,5).map(l=>l.id),['jk-1','jk-2','jk-3','jk-4','jk-5']);assert.deepEqual(levels.slice(5).map(l=>l.id),Array.from({length:45},(_,i)=>`gen-${i+6}`));
  assert.equal(new Set(levels.map(l=>JSON.stringify([l.map,l.spawn,l.keys,l.levers,l.guards]))).size,50);
  for(const [i,l] of levels.entries()){

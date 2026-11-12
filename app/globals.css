@@ -292,7 +292,9 @@ body[data-playing=true] { overflow:hidden; overscroll-behavior:none; }
 .dungeon-controls button { display:flex; flex-direction:column; justify-content:center; align-items:center; gap:2px; min-width:44px; min-height:48px; border-radius:13px; border:1px solid #c4e5b65c; color:#eff9e7; background:#243c30f5; box-shadow:0 2px 0 #06180a66; touch-action:none; }
 .dungeon-controls button small { font-size:8px; font-weight:700; line-height:1.2; }
 .dungeon-controls .action-small { min-height:44px; }
-.dungeon-controls .gait-button { grid-column:1 / 3; flex-direction:row; }
+.dungeon-controls .sprint-button { grid-column:1 / 3; flex-direction:row; gap:6px; }
+.dungeon-controls .sprint-button small { font-size:10px; }
+.dungeon-controls .interact-button { grid-column:2 / 4; }
 .dungeon-controls .interact-button { background:#d7edb9; border-color:#e8f7cd; color:#244b32; }
 .dungeon-controls .gadget-button { background:linear-gradient(to top,#425342 var(--cooldown),#314e3c var(--cooldown)); }
 .dungeon-controls button:disabled { opacity:.47; box-shadow:none; }
@@ -516,19 +518,104 @@ body[data-playing=true] { overflow:hidden; overscroll-behavior:none; }
 .chapter-locked { margin:0 0 8px; color:#703426; font-size:12px; line-height:1.4; }
 .level-btn b { display:inline-flex; align-items:center; gap:4px; }
 
-.inferno-comic { position:fixed; inset:0; z-index:45; display:grid; overflow:auto; overscroll-behavior:contain; padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left)); background:#100a0b; color:#fbe8d5; touch-action:pan-y; }
-.inferno-comic-card { display:grid; grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr); align-items:center; gap:clamp(16px,4vw,48px); width:min(100%,850px); margin:auto; }
-.inferno-comic img { display:block; width:auto; max-width:100%; height:auto; max-height:calc(100dvh - 48px); object-fit:contain; margin:auto; border-radius:8px; border:1px solid #af6c4c70; }
-.inferno-comic-copy { display:grid; gap:10px; }
-.inferno-comic-copy h2 { margin:0; color:#fff0dc; font-size:clamp(27px,5vw,51px); line-height:1.03; letter-spacing:-.035em; }
-.inferno-comic-copy p { margin:0; color:#e4beaa; font-size:clamp(13px,2vw,17px); line-height:1.48; }
-.inferno-comic-copy .inferno-chapter-name { color:#ffac83; font-size:12px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
-.inferno-comic-actions { display:grid; gap:8px; }
-.inferno-comic-actions .start-play { margin-top:4px; border-color:#c76844; background:#a74328; box-shadow:0 3px #572018; color:#fff5e9; }
-.inferno-comic-actions .secondary-button { color:#f3d4c2; border-color:#805343; background:#291719; }
-.inferno-comic-actions button:focus-visible, .chapter-tabs button:focus-visible { outline:2px solid #f8b38c; outline-offset:3px; }
-@media (max-width:620px) {
-  .inferno-comic-card { grid-template-columns:1fr; gap:14px; max-width:430px; }
-  .inferno-comic img { max-height:min(57dvh,590px); }
-  .inferno-comic-copy { gap:7px; }
+[data-cinematic=true] #wrap.game-viewport { touch-action:pan-y; }
+.inferno-comic {
+  --cinematic-ink:#0d0a0e;
+  --cinematic-accent:#d14131;
+  --cinematic-paper:#ffe7d0;
+  position:fixed; inset:0; z-index:45; display:grid; place-items:center; overflow:auto;
+  padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right))
+    max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));
+  background:radial-gradient(ellipse at 32% 44%,#2f171a 0%,var(--cinematic-ink) 69%);
+  color:var(--cinematic-paper); touch-action:pan-y; overscroll-behavior:contain;
 }
+.inferno-comic[data-tone=dawn] {
+  --cinematic-ink:#0d1c19;
+  --cinematic-accent:#64966c;
+  --cinematic-paper:#fff4cf;
+  background:radial-gradient(ellipse at 43% 42%,#2c4630 0%,var(--cinematic-ink) 74%);
+}
+.inferno-comic:focus { outline:none; }
+.inferno-comic[data-opening=true][data-arena=true] { background:transparent; }
+.cinematic-arena-shade {
+  position:absolute; inset:0; background:var(--cinematic-ink);
+  animation:cinematic-blackout var(--arena-ms) ease-in both;
+}
+.cinematic-card { width:min(100%,1080px,calc((100dvh - 98px) * 1.68)); margin:auto; }
+.cinematic-panel {
+  position:relative; overflow:hidden; width:100%; aspect-ratio:1.68;
+  background:var(--cinematic-ink); border:2px solid var(--cinematic-paper);
+  box-shadow:0 12px 38px #0008; animation:comic-enter .36s cubic-bezier(.16,.8,.3,1) both;
+}
+.cinematic-panel img { width:100%; height:100%; display:block; object-fit:cover; }
+.cinematic-panel[data-motion=drop] { --enter-x:0; --enter-y:-5%; }
+.cinematic-panel[data-motion=rise] { --enter-x:0; --enter-y:5%; }
+.cinematic-panel[data-motion=breathe] { --enter-x:0; }
+.cinematic-panel[data-focus=shard] img { transform:scale(1.12); transform-origin:53% 68%; }
+.cinematic-caption { display:grid; justify-items:center; gap:8px; min-height:76px; text-align:center; padding:12px 5px 0; }
+.cinematic-caption p { margin:0; max-width:58ch; font-size:clamp(16px,2.2vw,23px); line-height:1.4; font-weight:750; animation:comic-enter .28s ease-out both; }
+.cinematic-actions .start-play { margin:0; min-height:44px; padding:10px 15px; border-color:var(--cinematic-paper); background:#356244; color:#fff5e9; }
+.cinematic-tail { position:absolute; inset:0; z-index:3; pointer-events:none; background:#000; opacity:0; animation:cinematic-tail var(--fade-ms) ease-in var(--fade-delay) forwards; }
+@keyframes cinematic-tail { to { opacity:1; } }
+@keyframes cinematic-blackout { 0%,32% { opacity:0; } 100% { opacity:1; } }
+@keyframes comic-enter { from { opacity:0; transform:translate(var(--enter-x,-3%),var(--enter-y,0)); } to { opacity:1; transform:none; } }
+@media (max-width:620px) {
+  .cinematic-card { width:100%; }
+  .cinematic-panel { aspect-ratio:auto; height:clamp(260px,54dvh,580px); }
+  .cinematic-caption { min-height:92px; }
+}
+@media (max-height:470px) and (orientation:landscape) {
+  .cinematic-card { width:min(100%,1020px); display:grid; grid-template-columns:minmax(0,1.9fr) minmax(0,1fr); align-items:center; gap:18px; }
+  .cinematic-panel { max-height:calc(100dvh - 28px); }
+  .cinematic-caption { padding-top:0; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .cinematic-arena-shade { background:transparent; }
+}
+
+/* Keep the center clear while action labels remain legible over the arena. */
+.story-chapters { margin-block:12px; align-items:center; }
+.story-chapters small { font-size:12px; opacity:.8; }
+main[data-story] .game-viewport .hud-chip, main[data-story] .expedition-readout {
+  background:color-mix(in srgb,#14291e calc(var(--hud-opacity,.85) * 100%),transparent);
+}
+main[data-story] .hud-tools button, main[data-story] .camera-tools button,
+main[data-story] .hud-signals span, main[data-story] .dungeon-note, main[data-story] .expedition-note {
+  background:color-mix(in srgb,#14291e calc(var(--hud-opacity,.85) * 100%),transparent);
+}
+main[data-story] .expedition-bossbar {
+  background:color-mix(in srgb,#f0e4bf calc(var(--hud-opacity,.85) * 100%),#f0e4bf35);
+}
+main[data-story] .dungeon-controls {
+  width:clamp(153px,44vw,188px); grid-template-columns:repeat(2,minmax(0,1fr)); gap:5px;
+  opacity:1;
+}
+main[data-story] .dungeon-controls button {
+  background:color-mix(in srgb,#243c30 calc(var(--ctl-opacity,1) * 84%),transparent);
+  min-height:44px; min-width:0; padding:3px 4px; color:#f7f2dc; border:1px solid #b7d1ad77; box-shadow:0 1px 3px #06180a66;
+}
+main[data-story] .dungeon-controls .sprint-button, main[data-story] .dungeon-controls .interact-button { grid-column:auto; }
+main[data-story] .dungeon-controls .gadget-button, main[data-story] .dungeon-controls .expedition-interact { grid-column:1/-1; }
+main[data-story] .dungeon-controls .skill-button { position:relative; overflow:hidden; flex-direction:row; gap:4px; }
+main[data-story] .dungeon-controls .skill-button span { min-width:0; display:grid; text-align:left; }
+main[data-story] .dungeon-controls .skill-button svg { flex:none; }
+main[data-story] .dungeon-controls .skill-button b { font-size:10px; line-height:1.15; }
+main[data-story] .dungeon-controls .skill-button small { color:#d6e0c7; font-size:9px; }
+main[data-story] .dungeon-controls .skill-button i { position:absolute; inset:auto auto 0 0; height:3px; background:#d2bc77; }
+main[data-story] .dungeon-controls button:disabled { opacity:.68; }
+main[data-story] .dungeon-controls button[aria-pressed=true] { background:#49395fd9; }
+@media (min-width:900px) {
+  main[data-story] .dungeon-controls { width:244px; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; }
+  main[data-story] .dungeon-controls button { min-height:54px; gap:7px; }
+  main[data-story] .dungeon-controls .skill-button b { font-size:13px; }
+  main[data-story] .dungeon-controls .skill-button small, main[data-story] .dungeon-controls button small { font-size:11px; }
+  main[data-story] .game-viewport .hud-chip { padding:9px 11px; }
+  main[data-story] .game-viewport .hud-chip small { display:block; }
+  main[data-story] .game-viewport .hud-chip b { font-size:18px; }
+  main[data-story] .expedition-readout { width:385px; padding:11px 14px; }
+  main[data-story] .expedition-region, main[data-story] .expedition-vitals { font-size:15px; }
+  main[data-story] .expedition-objective { font-size:13px; }
+}
+
+main[data-story=expedition] .viewport-active .world-frame { animation:story-field-enter .34s ease-out both; }
+@keyframes story-field-enter { from { opacity:0; } to { opacity:1; } }

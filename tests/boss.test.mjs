@@ -315,7 +315,7 @@ test('rekor: recordBoss (kerusakan terbesar, kemenangan tercepat), kompatibel de
 test('registry/ikon/aset: boss 1 pemain bisa sentuh, ikon & latar ada, urutan petualangan', () => {
   const m = registry.getMode('boss');
   assert.equal(m.kind, 'boss'); assert.equal(m.players, 1); assert.equal(m.touch, true); assert.equal(registry.needsKeyboard('boss'), false);
-  assert.deepEqual(registry.modesInGroup('adventure').map(x => x.id), ['puzzle', 'delivery', 'roguelite', 'territory']);
+  assert.deepEqual(registry.modesInGroup('adventure').map(x => x.id), ['story', 'delivery', 'territory']);
   registry.MODES.forEach(x => assert.ok(ICONS[x.id], `ikon ${x.id}`));
   assert.ok(fs.existsSync(path.join(root, 'public/assets/game/bg-boss.webp')));
   assert.match(fs.readFileSync(path.join(root, 'app/globals.css'), 'utf8'), /\.focus-scene/);

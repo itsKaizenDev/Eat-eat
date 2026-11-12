@@ -5,11 +5,11 @@ export default function ExpeditionHud({data:r,onInfo,onPause,canPause,onCamera,o
  return <div className="game-hud expedition-hud">
   <div className="expedition-status">
   <section className="expedition-readout" aria-label="Kondisi perjalanan" data-low-health={r.hp<=r.maxHp*.3}>
-   <div className="expedition-region"><span className="expedition-compass" aria-hidden="true"><ICONS.compass size={17}/></span><b>{r.regionName}</b><span>{r.totalBosses}/3 boss</span></div>
+   <div className="expedition-region"><span className="expedition-compass" aria-hidden="true"><ICONS.compass size={17}/></span><b>{r.stageName || r.regionName}</b><span>{r.storyLevel ? `Lv ${r.storyLevel}/${r.rounds}` : `${r.totalBosses}/3 boss`}</span></div>
    <div className="expedition-vitals"><span aria-label={`HP ${r.hp} dari ${r.maxHp}`}><ICONS.heart size={17}/><b>{r.hp}/{r.maxHp}</b></span><span aria-label={`${r.shield} perlindungan`}><ICONS.shield size={16}/>{r.shield}</span><span><ICONS.normal size={15}/>{r.food}</span>{r.poison&&<span data-danger="true">Racun</span>}</div>
    <div className="expedition-health" role="progressbar" aria-label="HP ular" aria-valuenow={r.hp} aria-valuemin={0} aria-valuemax={r.maxHp}><i style={{width:r.hp/r.maxHp*100+'%'}}/></div>
    <p className="expedition-objective">{r.objective}</p>
-   {r.overview&&<small>Map aktif · C checkpoint · 1/2 miniboss · B boss</small>}
+   {r.overview&&<small>{r.storyLevel ? `Peta · ${r.regionName} · C checkpoint` : 'Peta · C checkpoint · B boss'}</small>}
    {r.savePending&&<button className="expedition-save" onClick={onRetry}>Simpanan belum tersimpan · Coba lagi</button>}
   </section>
   {e&&<section className="expedition-bossbar" data-stage={e.stage} aria-label={`${e.name}, ${e.kind==='boss'?'fase '+e.phase+' dari 3':'miniboss'}`}>
