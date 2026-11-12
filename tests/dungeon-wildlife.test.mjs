@@ -85,10 +85,10 @@ test('a charging dog hits an armed trap before biting a player standing on it',(
   const s=P.createState(room({spawn:pt(3,4),dogs:[dog(7,4,{tethered:false})]}));s.gadget='trap';P.action(s,'gadget');
   advance(s,1.6);assert.equal(s.status,'playing');assert.ok(s.dogs[0].stunnedUntil>s.time);assert.equal(s.traps.length,0);
 });
-test('floor spikes: safe phase is walkable, active phase is fatal; guards/dogs are stunned instead',()=>{
+test('floor spikes: safe phase is walkable, active phase is fatal to the player and wounds NPCs',()=>{
   const safe=P.createState(room({spawn:pt(5,4),hazards:[hazard()]}));advance(safe,.2);assert.equal(safe.status,'playing');
   const danger=P.createState(room({spawn:pt(5,4),hazards:[hazard({phase:0})]}));P.step(danger);assert.equal(danger.status,'lost');assert.match(danger.lossReason,/duri/);
-  for(const type of ['guards','dogs']){const s=P.createState(room({hazards:[hazard({phase:0})],[type]:[type==='guards'?guard(5,4):dog(5,4)]}));P.step(s);assert.ok(s[type][0].stunnedUntil>s.time);assert.equal(s[type][0].alive,true);}
+  for(const type of ['guards','dogs']){const s=P.createState(room({hazards:[hazard({phase:0})],[type]:[type==='guards'?guard(5,4):dog(5,4)]}));P.step(s);assert.ok(s[type][0].stunnedUntil>s.time);assert.equal(s[type][0].alive,true);assert.equal(s[type][0].hp,s[type][0].maxHp-35);assert.ok(s[type][0].bleedUntil>s.time);}
 });
 test('Apple Coin: value-five pickups pay only on clear, preserve old records and reward only improvements',()=>{
   const l=room({revision:6,spawn:pt(2,2),exit:pt(4,2),artifacts:[{id:'r',...pt(3,2),kind:'artifact'}],loot:[{id:'c',...pt(3,2),kind:'loot',value:5}]}),s=P.createState(l);

@@ -40,7 +40,7 @@ test('records: independent tab run IDs merge; revive and retry are idempotent; l
 });
 test('AI: observing a fresh visible warning delays evasion and respects reaction on repeat attacks',()=>{
  const l=campaign.CAMPAIGN_VARIANTS[29][0],s=puzzle.createState(l),b=s.beasts[0],a=s.guards[0];
- a.x=b.home.x+b.dx;a.y=b.home.y+b.dy;a.id='guard-test';b.state='WINDUP';b.warnedAt=0;
+ a.x=b.home.x+b.dx;a.y=b.home.y+b.dy;a.id='guard-test';a.awareness='veteran';a.facing=Math.atan2(b.y-a.y,b.x-a.x);b.state='WINDUP';b.warnedAt=0;
  threats.perceiveBeasts(s,a);assert.equal(threats.escapeBeast(s,a),null);assert.ok(a.reactingUntil>s.time);
  s.time=.21;threats.perceiveBeasts(s,a);assert.ok(a.known[b.id]>s.time);
  b.warnedAt=.22;s.time=.22;threats.perceiveBeasts(s,a);assert.equal(threats.escapeBeast(s,a),null);

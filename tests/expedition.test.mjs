@@ -201,3 +201,32 @@ test('short leap: even a hop at the current position has a visible flight interv
 test('node shield: thorns cannot bypass live protection nodes, and damaging the nodes still opens the enemy',()=>{
  const s=S.createJourney(),e=s.enemies.find(e=>e.type==='fungus');s.region=1;for(const d of W.WORLDS[0].encounters){s.defeated.push(d.id);const a=s.enemies.find(a=>a.id===d.id);a.hp=0;a.stage='dead';}setPos(s,e.x+1,e.y);s.player.shield=0;s.upgrades.thorns=3;C.beginEncounter(s,e);s.player.invulnUntil=0;const hp=e.hp;assert.ok(S.hurt(s,8,'attack'));assert.equal(e.hp,hp,'retaliation does not bypass the two live nodes');s.pods.forEach(p=>p.hp=0);s.player.invulnUntil=0;S.hurt(s,8,'attack');assert.equal(e.hp,hp-18,'retaliation works after the shield is removed');
 });
+
+test('layout: new approaches preserve every old floor tile and all boss arenas',async()=>{
+ const {readFileSync}=await import('node:fs');const previous=JSON.parse(readFileSync(new URL('./fixtures/expedition-v1.json',import.meta.url),'utf8'));
+ for(const w of W.WORLDS){const old=previous[w.region];
+  old.map.forEach((row,y)=>[...row].forEach((c,x)=>{if(c==='.')assert.equal(w.map[y][x],'.',`${w.id} old floor ${x},${y}`);}));
+  assert.deepEqual(w.encounters,old.encounters);
+  assert.notDeepEqual(w.mobs,old.mobs);
+ }
+});
+test('layout: alternate routes preserve progression and seal every active arena',()=>{
+ for(const w of W.WORLDS){const s=S.createJourney();s.region=w.region;s.defeated=[];
+  assert.equal(G.findPath(W.bindGeometry(s),w.start,w.encounters[2].shrine),null,w.id+' boss requires both seals');
+  assert.equal(!!G.findPath(W.bindGeometry(s),w.start,w.encounters[1].shrine),w.region===1,w.id+' stage order');
+  for(const encounter of w.encounters){s.defeated=w.encounters.filter(e=>e!==encounter).map(e=>e.id);s.active=encounter.id;
+   for(const target of [w.start,...w.encounters.filter(e=>e!==encounter).map(e=>e.shrine)])assert.equal(G.findPath(W.bindGeometry(s),encounter.shrine,target),null,encounter.id+' arena escape');
+  }
+  s.active=null;s.defeated=w.encounters.map(e=>e.id);
+  for(const q of [...w.waymarks,...w.loot,w.exit])assert.ok(G.findPath(W.bindGeometry(s),w.start,q),w.id+' reachable '+JSON.stringify(q));
+ }
+});
+test('layout saves: legacy journeys migrate patrol anchors without resetting position or progress',()=>{
+ const save=P.freshSave();save.current.inventory.coins=17;
+ for(const s of [save.current,save.checkpoint]){delete s.layoutRevision;for(const e of s.enemies.filter(e=>e.kind==='mob')){const p=W.LEGACY_MOB_ANCHORS[e.id.split('-').at(-1)];Object.assign(e,p,{anchor:{...p}});}}
+ const old=JSON.parse(JSON.stringify(save));const migrated=P.parseSave(JSON.stringify(save));assert.ok(migrated);assert.equal(migrated.current.layoutRevision,W.LAYOUT_REVISION);
+ assert.deepEqual(migrated.current.player,old.current.player);assert.equal(migrated.current.inventory.coins,17);
+ for(const e of migrated.current.enemies.filter(e=>e.kind==='mob')){const before=old.current.enemies.find(a=>a.id===e.id);assert.equal(e.x,before.x);assert.equal(e.y,before.y);assert.deepEqual(e.anchor,S.createJourney().enemies.find(a=>a.id===e.id).anchor);}
+ assert.deepEqual(P.parseSave(JSON.stringify(migrated)),migrated);
+ old.current.enemies.find(e=>e.kind==='mob').anchor.x+=1;assert.equal(P.parseSave(JSON.stringify(old)),null);
+});

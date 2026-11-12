@@ -4,7 +4,7 @@ import { root, campaign, geometry as G, validation as V } from '../tests/helpers
 const { mapQuality } = await import(root+'/node_modules/.cache/snake-tests/puzzle/quality.mjs');
 let changed=0;
 const bank=campaign.CAMPAIGN_VARIANTS.map(vs=>vs.map(original=>{
- const l=JSON.parse(JSON.stringify(original));l.revision=8;
+ const l=JSON.parse(JSON.stringify(original));l.revision=10;
  if(l.number>=25&&!l.tip.includes('Warden:'))l.tip+=' Warden: keluar ke samping jalur saat ia bersiap, lalu manfaatkan jeda pulihnya.';
  if(l.number>=16){
   const geo={level:l,opened:new Set(l.doors.map(d=>d.id)),gateTimers:{},crossed:new Set(),smoke:[],time:0};

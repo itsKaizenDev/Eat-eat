@@ -50,7 +50,7 @@ for (let n = 1; n <= 50; n++) if ((n - 1) % count === shard) for (let j = 0; j <
  const before = Q.mapQuality(l), candidates = Q.entryCandidates(l).filter(p => p.distance > before.separation + 2).slice(0, 5);
  let accepted = null, proof = null, last = null;
  for (const p of before.errors.length ? [...candidates, l.spawn] : [l.spawn, ...candidates]) {
-   const candidate = { ...l, par: 9999, spawn: { x: p.x, y: p.y }, exit: { x: p.x, y: p.y } };
+   const candidate = { ...l, par: 9999, spawn: { x: p.x, y: p.y }, exit: l.flow === 'extraction' ? l.exit : { x: p.x, y: p.y } };
    const quality = Q.mapQuality(candidate); if (quality.errors.length) { last = quality.errors; continue; }
    const errors = [...V.validatePlan(candidate), ...V.validateLevel(candidate)]; if (errors.length) { last = errors; continue; }
    const idle = V.idleSurvival(candidate, 45); if (!idle.ok) { last = idle; continue; }
@@ -65,7 +65,7 @@ for (let n = 1; n <= 50; n++) if ((n - 1) % count === shard) for (let j = 0; j <
      if (attempt % 5 === 1) console.log(`REPAIR ${n}-${j} attempt ${attempt}`);
      const p = entries[(attempt - 1) % Math.max(1, entries.length)] || l.spawn;
      const seed = 200000000 + n * 1000000 + j * 10000 + attempt;
-     const raw = attempt <= 16 ? { ...l, par: 9999, spawn: { x: p.x, y: p.y }, exit: { x: p.x, y: p.y } } : generateRound(missionSpec(n), seed, original.shape, { deferPlacement: true });
+     const raw = attempt <= 16 ? { ...l, par: 9999, spawn: { x: p.x, y: p.y }, exit: l.flow === 'extraction' ? l.exit : { x: p.x, y: p.y } } : generateRound(missionSpec(n), seed, original.shape, { deferPlacement: true });
      if (!raw) continue;
      const candidate = arrangeRound(raw, attempt, null, { keepSecurity: attempt <= 16 && attempt % 2 === 0 });
      if (candidate && n >= 25) candidate.guards.find(g => g.role === 'relic').specialty = 'warden';

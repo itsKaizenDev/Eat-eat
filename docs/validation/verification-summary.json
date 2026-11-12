@@ -1,0 +1,30 @@
+{
+  "date": "2026-11-12",
+  "node": "24.22.1",
+  "build": "passed",
+  "tests": {
+    "total": 481,
+    "passed": 480,
+    "failed": 1,
+    "skipped": 0,
+    "knownBaselineFailure": "tests/delivery-mayhem.test.mjs:15, closed gate, 1 !== 0"
+  },
+  "campaign": {
+    "accepted": 400,
+    "revision": 10,
+    "extraction": 120
+  },
+  "renderSizes": [
+    [
+      390,
+      780
+    ],
+    [
+      1100,
+      700
+    ]
+  ],
+  "interactiveBrowser": "blocked by environment",
+  "githubPushed": false,
+  "deployed": false
+}

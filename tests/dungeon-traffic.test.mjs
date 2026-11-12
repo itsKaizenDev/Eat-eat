@@ -41,7 +41,7 @@ test('traffic: open-room detours go around a stationary sentry',()=>{
 });
 
 test('monster warnings: an able guard sidesteps a visible Shadow lane; a stunned guard remains prey',()=>{
- const make=()=>P.createState(room({guards:[guard(5,4,{range:0,pause:20})],beasts:[{id:'shadow-0',kind:'shadow',...pt(1,4),dx:1,dy:0,length:8,speed:8,windup:1.2}]}));
+ const make=()=>P.createState(room({spawn:pt(10,1),guards:[guard(5,4,{range:5,facing:Math.PI,pause:20})],beasts:[{id:'shadow-0',kind:'shadow',...pt(1,4),dx:1,dy:0,length:8,speed:8,windup:1.2}]}));
  const s=make();for(let i=0;i<150;i++)P.step(s);
  assert.equal(s.guards[0].alive,true);assert.ok(Math.abs(s.guards[0].y-4.5)>.65);
  const b=make();b.guards[0].stunnedUntil=3;for(let i=0;i<150;i++)P.step(b);assert.equal(b.guards[0].alive,false);
