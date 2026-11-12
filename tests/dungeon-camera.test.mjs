@@ -20,7 +20,7 @@ test('camera: zoom and overview change only presentation and preserve a paused m
 });
 
 test('camera: abstract-map edges cannot push the followed player down under the controls',()=>{
- const level=campaign.CAMPAIGN_LEVELS[49], screen={width:780,height:1688,cssWidth:390,cssHeight:844};
+ const level=campaign.DUNGEON_MAPS[49], screen={width:780,height:1688,cssWidth:390,cssHeight:844};
  const ys=[2.5,12.5,22.5].map(y=>{const v=cameraView(level,screen,{x:15.5,y});return (y*v.size+v.oy)/2;});
  assert.ok(ys.every(y=>y>118&&y<696));assert.ok(Math.max(...ys)-Math.min(...ys)<.01);
 });

@@ -7,7 +7,7 @@ import { root } from './helpers/env.mjs';
 import {room,pt} from './puzzle.fixtures.mjs';
 
 test('campaign: 50 stable IDs, 400 reproducible variants, six nonrectangular footprints per level',()=>{
- const levels=campaign.CAMPAIGN_LEVELS.filter(l=>!l.special);assert.equal(campaign.CAMPAIGN_LEVELS.length,51);assert.equal(campaign.CAMPAIGN_LEVELS[50].special,true);assert.equal(levels.length,50);assert.equal(campaign.CAMPAIGN_SPECS.length,45);
+ const levels=campaign.DUNGEON_MAPS;assert.equal(campaign.CAMPAIGN_LEVELS.length,99);assert.equal(campaign.CAMPAIGN_LEVELS[49].special,true);assert.equal(levels.length,50);assert.equal(campaign.CAMPAIGN_SPECS.length,45);
  assert.deepEqual(levels.slice(0,5).map(l=>l.id),['jk-1','jk-2','jk-3','jk-4','jk-5']);assert.deepEqual(levels.slice(5).map(l=>l.id),Array.from({length:45},(_,i)=>`gen-${i+6}`));
  assert.equal(new Set(levels.map(l=>JSON.stringify([l.map,l.spawn,l.keys,l.levers,l.guards]))).size,50);
  for(const [i,l] of levels.entries()){
@@ -24,7 +24,7 @@ for(const c of [...replayCases,...delayedCases])test(c.name,async()=>{
  const result=await campaignJob(c);assert.ok(result?.ok,result?.error||'Missing campaign result');
 });
 test('campaign: mechanics introduced progressively, capped roster and second relic reserved for finale',()=>{
- const a=campaign.CAMPAIGN_LEVELS;assert.equal(a[0].guards.length,1);assert.equal(a[1].guards.length,1);assert.equal(a[3].doors.length,1);assert.equal(a[4].gadgets.stone,1);assert.ok(a[15].levers.length);assert.ok(a[19].plates.length);assert.ok(a[25].torches.length);assert.ok(a[9].crystals.length);assert.ok(a[39].portals.length);assert.equal(a[49].artifacts.length,2);assert.equal(a[49].guards.length,6);
+ const a=campaign.DUNGEON_MAPS;assert.equal(a[0].guards.length,1);assert.equal(a[1].guards.length,1);assert.equal(a[3].doors.length,1);assert.equal(a[4].gadgets.stone,1);assert.ok(a[15].levers.length);assert.ok(a[19].plates.length);assert.ok(a[25].torches.length);assert.ok(a[9].crystals.length);assert.ok(a[39].portals.length);assert.equal(a[49].artifacts.length,2);assert.equal(a[49].guards.length,6);
 });
 test('progress: historical clears retain unlocks and steps, new times are isolated',()=>{
  const p={v:1,puzzle:{levels:Object.fromEntries(campaign.CAMPAIGN_LEVELS.slice(0,37).map(l=>[l.id,{best:25,revision:4,coins:2}]))},otherMode:{achievement:'keep'}};

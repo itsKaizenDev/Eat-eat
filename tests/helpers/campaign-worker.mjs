@@ -6,7 +6,7 @@ const campaign = await load('puzzle/campaign'), V = await load('puzzle/validatio
 parentPort.on('message', task => {
   try {
     if (task.delayed) {
-      const level = campaign.CAMPAIGN_LEVELS[task.number - 1];
+      const level = campaign.DUNGEON_MAPS[task.number - 1];
       const r = V.verifyMission(level, { wait: 3, bonus: task.number < 16 });
       assert.ok(r.ok, level.variantId + ' ' + JSON.stringify({ ...r, trace: undefined }));
     } else {

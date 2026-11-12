@@ -76,5 +76,5 @@ test('real-time dungeon: bantuan membekukan waktu dan menghapus arah tertahan',(
  w.eng.releasePause('help');w.eng.resumeRun();const x=w.x.world.player.x;w.advance(1000);assert.equal(w.x.world.player.x,x);w.eng.destroy();
 });
 test('campaign revision 10 keeps the small snake explorer and expands optional Apple Coin rewards',()=>{
- for(const l of campaign.CAMPAIGN_LEVELS.filter(l=>!l.special)){const s=P.createState(l);assert.ok(s.player);assert.equal(s.snake,undefined);assert.equal(l.revision,10);assert.equal(l.loot.length,l.number>=35?5:l.number>=10?4:3);assert.ok(l.loot.every(o=>o.value===5));assert.ok(l.guards.every(g=>g.route.length>=2||g.watch));assert.ok(l.artifacts.length>=1);}
+ for(const l of campaign.DUNGEON_MAPS){const s=P.createState(l);assert.ok(s.player);assert.equal(s.snake,undefined);assert.equal(l.revision,10);assert.equal(l.loot.length,l.number>=35?5:l.number>=10?4:3);assert.ok(l.loot.every(o=>o.value===5));assert.ok(l.guards.every(g=>g.route.length>=2||g.watch));assert.ok(l.artifacts.length>=1);}
 });

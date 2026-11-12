@@ -1,4 +1,5 @@
 'use client';
+import InfernoComic from './InfernoComic';
 import { useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import { ICONS } from '@/lib/icons';
@@ -139,6 +140,10 @@ export default function Overlay({ engineReady, engineError, recordSave, keyboard
   }
 
   if (!visible) return null;
+  if (phase === 'cutscene') {
+    return <InfernoComic title={title} sub={sub} btnText={btnText} onPlay={onPlay} onMenu={onMenu}
+      onRetrySave={onRetrySave} savePending={puzzleMenu?.savePending} />;
+  }
 
   const arcadeCount = arcadeModes().filter(m => !touchOnly || m.touch).length;
   const lv = puzzleMenu && puzzleMenu.levels && puzzleMenu.levels.length ? puzzleMenu : null;
@@ -188,6 +193,13 @@ export default function Overlay({ engineReady, engineError, recordSave, keyboard
       {isPuzzleMode && lv && (
         <div className="start-settings">
           <div className="start-menu-heading"><span>Ruang</span><span>{lv.levels.filter(l => l.cleared).length}/{lv.levels.length} selesai</span></div>
+          {lv.levels.some(level => level.chapter === 'inferno') && (
+            <div className="chapter-tabs" role="group" aria-label="Pilih bab Dungeon">
+              <button type="button" aria-pressed={lvPage < 5} onClick={() => setLvPage(selIdx < 50 ? Math.floor(selIdx / LEVEL_PAGE) : 0)}>Dungeon · 1–50</button>
+              <button type="button" aria-pressed={lvPage >= 5} onClick={() => setLvPage(selIdx >= 50 ? Math.floor(selIdx / LEVEL_PAGE) : 5)}>Neraka · 51–99</button>
+            </div>
+          )}
+          {lvPage >= 5 && !lv.levels[50]?.unlocked && <p className="chapter-locked">Kalahkan Penjaga Relik Agung di level 50 untuk membuka Neraka.</p>}
           {lv.levels.length > LEVEL_PAGE && (
             <div className="level-pager">
               <button onClick={() => setLvPage(p => Math.max(0, p - 1))} disabled={lvPage === 0} aria-label="Halaman ruang sebelumnya"><ICONS.left size={14} /></button>
@@ -205,7 +217,7 @@ export default function Overlay({ engineReady, engineError, recordSave, keyboard
                 onClick={() => onSelectLevel && onSelectLevel(i)}
                 className="level-btn"
               >
-                <b>{i + 1}</b>
+                <b>{i + 1}{l.boss && <ICONS.boss size={13} aria-label="Boss" />}</b>
                 <small>{!l.unlocked ? 'Terkunci' : l.cleared ? (l.stars ? '★'.repeat(l.stars) + '☆'.repeat(3 - l.stars) : 'Versi lama') : 'Baru'}</small>
               </button>
             ))}

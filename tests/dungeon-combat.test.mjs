@@ -72,13 +72,13 @@ test('CCTV: overlapping cameras count one network alarm and reports eventually r
  P.step(s);assert.equal(s.alerts,1);s.player={...s.player,...pt(1,1)};P.action(s,'hide');advance(s,25);assert.equal(s.guards[0].cameraReport,false);assert.equal(s.guards[0].state,'PATROL');
 });
 
-// ---- Level 51: Penjaga Relik Agung (Adventure-style HP, phases, telegraphed attacks, big weak window). ----
+// ---- Level 50: Penjaga Relik Agung (Adventure-style HP, phases, telegraphed attacks, big weak window). ----
 import {campaign,threats} from './helpers/env.mjs';
 const {BOSS_RULES,bossHp}=threats;
-const bossLevel=()=>campaign.CAMPAIGN_LEVELS[50];
+const bossLevel=()=>campaign.CAMPAIGN_LEVELS[49];
 import { playBoss } from './helpers/dungeon-boss.mjs';
-test('level 51 is the special boss arena after level 50, with five phases and a 50-coin relic',()=>{
-  const l=bossLevel();assert.equal(l.number,51);assert.equal(l.special,true);assert.equal(l.guards.length,0);assert.equal(BOSS_RULES.phases.length,5);
+test('level 50 is the special boss arena after level 49, with five phases and a 50-coin relic',()=>{
+  const l=bossLevel();assert.equal(l.number,50);assert.equal(l.special,true);assert.equal(l.guards.length,0);assert.equal(BOSS_RULES.phases.length,5);
   assert.equal(bossHp(),BOSS_RULES.phases.reduce((n,p)=>n+p.hp,0));assert.equal(l.artifacts.length,1);assert.equal(l.artifacts[0].value,50);assert.equal(l.artifacts[0].locked,'boss');
   assert.equal(l.boss.weak.length,3);assert.ok(BOSS_RULES.weakRadius>=1.5,'weak window must be big');
 });

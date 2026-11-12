@@ -9,7 +9,8 @@
     "lint": "next lint",
     "test": "node --test --test-concurrency=1 \"tests/**/*.test.mjs\"",
     "build:campaign": "node scripts/quality-campaign.mjs --workers=4 --fast && node scripts/reward-campaign.mjs && node scripts/redesign-campaign.mjs",
-    "build:audio": "node scripts/build-audio.mjs"
+    "build:audio": "node scripts/build-audio.mjs",
+    "build:inferno": "node scripts/build-inferno.mjs"
   },
   "dependencies": {
     "gsap": "^3.12.5",

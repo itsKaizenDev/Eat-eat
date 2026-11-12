@@ -13,24 +13,46 @@ const temp=fs.mkdtempSync(path.join(os.tmpdir(),'k-snake-audio-'));
 function ffmpeg(args){const r=spawnSync('ffmpeg',['-v','error','-y',...args],{encoding:'utf8'});if(r.error)throw r.error;if(r.status!==0)throw Error(r.stderr||'FFmpeg failed');}
 function wav(samples){const b=Buffer.alloc(44+samples.length*2);b.write('RIFF');b.writeUInt32LE(b.length-8,4);b.write('WAVEfmt ',8);b.writeUInt32LE(16,16);b.writeUInt16LE(1,20);b.writeUInt16LE(1,22);b.writeUInt32LE(rate,24);b.writeUInt32LE(rate*2,28);b.writeUInt16LE(2,32);b.writeUInt16LE(16,34);b.write('data',36);b.writeUInt32LE(samples.length*2,40);for(let i=0;i<samples.length;i++)b.writeInt16LE(Math.round(Math.max(-1,Math.min(1,samples[i]))*32767),44+i*2);return b;}
 const variants=new Set(['dungeon','dungeonBoss','expeditionBoss','expeditionSpore','expeditionVine']);
-const catalog={};let bytes=0;
+const infernoOnly = process.argv.includes('--inferno');
+const infernoKeys = new Set(['inferno', 'infernoBoss']);
+const infernoCues = new Set(['descent', 'infernoRoar', 'infernoWarning', 'infernoStrike', 'infernoPhase', 'echoWarning', 'echoStrike']);
+const previous = infernoOnly ? await loadPure('lib/audio/catalog.js') : {};
+const catalog = { ...previous.MUSIC };
+let bytes=0;
+function masterInferno(score, intensity) {
+ const mix = Float32Array.from(score.base, (value, i) => value + score.danger[i] * intensity);
+ const input = path.join(temp, 'master-reference.wav');
+ fs.writeFileSync(input, wav(mix));
+ const result = spawnSync('ffmpeg', ['-hide_banner', '-i', input, '-af',
+  'loudnorm=I=-17:TP=-1.5:LRA=9:print_format=json', '-f', 'null', '-'], { encoding: 'utf8' });
+ const measured = result.stderr.match(/"input_i"\s*:\s*"([^"]+)"/);
+ if (result.status !== 0 || !measured || !Number.isFinite(Number(measured[1]))) throw Error('Cannot measure Inferno loudness');
+ const sourceLufs = Number(measured[1]), targetLufs = -17, ceiling = .84;
+ let peak = 0;
+ for (let i = 0; i < score.base.length; i++) peak = Math.max(peak, Math.abs(score.base[i]) + Math.abs(score.danger[i]));
+ const gain = Math.min(10 ** ((targetLufs - sourceLufs) / 20), ceiling / peak);
+ for (const stem of [score.base, score.danger]) for (let i = 0; i < stem.length; i++) stem[i] *= gain;
+ return { sourceLufs, targetLufs, ceiling, appliedGainDb: Number((20 * Math.log10(gain)).toFixed(2)) };
+}
 try {
- for(const key of Object.keys(SCORES))for(let variation=0;variation<(variants.has(key)?3:1);variation++){
+ for(const key of Object.keys(SCORES).filter(key => !infernoOnly || infernoKeys.has(key)))for(let variation=0;variation<(variants.has(key)?3:1);variation++){
   const score=composeScore(key,rate,variation),name=key.replace(/([a-z])([A-Z])/g,'$1-$2').toLowerCase()+(variation?'-v'+(variation+1):'');
+  const intensity = key.toLowerCase().includes('boss') || ['expeditionSpore','expeditionVine','adventureDanger'].includes(key) ? .8 : .35;
+  const mastering = infernoKeys.has(key) ? masterInferno(score, intensity) : null;
   const files={};
   for(const stem of ['base','danger']){
    const input=path.join(temp,'input.wav'),out=path.join(output,name+'.'+stem+'.flac');fs.writeFileSync(input,wav(score[stem]));
    ffmpeg(['-i',input,'-map_metadata','-1','-c:a','flac','-sample_fmt','s16','-compression_level','8',out]);files[stem]='/sounds/music/'+path.basename(out);bytes+=fs.statSync(out).size;
   }
-  const mix=new Float32Array(score.base.length),intensity=key.toLowerCase().includes('boss')||['expeditionSpore','expeditionVine','adventureDanger'].includes(key)?.8:.35;
+  const mix = new Float32Array(score.base.length);
   for(let i=0;i<mix.length;i++)mix[i]=score.base[i]+score.danger[i]*intensity;
   const input=path.join(temp,'mix.wav'),preview=path.join(output,name+'.mp3');fs.writeFileSync(input,wav(mix));
   ffmpeg(['-i',input,'-map_metadata','-1','-c:a','libmp3lame','-b:a','80k','-metadata','artist=K-Snake','-metadata','title='+name,preview]);bytes+=fs.statSync(preview).size;
-  catalog[key+':'+variation]={key,variation,...files,preview:'/sounds/music/'+path.basename(preview),sampleRate:rate,frames:score.base.length,duration:score.duration,loop:SCORES[key].loop!==false};
+  catalog[key+':'+variation]={key,variation,...files,preview:'/sounds/music/'+path.basename(preview),sampleRate:rate,frames:score.base.length,duration:score.duration,loop:SCORES[key].loop!==false,...(mastering ? { mastering } : {})};
   console.log('MUSIC',name,Math.round(score.duration*100)/100+'s');
  }
- const cueFiles={};
- for(const [name,notes] of Object.entries(CUES)){
+ const cueFiles = { ...previous.EFFECT_FILES };
+ for(const [name,notes] of Object.entries(CUES).filter(([name]) => !infernoOnly || infernoCues.has(name))){
   const duration=Math.max(...notes.map(([,delay,dur])=>delay+dur))+.025,samples=new Float32Array(Math.ceil(duration*rate));
   for(const [freq,delay,dur,type,volume,glide] of notes){
    const start=Math.round(delay*rate),count=Math.round(dur*rate),k=glide?Math.log(glide/freq)/dur:0;

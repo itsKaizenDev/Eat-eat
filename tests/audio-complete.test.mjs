@@ -64,8 +64,13 @@ test('audio: original SFX unlock into one context, use synth while loading, and 
  const ac=fakeAudio(),resolvers=[];
  const d=createAudioDirector({contextFactory:()=>ac,compose:smallScore,fetchAudio:()=>new Promise(resolve=>resolvers.push(resolve))});
  d.sample('chomp');assert.equal(ac.oscillators.length,0);d.unlock();await flush();assert.equal(resolvers.length,4);
- d.sample('chomp');assert.equal(ac.oscillators.length,1);for(let i=0;i<12;i++){for(const resolve of resolvers.splice(0))resolve({ok:true,arrayBuffer:async()=>new ArrayBuffer(1)});await flush();}
- assert.equal(d.inspect().assets,5+Object.keys(EFFECT_FILES).length);assert.equal(ac.sources.filter(s=>!s.loop).length,0);
+ const expectedAssets = 5 + Object.keys(EFFECT_FILES).length;
+ d.sample('chomp');assert.equal(ac.oscillators.length,1);
+ for(let i=0;i<expectedAssets&&resolvers.length;i++){
+  for(const resolve of resolvers.splice(0))resolve({ok:true,arrayBuffer:async()=>new ArrayBuffer(1)});
+  await flush();
+ }
+ assert.equal(d.inspect().assets,expectedAssets);assert.equal(ac.sources.filter(s=>!s.loop).length,0);
  ac.currentTime+=1;d.sample('chomp');assert.equal(ac.sources.filter(s=>!s.loop).length,1);const oscillators=ac.oscillators.length;d.event('portal');assert.equal(ac.sources.filter(s=>!s.loop).length,2);assert.equal(ac.oscillators.length,oscillators);
  d.setScene({paused:true});ac.currentTime+=1;d.sample('death');assert.equal(ac.sources.filter(s=>!s.loop).length,2);d.destroy();assert.equal(ac.closed,1);
 });

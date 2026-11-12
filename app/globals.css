@@ -508,3 +508,27 @@ body[data-playing=true] { overflow:hidden; overscroll-behavior:none; }
  .expedition-controls { grid-template-columns:repeat(3,48px); }
 }
 @media (max-height:550px) and (min-width:600px) { .expedition-readout { width:200px; } }
+
+.chapter-tabs { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin:7px 0 9px; }
+.chapter-tabs button { min-height:40px; padding:6px 8px; border:1px solid #9caf95; border-radius:8px; font-size:12px; font-weight:800; color:#28402f; background:#e5eadb; }
+.chapter-tabs button[aria-pressed=true] { color:#fff6e9; background:#304e3a; border-color:#304e3a; }
+.chapter-tabs button:nth-child(2)[aria-pressed=true] { background:#823a2e; border-color:#823a2e; }
+.chapter-locked { margin:0 0 8px; color:#703426; font-size:12px; line-height:1.4; }
+.level-btn b { display:inline-flex; align-items:center; gap:4px; }
+
+.inferno-comic { position:fixed; inset:0; z-index:45; display:grid; overflow:auto; overscroll-behavior:contain; padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left)); background:#100a0b; color:#fbe8d5; touch-action:pan-y; }
+.inferno-comic-card { display:grid; grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr); align-items:center; gap:clamp(16px,4vw,48px); width:min(100%,850px); margin:auto; }
+.inferno-comic img { display:block; width:auto; max-width:100%; height:auto; max-height:calc(100dvh - 48px); object-fit:contain; margin:auto; border-radius:8px; border:1px solid #af6c4c70; }
+.inferno-comic-copy { display:grid; gap:10px; }
+.inferno-comic-copy h2 { margin:0; color:#fff0dc; font-size:clamp(27px,5vw,51px); line-height:1.03; letter-spacing:-.035em; }
+.inferno-comic-copy p { margin:0; color:#e4beaa; font-size:clamp(13px,2vw,17px); line-height:1.48; }
+.inferno-comic-copy .inferno-chapter-name { color:#ffac83; font-size:12px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
+.inferno-comic-actions { display:grid; gap:8px; }
+.inferno-comic-actions .start-play { margin-top:4px; border-color:#c76844; background:#a74328; box-shadow:0 3px #572018; color:#fff5e9; }
+.inferno-comic-actions .secondary-button { color:#f3d4c2; border-color:#805343; background:#291719; }
+.inferno-comic-actions button:focus-visible, .chapter-tabs button:focus-visible { outline:2px solid #f8b38c; outline-offset:3px; }
+@media (max-width:620px) {
+  .inferno-comic-card { grid-template-columns:1fr; gap:14px; max-width:430px; }
+  .inferno-comic img { max-height:min(57dvh,590px); }
+  .inferno-comic-copy { gap:7px; }
+}

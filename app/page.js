@@ -44,6 +44,7 @@ export default function Page() {
   const [hud, setHud] = useState({ score: 0, best: 0, effects: [], running: false, paused: false });
   const [overlay, setOverlay] = useState({ visible: true, phase: 'start', mood: 'idle', title: 'K-Snake', sub: 'Pilih mode, lalu tekan Main', btnText: 'PLAY' });
   const menuOpen = overlay.visible && overlay.phase === 'start';
+  const comicOpen = overlay.visible && overlay.phase === 'cutscene';
   const upgrade = !!hud.roguelite?.offer?.length && (!hud.roguelite.expedition || hud.roguelite.choosingUpgrade);
   const active = !menuOpen && (hud.running || hud.paused || upgrade);
   const externalModal = helpOpen || !!panel || upgrade;
@@ -88,9 +89,9 @@ export default function Page() {
     else gameRef.current?.releasePause('help');
   }, [helpOpen, panel, layoutEdit]);
   useEffect(() => {
-    if (active) document.body.dataset.playing = 'true'; else delete document.body.dataset.playing;
+    if (active || comicOpen) document.body.dataset.playing = 'true'; else delete document.body.dataset.playing;
     return () => { delete document.body.dataset.playing; };
-  }, [active]);
+  }, [active, comicOpen]);
   useEffect(() => {
     if (!controls) { setHint(false); return; }
     try { setHint(localStorage.getItem(`snake-controls-hint-${kind}`) !== '1'); } catch { setHint(true); }
@@ -156,7 +157,7 @@ export default function Page() {
     </>
     <main data-mode={mode} inert={externalModal ? '' : undefined} aria-hidden={externalModal || undefined} className={`stage ${menuOpen ? 'focus-stage' : 'playing-stage'} ${active ? 'game-active' : ''}`}>
       <GameViewport active={active} sleeping={menuOpen} mode={mode} touch={touch} lefty={lefty} world={<GameCanvas ref={gameRef} mode={mode} onUpdate={onUpdate} speedPref={speed} taDuration={taSecs} audioPrefs={audioPrefs} />}>
-        {!menuOpen && <Hud mode={mode} hud={hud} onInfo={() => openPanel('info')} canPause={controls} onPause={() => gameRef.current?.pauseRun('user')} onCamera={v => gameRef.current?.setCamera(v)} onRetry={()=>gameRef.current?.retrySave()} />}
+        {!menuOpen && !comicOpen && <Hud mode={mode} hud={hud} onInfo={() => openPanel('info')} canPause={controls} onPause={() => gameRef.current?.pauseRun('user')} onCamera={v => gameRef.current?.setCamera(v)} onRetry={()=>gameRef.current?.retrySave()} />}
         {(controls || layoutEdit) && touch && getMode(mode)?.touch && <div className={`joystick-anchor ${layoutEdit ? 'editing' : ''}`} {...dragProps('pad')}><DPad key={`${ctl.floating}-${ctl.smooth}`} analog={['puzzle','roguelite'].includes(kind)} smooth={['puzzle','roguelite'].includes(kind) && ctl.smooth} dead={ctl.dead} floating={ctl.floating && !layoutEdit} onMove={(x, y) => gameRef.current?.setHeldDir(x, y)} onRelease={() => gameRef.current?.releaseHeldDir()} /></div>}
         {(controls || layoutEdit) && kind === 'puzzle' && <DungeonControls editing={layoutEdit} dragProps={dragProps('btn')} data={hud.puzzle} onAction={type => gameRef.current?.action(type)} onGait={g => gameRef.current?.setGait(g)} />}
         {(controls || layoutEdit) && kind === 'roguelite' && <ExpeditionControls editing={layoutEdit} dragProps={dragProps('btn')} data={hud.roguelite} onAction={type => gameRef.current?.action(type)} />}

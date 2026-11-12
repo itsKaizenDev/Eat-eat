@@ -6,14 +6,14 @@ import {root} from './helpers/env.mjs';
 const load=file=>import(pathToFileURL(root+'/node_modules/.cache/snake-tests/'+file+'.mjs'));
 const {MUSIC,EFFECT_FILES}=await load('audio/catalog'),{CUES}=await load('audio/cues'),{musicTrack,loadMusicFiles}=await load('audio/loader'),{createAudioDirector}=await load('audio/director');
 function streamInfo(url){const b=fs.readFileSync(root+'/public'+url);assert.equal(b.toString('ascii',0,4),'fLaC');assert.equal(b[4]&127,0);assert.equal(b.readUIntBE(5,3),34);const n=b.readBigUInt64BE(18);return {rate:Number(n>>44n),channels:Number((n>>41n)&7n)+1,bits:Number((n>>36n)&31n)+1,frames:Number(n&0xfffffffffn)};}
-test('audio files: 25 themes, 35 arrangements and 70 lossless stems have exact matching frame counts',()=>{
- assert.equal(new Set(Object.values(MUSIC).map(t=>t.key)).size,25);assert.equal(Object.keys(MUSIC).length,35);
+test('audio files: 27 themes, 37 arrangements and 74 lossless stems have exact matching frame counts',()=>{
+ assert.equal(new Set(Object.values(MUSIC).map(t=>t.key)).size,27);assert.equal(Object.keys(MUSIC).length,37);
  const paths=new Set();for(const t of Object.values(MUSIC)){
   const base=streamInfo(t.base),danger=streamInfo(t.danger);assert.deepEqual(base,danger,t.key);assert.deepEqual(base,{rate:22050,channels:1,bits:16,frames:t.frames});
   assert.equal(t.duration,t.frames/t.sampleRate);assert.ok(fs.statSync(root+'/public'+t.preview).size>10000);
   assert.ok(fs.readFileSync(root+'/public'+t.preview).subarray(0,3).equals(Buffer.from('ID3')));
   paths.add(t.base);paths.add(t.danger);assert.ok(t.duration>(t.loop===false?5:25)&&t.duration<60);
- }assert.equal(paths.size,70);assert.equal(musicTrack('dungeon',2).variation,2);assert.equal(musicTrack('classic',99).variation,0);
+ }assert.equal(paths.size,74);assert.equal(musicTrack('dungeon',2).variation,2);assert.equal(musicTrack('classic',99).variation,0);
 });
 test('audio files: every new sound effect has a non-silent PCM WAV file',()=>{
  assert.deepEqual(Object.keys(EFFECT_FILES).sort(),Object.keys(CUES).sort());
